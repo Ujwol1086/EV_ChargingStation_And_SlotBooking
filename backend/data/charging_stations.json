@@ -1,0 +1,201 @@
+{
+  "stations": [
+    {
+      "id": "cs001",
+      "name": "EV Plaza Kathmandu",
+      "location": {
+        "address": "New Baneshwor, Kathmandu",
+        "coordinates": [27.694073, 85.342316]
+      },
+      "chargers": [
+        {
+          "type": "CCS",
+          "power": "50kW",
+          "available": true
+        },
+        {
+          "type": "CHAdeMO",
+          "power": "50kW",
+          "available": true
+        },
+        {
+          "type": "Type 2",
+          "power": "22kW",
+          "available": true
+        }
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 15 per kWh",
+      "photos": ["ev_plaza1.jpg", "ev_plaza2.jpg"]
+    },
+    {
+      "id": "cs002",
+      "name": "Green Station Pokhara",
+      "location": {
+        "address": "Lakeside, Pokhara",
+        "coordinates": [28.209538, 83.958588]
+      },
+      "chargers": [
+        {
+          "type": "CCS",
+          "power": "75kW",
+          "available": true
+        },
+        {
+          "type": "Type 2",
+          "power": "11kW",
+          "available": false
+        }
+      ],
+      "amenities": ["Restroom", "Restaurant", "WiFi", "Shopping"],
+      "operatingHours": "6:00 AM - 11:00 PM",
+      "pricing": "NPR 18 per kWh",
+      "photos": ["green_station1.jpg"]
+    },
+    {
+      "id": "cs003",
+      "name": "NEA Charging Hub",
+      "location": {
+        "address": "Teku, Kathmandu",
+        "coordinates": [27.698629, 85.308258]
+      },
+      "chargers": [
+        {
+          "type": "CHAdeMO",
+          "power": "50kW",
+          "available": true
+        },
+        {
+          "type": "Type 2",
+          "power": "22kW",
+          "available": true
+        }
+      ],
+      "amenities": ["Restroom"],
+      "operatingHours": "7:00 AM - 9:00 PM",
+      "pricing": "NPR 12 per kWh",
+      "photos": ["nea_hub1.jpg"]
+    },
+    {
+      "id": "cs004",
+      "name": "Sunway EV Center",
+      "location": {
+        "address": "Nagarkot Highway, Bhaktapur",
+        "coordinates": [27.671955, 85.4278]
+      },
+      "chargers": [
+        {
+          "type": "CCS",
+          "power": "100kW",
+          "available": true
+        },
+        {
+          "type": "CHAdeMO",
+          "power": "100kW",
+          "available": true
+        },
+        {
+          "type": "Type 2",
+          "power": "22kW",
+          "available": true
+        }
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Store", "Service Center"],
+      "operatingHours": "6:00 AM - 10:00 PM",
+      "pricing": "NPR 20 per kWh",
+      "photos": ["sunway_ev1.jpg", "sunway_ev2.jpg"]
+    },
+    {
+      "id": "cs005",
+      "name": "Highway Charger Mugling",
+      "location": {
+        "address": "Mugling, Chitwan",
+        "coordinates": [27.851717, 84.551743]
+      },
+      "chargers": [
+        {
+          "type": "CCS",
+          "power": "150kW",
+          "available": true
+        },
+        {
+          "type": "CHAdeMO",
+          "power": "50kW",
+          "available": true
+        }
+      ],
+      "amenities": ["Restroom", "Restaurant", "Convenience Store"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 22 per kWh",
+      "photos": ["highway_charger1.jpg"]
+    },
+    {
+      "id": "cs006",
+      "name": "Durbarmarg Charging Point",
+      "location": {
+        "address": "Durbarmarg, Kathmandu",
+        "coordinates": [27.712021, 85.318838]
+      },
+      "chargers": [
+        {
+          "type": "Type 2",
+          "power": "22kW",
+          "available": true
+        }
+      ],
+      "amenities": ["Cafe", "WiFi", "Shopping"],
+      "operatingHours": "10:00 AM - 8:00 PM",
+      "pricing": "NPR 15 per kWh",
+      "photos": ["durbarmarg1.jpg"]
+    },
+    {
+      "id": "cs007",
+      "name": "Lumbini EV Station",
+      "location": {
+        "address": "Lumbini, Rupandehi",
+        "coordinates": [27.484267, 83.276413]
+      },
+      "chargers": [
+        {
+          "type": "CCS",
+          "power": "50kW",
+          "available": true
+        },
+        {
+          "type": "Type 2",
+          "power": "11kW",
+          "available": true
+        }
+      ],
+      "amenities": ["Restroom", "Restaurant", "Gift Shop"],
+      "operatingHours": "8:00 AM - 6:00 PM",
+      "pricing": "NPR 16 per kWh",
+      "photos": ["lumbini_ev1.jpg"]
+    },
+    {
+      "id": "cs008",
+      "name": "Boudha Fast Charger",
+      "location": {
+        "address": "Boudhanath, Kathmandu",
+        "coordinates": [27.721188, 85.361977]
+      },
+      "chargers": [
+        {
+          "type": "CCS",
+          "power": "75kW",
+          "available": true
+        },
+        {
+          "type": "CHAdeMO",
+          "power": "50kW",
+          "available": false
+        }
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Tourist Information"],
+      "operatingHours": "7:00 AM - 7:00 PM",
+      "pricing": "NPR 18 per kWh",
+      "photos": ["boudha_charger1.jpg"]
+    }
+  ]
+}

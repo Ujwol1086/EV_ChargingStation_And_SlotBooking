@@ -3,6 +3,7 @@ from flask_cors import CORS
 from config.database import init_db, mongo
 from routes.auth_routes import auth_bp
 from routes.db_test_routes import db_test_bp
+from routes.stations_routes import stations_bp
 import logging
 
 # Configure logging
@@ -13,8 +14,10 @@ def create_app():
     """Create and configure Flask application"""
     app = Flask(__name__)
     
-    # Initialize CORS
-    CORS(app)
+    # Initialize CORS with more specific settings
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], 
+                                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                                "allow_headers": ["Content-Type", "Authorization"]}})
     
     # Initialize database
     try:
@@ -37,6 +40,7 @@ def create_app():
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(db_test_bp, url_prefix='/api/db')
+    app.register_blueprint(stations_bp, url_prefix='/api/stations')
     
     # Test route
     @app.route("/")

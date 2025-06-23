@@ -17,29 +17,38 @@ export default function Home() {
             in advance.
           </p>
 
-          {!isAuthenticated ? (
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
+            <Link
+              to="/map"
+              className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:bg-green-700 transition"
+            >
+              View Charging Stations Map
+            </Link>
+
+            {!isAuthenticated ? (
+              <>
+                <Link
+                  to="/login"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:bg-blue-700 transition"
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-white text-blue-600 border border-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition"
+                >
+                  Create Account
+                </Link>
+              </>
+            ) : (
               <Link
-                to="/login"
+                to="/dashboard"
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:bg-blue-700 transition"
               >
-                Sign In
+                Go to Dashboard
               </Link>
-              <Link
-                to="/register"
-                className="bg-white text-blue-600 border border-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-gray-50 transition"
-              >
-                Create Account
-              </Link>
-            </div>
-          ) : (
-            <Link
-              to="/dashboard"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium shadow-md hover:bg-blue-700 transition"
-            >
-              Go to Dashboard
-            </Link>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -51,6 +60,12 @@ export default function Home() {
               Locate EV charging stations across Nepal with our interactive map
               and search features.
             </p>
+            <Link
+              to="/map"
+              className="mt-4 inline-block text-blue-600 hover:underline"
+            >
+              View Map →
+            </Link>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-md">

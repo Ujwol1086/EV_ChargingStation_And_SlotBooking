@@ -15,6 +15,9 @@ export default function Navbar() {
           <Link to="/" className="text-white hover:text-blue-200">
             Home
           </Link>
+          <Link to="/map" className="text-white hover:text-blue-200">
+            Charging Stations
+          </Link>
 
           {isAuthenticated ? (
             <>
