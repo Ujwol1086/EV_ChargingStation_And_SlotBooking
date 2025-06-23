@@ -1,30 +1,38 @@
-import React, { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Navbar from "./components/Navbar";
+
+// Pages
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Dashboard from "./pages/Dashboard";
 
 const App = () => {
-  const [data, setData] = useState([{}]);
-
-  useEffect(() => {
-    fetch("/members")
-      .then((res) => res.json())
-      .then((data) => {
-        setData(data);
-        console.log(data);
-      });
-  }, []);
-
   return (
-    <div>
-      <h1>Welcome to the React App</h1>
-      {typeof data.members === "undefined" ? (
-        <p>Loading...</p>
-      ) : (
-        data.members.map((member, i) => (
-          <p key={i} className="text-lg underline text-blue-500">
-            {member}
-          </p>
-        ))
-      )}
-    </div>
+    <AuthProvider>
+      <Router>
+        <div className="min-h-screen flex flex-col">
+          <Navbar />
+          <main className="flex-grow">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </main>
+        </div>
+      </Router>
+    </AuthProvider>
   );
 };
 
