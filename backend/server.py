@@ -4,6 +4,7 @@ from config.database import init_db, mongo
 from routes.auth_routes import auth_bp
 from routes.db_test_routes import db_test_bp
 from routes.stations_routes import stations_bp
+from routes.recommendation_routes import recommendation_bp
 import logging
 
 # Configure logging
@@ -41,6 +42,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(db_test_bp, url_prefix='/api/db')
     app.register_blueprint(stations_bp, url_prefix='/api/stations')
+    app.register_blueprint(recommendation_bp, url_prefix='/api/recommendations')
     
     # Test route
     @app.route("/")
@@ -49,6 +51,8 @@ def create_app():
     
     return app
 
+# Create app instance at module level
+app = create_app()
+
 if __name__ == "__main__":
-    app = create_app()
     app.run(debug=True)

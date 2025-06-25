@@ -9,6 +9,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Map from "./pages/Map";
+import Recommendations from "./pages/Recommendations";
 
 const App = () => {
   return (
@@ -22,6 +23,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/map" element={<Map />} />
+              <Route path="/recommendations" element={<Recommendations />} />
               <Route
                 path="/dashboard"
                 element={

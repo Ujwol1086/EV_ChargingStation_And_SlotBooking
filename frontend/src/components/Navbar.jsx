@@ -18,6 +18,9 @@ export default function Navbar() {
           <Link to="/map" className="text-white hover:text-blue-200">
             Charging Stations
           </Link>
+          <Link to="/recommendations" className="text-white hover:text-blue-200">
+            Smart Recommendations
+          </Link>
 
           {isAuthenticated ? (
             <>
