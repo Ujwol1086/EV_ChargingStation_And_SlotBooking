@@ -60,7 +60,7 @@ const MapController = ({ userLocation, recommendations, routeData }) => {
       // Create bounds that include user location and all recommended stations
       const allPoints = [
         userLocation,
-        ...recommendations.map(rec => rec.coordinates)
+        ...recommendations.map(rec => rec.location)
       ];
       
       const bounds = L.latLngBounds(allPoints);
@@ -150,7 +150,7 @@ const Recommendations = () => {
     // Focus map on selected station
     if (mapRef.current) {
       const map = mapRef.current;
-      map.setView(station.location.coordinates, 15);
+      map.setView(station.location, 15);
     }
   };
 
@@ -166,7 +166,7 @@ const Recommendations = () => {
     try {
       const response = await axios.post('/recommendations/route-to-station', {
         user_location: userLocation,
-        station_location: station.location.coordinates,
+        station_location: station.location,
         booking_id: findBookingForStation(station.id)?.booking_id
       });
 
@@ -386,14 +386,14 @@ const Recommendations = () => {
 
                   {/* Recommended Station Markers */}
                   {recommendations?.recommendations?.map((rec, index) => {
-                    const station = rec.station;
+                    const station = rec; // rec itself contains the station data, not rec.station
                     const icon = index === 0 ? topRecommendationIcon : recommendedStationIcon;
                     const hasBooking = findBookingForStation(station.id);
                     
                     return (
                       <Marker
                         key={station.id}
-                        position={station.location.coordinates}
+                        position={station.location}
                         icon={icon}
                       >
                         <Popup>
@@ -406,12 +406,12 @@ const Recommendations = () => {
                             </div>
                             
                             <div className="space-y-1 text-sm">
-                              <div>📍 {station.location.address}</div>
+                              <div>📍 {station.location?.address || 'Location data unavailable'}</div>
                               <div>🚗 {rec.distance} km away</div>
                               <div>⭐ Score: {rec.score}</div>
-                              <div>🔌 {Math.round(rec.availability_score * 100)}% available</div>
-                              <div>💰 {station.pricing}</div>
-                              <div>🕒 {station.operatingHours}</div>
+                              <div>🔌 {station.availability || 0}/{station.total_slots || 0} available</div>
+                              <div>💰 Rs. {station.pricing || 'N/A'} per kWh</div>
+                              <div>⚡ Rating: {station.rating}/5</div>
                             </div>
 
                             {rec.auto_booking?.auto_booked && (

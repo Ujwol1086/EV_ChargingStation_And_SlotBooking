@@ -2,173 +2,253 @@ from flask import Blueprint, request, jsonify
 import json
 import os
 import logging
-from services.recommendation_service import RecommendationService
+from services.Hybrid_Algorithm import HybridAlgorithm
 from services.route_service import RouteService
 from models.booking import Booking
 from middleware.auth_middleware import require_auth, get_current_user_id
+from models.user import User
+from models.charging_station import ChargingStation
 
 logger = logging.getLogger(__name__)
 
 recommendation_bp = Blueprint('recommendations', __name__)
 
 # Initialize services
-recommendation_service = RecommendationService()
+hybrid_algorithm = HybridAlgorithm()
 route_service = RouteService()
 
 @recommendation_bp.route('/get-recommendations', methods=['POST'])
-@require_auth
-def get_station_recommendations():
-    """
-    Get personalized charging station recommendations based on user input
-    Now requires authentication
-    
-    Expected JSON payload:
-    {
-        "latitude": float,
-        "longitude": float,
-        "battery_percentage": int,
-        "plug_type": str,
-        "urgency_level": str
-    }
-    """
+@recommendation_bp.route('/recommendations', methods=['POST'])
+def get_recommendations():
+    """Get EV charging station recommendations"""
     try:
-        # Get current user ID
-        user_id = get_current_user_id()
+        data = request.get_json()
         
-        # Validate request data
-        if not request.json:
+        # Extract required fields - handle multiple location formats
+        user_id = data.get('user_id')
+        user_location = data.get('location')  # [lat, lon] format
+        
+        # Also check for separate latitude/longitude fields (frontend format)
+        if not user_location:
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            if latitude is not None and longitude is not None:
+                user_location = [latitude, longitude]
+        
+        preferences = data.get('preferences', {})
+        
+        # Handle battery_percentage, plug_type, urgency_level from frontend
+        battery_percentage = data.get('battery_percentage')
+        plug_type = data.get('plug_type')
+        urgency_level = data.get('urgency_level', 'medium')
+        
+        # Convert frontend preferences to standard format
+        if battery_percentage is not None or plug_type or urgency_level:
+            if not preferences:
+                preferences = {}
+            if battery_percentage is not None:
+                preferences['battery_percentage'] = battery_percentage
+            if plug_type:
+                preferences['plug_type'] = plug_type
+            if urgency_level:
+                preferences['urgency_level'] = urgency_level
+        
+        if not user_location:
             return jsonify({
-                'success': False,
-                'error': 'No JSON data provided'
+                'error': 'Missing required field: location (provide either "location" array or "latitude"/"longitude" fields)'
             }), 400
         
-        data = request.json
+        # Log received data for debugging
+        logger.info(f"Received location data: {user_location}, preferences: {preferences}")
         
-        # Validate required fields
-        required_fields = ['latitude', 'longitude', 'battery_percentage', 'plug_type', 'urgency_level']
-        missing_fields = [field for field in required_fields if field not in data]
-        
-        if missing_fields:
+        # Validate location format
+        if not isinstance(user_location, list) or len(user_location) != 2:
             return jsonify({
-                'success': False,
-                'error': f'Missing required fields: {", ".join(missing_fields)}'
+                'error': 'Location must be a list of [latitude, longitude]'
             }), 400
         
-        # Validate data types and values
-        if not isinstance(data['latitude'], (int, float)) or not isinstance(data['longitude'], (int, float)):
+        # Validate coordinates are numbers
+        try:
+            lat, lon = float(user_location[0]), float(user_location[1])
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return jsonify({
+                    'error': 'Invalid coordinates: latitude must be between -90 and 90, longitude between -180 and 180'
+                }), 400
+        except (ValueError, TypeError):
             return jsonify({
-                'success': False,
-                'error': 'Latitude and longitude must be numbers'
+                'error': 'Location coordinates must be valid numbers'
             }), 400
         
-        if not isinstance(data['battery_percentage'], (int, float)) or not (0 <= data['battery_percentage'] <= 100):
-            return jsonify({
-                'success': False,
-                'error': 'Battery percentage must be a number between 0 and 100'
-            }), 400
+        # Get user data (optional - proceed even if user not found)
+        user = None
+        if user_id:
+            try:
+                user = User.get_by_id(user_id)
+                if user:
+                    logger.info(f"Found user: {user_id}")
+                else:
+                    logger.warning(f"User not found: {user_id}, proceeding without user data")
+            except Exception as user_error:
+                logger.warning(f"Error looking up user {user_id}: {user_error}, proceeding without user data")
         
-        valid_plug_types = ['Type A', 'Type B', 'CHAdeMO', 'CCS', 'Tesla Supercharger']
-        if data['plug_type'] not in valid_plug_types:
+        # Get all charging stations
+        try:
+            stations = ChargingStation.get_all()
+            if not stations:
+                return jsonify({
+                    'message': 'No charging stations available',
+                    'recommendations': []
+                }), 200
+            
+            logger.info(f"Loaded {len(stations)} charging stations")
+        except Exception as stations_error:
+            logger.error(f"Error loading charging stations: {stations_error}")
             return jsonify({
-                'success': False,
-                'error': f'Plug type must be one of: {", ".join(valid_plug_types)}'
-            }), 400
-        
-        valid_urgency_levels = ['low', 'medium', 'high', 'emergency']
-        if data['urgency_level'].lower() not in valid_urgency_levels:
-            return jsonify({
-                'success': False,
-                'error': f'Urgency level must be one of: {", ".join(valid_urgency_levels)}'
-            }), 400
-        
-        # Load charging stations data
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        data_file = os.path.join(os.path.dirname(current_dir), 'data', 'charging_stations.json')
-        
-        if not os.path.exists(data_file):
-            logger.error(f"Charging stations data file not found: {data_file}")
-            return jsonify({
-                'success': False,
-                'error': "Charging stations data not available"
+                'error': 'Failed to load charging stations data'
             }), 500
         
-        with open(data_file, 'r') as file:
-            stations_data = json.load(file)
-        
-        # Prepare input for recommendation service (convert to expected format)
-        user_input = {
-            'location': [data['latitude'], data['longitude']],
-            'battery_percentage': data['battery_percentage'],
-            'plug_type': data['plug_type'],
-            'urgency': data['urgency_level'].lower(),
-            'stations': stations_data['stations']
-        }
-        
-        # Get recommendations
-        recommendations_result = recommendation_service.get_recommendations(user_input)
-        
-        if not recommendations_result['success']:
-            return jsonify(recommendations_result), 400
-        
-        # Process auto-bookings and store in database
-        auto_bookings = []
-        for recommendation in recommendations_result['recommendations']:
-            if recommendation['auto_booking'].get('auto_booked', False):
-                # Store auto-booking in database
-                booking_data = {
-                    'booking_id': recommendation['auto_booking']['booking_id'],
-                    'power': recommendation['auto_booking']['power'],
-                    'estimated_time': recommendation['auto_booking']['estimated_time'],
-                    'auto_booked': True,
-                    'station_details': recommendation['station'],
-                    'user_location': [data['latitude'], data['longitude']],
-                    'distance_to_station': recommendation['distance']
+        # Prepare station data for algorithm
+        # Note: ChargingStation.get_all() returns dictionaries, not objects
+        station_data = []
+        for station in stations:
+            try:
+                station_info = {
+                    'id': station.get('id'),
+                    'name': station.get('name'),
+                    'location': [station.get('latitude', 0), station.get('longitude', 0)],
+                    'availability': station.get('available_slots', 0),
+                    'total_slots': station.get('total_slots', 0),
+                    'connector_types': station.get('connector_types', []),
+                    'pricing': station.get('pricing_per_kwh', 15),
+                    'features': station.get('features', []),
+                    'rating': station.get('rating', 4.0),
+                    'distance': 0  # Will be calculated by algorithm
                 }
-                
-                booking = Booking.create_booking(
-                    user_id=user_id,
-                    station_id=recommendation['station']['id'],
-                    charger_type=recommendation['auto_booking']['charger_type'],
-                    booking_data=booking_data
-                )
-                
-                if booking:
-                    logger.info(f"Auto-booking created and stored: {booking['booking_id']}")
-                    recommendation['auto_booking']['database_id'] = booking['_id']
-                    auto_bookings.append({
-                        'booking_id': recommendation['auto_booking']['booking_id'],
-                        'station_name': recommendation['station']['name']
-                    })
+                station_data.append(station_info)
+            except Exception as station_error:
+                logger.warning(f"Error processing station {station.get('id', 'unknown')}: {station_error}")
+                continue
         
-        # Format response
-        response = {
-            'success': True,
-            'recommendations': recommendations_result['recommendations'],
-            'auto_bookings': auto_bookings,
-            'metadata': {
-                'total_compatible_stations': recommendations_result['total_compatible_stations'],
-                'algorithm_used': recommendations_result['algorithm_used'],
-                'weights_used': recommendations_result['weights_used'],
-                'user_id': user_id,
-                'processing_time': '< 1 second',
-                'user_input': {
-                    'location': [data['latitude'], data['longitude']],
-                    'battery_percentage': data['battery_percentage'],
-                    'plug_type': data['plug_type'],
-                    'urgency_level': data['urgency_level']
+        if not station_data:
+            return jsonify({
+                'error': 'No valid station data available'
+            }), 500
+        
+        # Get recommendations using hybrid algorithm
+        try:
+            recommendations = hybrid_algorithm.get_recommendations(
+                user_location=user_location,
+                stations=station_data,
+                user_preferences=preferences,
+                max_recommendations=5
+            )
+            
+            logger.info(f"Generated {len(recommendations)} initial recommendations")
+        except Exception as algo_error:
+            logger.error(f"Error generating recommendations: {algo_error}")
+            return jsonify({
+                'error': 'Failed to generate recommendations'
+            }), 500
+        
+        # Get routes for top recommendations
+        enhanced_recommendations = []
+        for rec in recommendations[:3]:  # Get routes for top 3 only
+            try:
+                station_location = rec['location']
+                route_info = route_service.get_route_to_station(user_location, station_location)
+                
+                if route_info['success']:
+                    rec['route'] = {
+                        'waypoints': route_info['waypoints'],
+                        'distance_km': route_info['metrics']['total_distance'],
+                        'estimated_time': route_info['metrics']['estimated_time'],
+                        'instructions': route_info['instructions'],
+                        'algorithm_used': route_info.get('algorithm_used', 'unknown')
+                    }
+                else:
+                    rec['route'] = {
+                        'error': 'Route calculation failed',
+                        'distance_km': rec['distance'],
+                        'estimated_time': 'Unknown'
+                    }
+                    
+            except Exception as route_error:
+                logger.error(f"Route calculation error for station {rec['id']}: {route_error}")
+                rec['route'] = {
+                    'error': 'Route calculation error',
+                    'distance_km': rec['distance'],
+                    'estimated_time': 'Unknown'
                 }
+            
+            enhanced_recommendations.append(rec)
+        
+        # Add remaining recommendations without detailed routes
+        for rec in recommendations[3:]:
+            rec['route'] = {
+                'distance_km': rec['distance'],
+                'estimated_time': 'Estimate unavailable'
             }
-        }
+            enhanced_recommendations.append(rec)
         
-        logger.info(f"Generated {len(recommendations_result['recommendations'])} recommendations for user {user_id}")
+        logger.info(f"Generated {len(enhanced_recommendations)} final recommendations for user {user_id or 'anonymous'}")
         
-        return jsonify(response)
+        return jsonify({
+            'success': True,
+            'user_location': user_location,
+            'user_found': user is not None,
+            'recommendations': enhanced_recommendations,
+            'algorithm_info': {
+                'type': 'hybrid_algorithm',
+                'factors_considered': ['distance', 'availability', 'load_balancing', 'user_preferences'],
+                'routing_method': 'osrm_api_with_fallback'
+            }
+        }), 200
         
     except Exception as e:
-        logger.error(f"Error in get_station_recommendations: {str(e)}")
+        logger.error(f"Error generating recommendations: {e}")
         return jsonify({
-            'success': False,
-            'error': 'Internal server error'
+            'error': 'Internal server error while generating recommendations'
+        }), 500
+
+@recommendation_bp.route('/route', methods=['POST'])
+def get_route():
+    """Get route information between two points"""
+    try:
+        data = request.get_json()
+        
+        start_location = data.get('start_location')  # [lat, lon]
+        end_location = data.get('end_location')      # [lat, lon]
+        
+        if not all([start_location, end_location]):
+            return jsonify({
+                'error': 'Missing required fields: start_location, end_location'
+            }), 400
+        
+        # Validate location formats
+        for loc_name, location in [('start_location', start_location), ('end_location', end_location)]:
+            if not isinstance(location, list) or len(location) != 2:
+                return jsonify({
+                    'error': f'{loc_name} must be a list of [latitude, longitude]'
+                }), 400
+        
+        # Get route using route service
+        route_info = route_service.get_route_to_station(start_location, end_location)
+        
+        if route_info['success']:
+            return jsonify({
+                'success': True,
+                'route': route_info
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'error': route_info.get('error', 'Route calculation failed')
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error calculating route: {e}")
+        return jsonify({
+            'error': 'Internal server error while calculating route'
         }), 500
 
 @recommendation_bp.route('/book-slot', methods=['POST'])
@@ -213,7 +293,7 @@ def book_charging_slot():
         if 'user_location' in data and 'station_details' in data:
             station_coords = data['station_details'].get('location', {}).get('coordinates', [])
             if len(station_coords) == 2:
-                distance_to_station = recommendation_service.haversine_distance(
+                distance_to_station = route_service.haversine_distance(
                     data['user_location'][0], data['user_location'][1],
                     station_coords[0], station_coords[1]
                 )

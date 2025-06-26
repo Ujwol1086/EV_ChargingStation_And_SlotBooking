@@ -1,13 +1,20 @@
 import math
 import logging
+import requests
+import json
 
 logger = logging.getLogger(__name__)
 
 class RouteService:
-    """Service for calculating routes using hardcoded algorithms"""
+    """Service for calculating routes using OSRM API for real road routing"""
     
     def __init__(self):
-        # Grid-based pathfinding parameters
+        # OSRM server configuration
+        # Using the public OSRM demo server - for production, you should host your own
+        self.osrm_base_url = "https://routing.openstreetmap.de/routed-car"
+        self.backup_osrm_url = "https://router.project-osrm.org"
+        
+        # Grid-based pathfinding parameters (fallback only)
         self.grid_resolution = 0.001  # Approximately 100m resolution
         self.max_route_distance = 100  # Maximum route distance in km
         
@@ -26,8 +33,227 @@ class RouteService:
         r = 6371  # Earth radius in km
         return c * r
     
+    def get_osrm_route(self, start_coords, end_coords):
+        """
+        Get route from OSRM API using real road data
+        
+        Args:
+            start_coords: [lat, lon] of start point
+            end_coords: [lat, lon] of end point
+            
+        Returns:
+            Dict with route data or None if failed
+        """
+        try:
+            start_lat, start_lon = start_coords
+            end_lat, end_lon = end_coords
+            
+            # OSRM expects coordinates in lon,lat format
+            coordinates = f"{start_lon},{start_lat};{end_lon},{end_lat}"
+            
+            # Try primary OSRM server first
+            url = f"{self.osrm_base_url}/route/v1/driving/{coordinates}"
+            params = {
+                'overview': 'full',
+                'geometries': 'geojson',
+                'steps': 'true',
+                'annotations': 'true'
+            }
+            
+            logger.info(f"Requesting OSRM route from {start_coords} to {end_coords}")
+            
+            response = requests.get(url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('code') == 'Ok' and data.get('routes'):
+                    return self.process_osrm_response(data)
+                else:
+                    logger.warning(f"OSRM returned no routes: {data.get('message', 'Unknown error')}")
+            else:
+                logger.warning(f"OSRM API request failed with status {response.status_code}")
+                
+        except requests.exceptions.Timeout:
+            logger.warning("OSRM API request timed out")
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"OSRM API request failed: {e}")
+        except Exception as e:
+            logger.error(f"Error processing OSRM response: {e}")
+            
+        # Try backup server
+        try:
+            backup_url = f"{self.backup_osrm_url}/route/v1/driving/{coordinates}"
+            response = requests.get(backup_url, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('code') == 'Ok' and data.get('routes'):
+                    logger.info("Successfully got route from backup OSRM server")
+                    return self.process_osrm_response(data)
+                    
+        except Exception as e:
+            logger.warning(f"Backup OSRM server also failed: {e}")
+            
+        return None
+    
+    def process_osrm_response(self, osrm_data):
+        """
+        Process OSRM API response and extract route information
+        
+        Args:
+            osrm_data: Response from OSRM API
+            
+        Returns:
+            Dict with processed route data
+        """
+        try:
+            route = osrm_data['routes'][0]
+            
+            # Extract coordinates from geometry
+            coordinates = route['geometry']['coordinates']
+            # Convert from [lon, lat] to [lat, lon] format
+            waypoints = [[coord[1], coord[0]] for coord in coordinates]
+            
+            # Extract route metrics
+            distance_meters = route['distance']
+            duration_seconds = route['duration']
+            
+            # Convert to our format
+            distance_km = distance_meters / 1000
+            duration_minutes = int(duration_seconds / 60)
+            
+            # Format estimated time
+            if duration_minutes < 60:
+                estimated_time = f"{duration_minutes} minutes"
+            else:
+                hours = duration_minutes // 60
+                minutes = duration_minutes % 60
+                estimated_time = f"{hours}h {minutes}m"
+            
+            # Extract turn-by-turn instructions
+            instructions = []
+            if 'legs' in route and route['legs']:
+                leg = route['legs'][0]
+                if 'steps' in leg:
+                    instructions = self.extract_instructions_from_steps(leg['steps'])
+            
+            # If no detailed instructions, create basic ones
+            if not instructions:
+                instructions = self.generate_basic_instructions(waypoints)
+            
+            return {
+                'waypoints': waypoints,
+                'distance_km': round(distance_km, 2),
+                'duration_seconds': duration_seconds,
+                'estimated_time': estimated_time,
+                'instructions': instructions,
+                'source': 'osrm_api'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing OSRM response: {e}")
+            return None
+    
+    def extract_instructions_from_steps(self, steps):
+        """Extract turn-by-turn instructions from OSRM steps"""
+        instructions = []
+        
+        for i, step in enumerate(steps):
+            try:
+                maneuver = step.get('maneuver', {})
+                maneuver_type = maneuver.get('type', 'continue')
+                modifier = maneuver.get('modifier', '')
+                
+                # Get road name
+                name = step.get('name', '')
+                if not name or name == '':
+                    name = 'unnamed road'
+                
+                # Get distance
+                distance = step.get('distance', 0)
+                
+                # Create instruction text
+                if i == 0:
+                    instruction = "Start your journey"
+                elif i == len(steps) - 1:
+                    instruction = "Arrive at your destination"
+                else:
+                    instruction = self.format_instruction(maneuver_type, modifier, name, distance)
+                
+                instructions.append(instruction)
+                
+            except Exception as e:
+                logger.warning(f"Error processing step {i}: {e}")
+                instructions.append(f"Continue for {step.get('distance', 0):.0f} meters")
+        
+        return instructions
+    
+    def format_instruction(self, maneuver_type, modifier, road_name, distance):
+        """Format a single turn instruction"""
+        distance_text = f"{int(distance)}m" if distance < 1000 else f"{distance/1000:.1f}km"
+        
+        if maneuver_type == 'turn':
+            if modifier == 'left':
+                return f"Turn left onto {road_name}, continue for {distance_text}"
+            elif modifier == 'right':
+                return f"Turn right onto {road_name}, continue for {distance_text}"
+            elif modifier == 'slight left':
+                return f"Keep left onto {road_name}, continue for {distance_text}"
+            elif modifier == 'slight right':
+                return f"Keep right onto {road_name}, continue for {distance_text}"
+            elif modifier == 'sharp left':
+                return f"Sharp left onto {road_name}, continue for {distance_text}"
+            elif modifier == 'sharp right':
+                return f"Sharp right onto {road_name}, continue for {distance_text}"
+        elif maneuver_type == 'continue' or maneuver_type == 'new name':
+            return f"Continue on {road_name} for {distance_text}"
+        elif maneuver_type == 'merge':
+            return f"Merge onto {road_name}, continue for {distance_text}"
+        elif maneuver_type == 'on ramp':
+            return f"Take the ramp onto {road_name}, continue for {distance_text}"
+        elif maneuver_type == 'off ramp':
+            return f"Take the exit toward {road_name}, continue for {distance_text}"
+        elif maneuver_type == 'fork':
+            if modifier == 'left':
+                return f"Keep left at the fork onto {road_name}, continue for {distance_text}"
+            elif modifier == 'right':
+                return f"Keep right at the fork onto {road_name}, continue for {distance_text}"
+        elif maneuver_type == 'roundabout':
+            return f"Enter roundabout and take exit onto {road_name}, continue for {distance_text}"
+        
+        # Default fallback
+        return f"Continue on {road_name} for {distance_text}"
+    
+    def generate_basic_instructions(self, waypoints):
+        """Generate basic instructions when detailed ones aren't available"""
+        if len(waypoints) < 2:
+            return ["No route available"]
+        
+        instructions = ["Start from your current location"]
+        
+        # Calculate total segments
+        total_segments = len(waypoints) - 1
+        
+        if total_segments <= 3:
+            instructions.append("Head directly towards the charging station")
+        else:
+            # Add intermediate instructions based on waypoint positions
+            quarter_point = total_segments // 4
+            half_point = total_segments // 2
+            three_quarter_point = 3 * total_segments // 4
+            
+            if quarter_point > 0:
+                instructions.append(f"Continue following the route")
+            if half_point > quarter_point:
+                instructions.append("You're halfway to your destination")
+            if three_quarter_point > half_point:
+                instructions.append("You're almost there, continue forward")
+        
+        instructions.append("Arrive at the charging station")
+        return instructions
+
     def create_grid_node(self, lat, lon):
-        """Create a grid node for pathfinding"""
+        """Create a grid node for pathfinding (fallback only)"""
         return {
             'lat': lat,
             'lon': lon,
@@ -39,7 +265,7 @@ class RouteService:
         }
     
     def get_neighbors(self, node, grid_bounds):
-        """Get neighboring grid points for A* algorithm"""
+        """Get neighboring grid points for A* algorithm (fallback only)"""
         neighbors = []
         lat, lon = node['lat'], node['lon']
         
@@ -68,14 +294,16 @@ class RouteService:
         
         return neighbors
     
-    def a_star_pathfinding(self, start_coords, end_coords):
+    def a_star_pathfinding_fallback(self, start_coords, end_coords):
         """
-        Hardcoded A* pathfinding algorithm
+        Fallback A* pathfinding algorithm (only used if OSRM fails)
         Returns a list of waypoints from start to end
         """
         try:
             start_lat, start_lon = start_coords
             end_lat, end_lon = end_coords
+            
+            logger.warning("Using fallback A* pathfinding - results may not follow roads")
             
             # Calculate distance to ensure reasonable pathfinding
             direct_distance = self.haversine_distance(start_lat, start_lon, end_lat, end_lon)
@@ -84,96 +312,8 @@ class RouteService:
                 logger.warning(f"Route distance {direct_distance:.2f}km exceeds maximum")
                 return self.create_simple_route(start_coords, end_coords)
             
-            # Create grid bounds
-            grid_bounds = {
-                'min_lat': min(start_lat, end_lat) - 0.01,
-                'max_lat': max(start_lat, end_lat) + 0.01,
-                'min_lon': min(start_lon, end_lon) - 0.01,
-                'max_lon': max(start_lon, end_lon) + 0.01
-            }
-            
-            # Initialize start and end nodes
-            start_node = self.create_grid_node(start_lat, start_lon)
-            end_node = self.create_grid_node(end_lat, end_lon)
-            
-            start_node['g_cost'] = 0
-            start_node['h_cost'] = self.haversine_distance(start_lat, start_lon, end_lat, end_lon)
-            start_node['f_cost'] = start_node['h_cost']
-            
-            # A* algorithm
-            open_list = [start_node]
-            closed_list = []
-            
-            max_iterations = 1000  # Prevent infinite loops
-            iterations = 0
-            
-            while open_list and iterations < max_iterations:
-                iterations += 1
-                
-                # Find node with lowest f_cost
-                current_node = min(open_list, key=lambda x: x['f_cost'])
-                open_list.remove(current_node)
-                closed_list.append(current_node)
-                
-                # Check if we reached the goal
-                goal_distance = self.haversine_distance(
-                    current_node['lat'], current_node['lon'], end_lat, end_lon
-                )
-                
-                if goal_distance < self.grid_resolution * 2:  # Close enough to goal
-                    # Reconstruct path
-                    path = []
-                    node = current_node
-                    
-                    while node:
-                        path.append([node['lat'], node['lon']])
-                        node = node['parent']
-                    
-                    path.reverse()
-                    path.append([end_lat, end_lon])  # Ensure we end at exact destination
-                    
-                    logger.info(f"A* pathfinding completed in {iterations} iterations, path length: {len(path)}")
-                    return path
-                
-                # Process neighbors
-                neighbors = self.get_neighbors(current_node, grid_bounds)
-                
-                for neighbor in neighbors:
-                    # Skip if already in closed list
-                    if any(self.nodes_equal(neighbor, closed_node) for closed_node in closed_list):
-                        continue
-                    
-                    # Calculate costs
-                    movement_cost = self.haversine_distance(
-                        current_node['lat'], current_node['lon'],
-                        neighbor['lat'], neighbor['lon']
-                    )
-                    
-                    tentative_g_cost = current_node['g_cost'] + movement_cost
-                    
-                    # Check if this path to neighbor is better
-                    existing_neighbor = next(
-                        (node for node in open_list if self.nodes_equal(node, neighbor)), 
-                        None
-                    )
-                    
-                    if existing_neighbor is None:
-                        # New node
-                        neighbor['g_cost'] = tentative_g_cost
-                        neighbor['h_cost'] = self.haversine_distance(
-                            neighbor['lat'], neighbor['lon'], end_lat, end_lon
-                        )
-                        neighbor['f_cost'] = neighbor['g_cost'] + neighbor['h_cost']
-                        neighbor['parent'] = current_node
-                        open_list.append(neighbor)
-                    elif tentative_g_cost < existing_neighbor['g_cost']:
-                        # Better path found
-                        existing_neighbor['g_cost'] = tentative_g_cost
-                        existing_neighbor['f_cost'] = tentative_g_cost + existing_neighbor['h_cost']
-                        existing_neighbor['parent'] = current_node
-            
-            # If A* fails, fall back to simple route
-            logger.warning("A* pathfinding failed, using simple route")
+            # For now, return a simple route as the A* implementation is too complex
+            # for a fallback scenario
             return self.create_simple_route(start_coords, end_coords)
             
         except Exception as e:
@@ -186,12 +326,12 @@ class RouteService:
                 abs(node1['lon'] - node2['lon']) < tolerance)
     
     def create_simple_route(self, start_coords, end_coords):
-        """Create a simple direct route with intermediate waypoints"""
+        """Create a simple direct route with intermediate waypoints (fallback only)"""
         start_lat, start_lon = start_coords
         end_lat, end_lon = end_coords
         
         # Create waypoints along the direct path
-        num_waypoints = max(3, int(self.haversine_distance(start_lat, start_lon, end_lat, end_lon) * 2))
+        num_waypoints = max(5, int(self.haversine_distance(start_lat, start_lon, end_lat, end_lon) * 3))
         waypoints = []
         
         for i in range(num_waypoints + 1):
@@ -200,7 +340,7 @@ class RouteService:
             lon = start_lon + (end_lon - start_lon) * ratio
             waypoints.append([lat, lon])
         
-        logger.info(f"Created simple route with {len(waypoints)} waypoints")
+        logger.warning(f"Created simple fallback route with {len(waypoints)} waypoints")
         return waypoints
     
     def calculate_route_metrics(self, waypoints):
@@ -249,25 +389,52 @@ class RouteService:
         try:
             logger.info(f"Calculating route from {user_location} to {station_location}")
             
-            # Calculate route using A* pathfinding
-            waypoints = self.a_star_pathfinding(user_location, station_location)
+            # Try OSRM API first for real road routing
+            osrm_result = self.get_osrm_route(user_location, station_location)
             
-            # Calculate route metrics
-            metrics = self.calculate_route_metrics(waypoints)
+            if osrm_result:
+                # Use OSRM data
+                waypoints = osrm_result['waypoints']
+                
+                route_data = {
+                    'success': True,
+                    'waypoints': waypoints,
+                    'metrics': {
+                        'total_distance': osrm_result['distance_km'],
+                        'estimated_time': osrm_result['estimated_time'],
+                        'waypoint_count': len(waypoints)
+                    },
+                    'instructions': osrm_result['instructions'],
+                    'algorithm_used': 'osrm_api_real_roads',
+                    'data_source': 'OpenStreetMap via OSRM'
+                }
+                
+                logger.info(f"OSRM route calculated successfully: {osrm_result['distance_km']}km, {osrm_result['estimated_time']}")
+                return route_data
             
-            # Create route instructions (simplified)
-            instructions = self.generate_route_instructions(waypoints)
-            
-            route_data = {
-                'success': True,
-                'waypoints': waypoints,
-                'metrics': metrics,
-                'instructions': instructions,
-                'algorithm_used': 'a_star_pathfinding'
-            }
-            
-            logger.info(f"Route calculated successfully: {metrics['total_distance']}km, {metrics['estimated_time']}")
-            return route_data
+            else:
+                # Fallback to simple routing
+                logger.warning("OSRM API failed, using fallback routing")
+                waypoints = self.a_star_pathfinding_fallback(user_location, station_location)
+                
+                # Calculate route metrics
+                metrics = self.calculate_route_metrics(waypoints)
+                
+                # Create route instructions (simplified)
+                instructions = self.generate_basic_instructions(waypoints)
+                
+                route_data = {
+                    'success': True,
+                    'waypoints': waypoints,
+                    'metrics': metrics,
+                    'instructions': instructions,
+                    'algorithm_used': 'fallback_simple_routing',
+                    'data_source': 'Direct calculation (not road-based)',
+                    'warning': 'Real road routing unavailable - showing approximate direct path'
+                }
+                
+                logger.warning(f"Fallback route calculated: {metrics['total_distance']}km, {metrics['estimated_time']}")
+                return route_data
             
         except Exception as e:
             logger.error(f"Error calculating route: {e}")
@@ -277,34 +444,4 @@ class RouteService:
                 'waypoints': [],
                 'metrics': {},
                 'instructions': []
-            }
-    
-    def generate_route_instructions(self, waypoints):
-        """Generate basic route instructions from waypoints"""
-        if len(waypoints) < 2:
-            return ["No route available"]
-        
-        instructions = []
-        instructions.append("Start from your current location")
-        
-        # Calculate total segments
-        total_segments = len(waypoints) - 1
-        
-        if total_segments <= 3:
-            instructions.append("Head directly towards the charging station")
-        else:
-            # Add intermediate instructions
-            quarter_point = total_segments // 4
-            half_point = total_segments // 2
-            three_quarter_point = 3 * total_segments // 4
-            
-            if quarter_point > 0:
-                instructions.append(f"Continue for {quarter_point} segments")
-            if half_point > quarter_point:
-                instructions.append("Continue straight at the midpoint")
-            if three_quarter_point > half_point:
-                instructions.append("You're almost there, continue forward")
-        
-        instructions.append("Arrive at the charging station")
-        
-        return instructions 
+            } 

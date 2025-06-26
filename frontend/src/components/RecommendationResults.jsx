@@ -31,12 +31,12 @@ const RecommendationResults = ({
     try {
       const response = await axios.post('/recommendations/book-slot', {
         station_id: station.id,
-        charger_type: station.chargers[0]?.type || 'CCS', // Default to first available charger type
+        charger_type: station.connector_types?.[0] || 'Type 2', // Default to first available connector type
         urgency_level: 'medium'
       });
 
       if (response.data.success) {
-        alert(`Booking successful! Booking ID: ${response.data.booking_id}`);
+        alert(`Booking successful! Booking ID: ${response.data.booking.booking_id}`);
         // You might want to trigger a refresh of user bookings here
         window.location.reload(); // Simple refresh for now
       } else {
@@ -79,7 +79,7 @@ const RecommendationResults = ({
 
       <div className="space-y-4">
         {recommendations.map((rec, index) => {
-          const station = rec.station;
+          const station = rec;
           const hasBooking = findBookingForStation(station.id);
           const isLoadingBooking = bookingLoading[station.id];
           
@@ -124,15 +124,15 @@ const RecommendationResults = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">📍</span>
-                    <span className="text-sm text-gray-700">{station.location.address}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">🕒</span>
-                    <span className="text-sm text-gray-700">{station.operatingHours}</span>
+                    <span className="text-sm text-gray-700">{station.location?.address || 'Location data unavailable'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">💰</span>
-                    <span className="text-sm text-gray-700">{station.pricing}</span>
+                    <span className="text-sm text-gray-700">Rs. {station.pricing || 'N/A'} per kWh</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">⭐</span>
+                    <span className="text-sm text-gray-700">Rating: {station.rating}/5</span>
                   </div>
                 </div>
                 
@@ -140,20 +140,20 @@ const RecommendationResults = ({
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">🔌</span>
                     <span className="text-sm text-gray-700">
-                      {Math.round(rec.availability_score * 100)}% available
+                      {station.availability || 0}/{station.total_slots || 0} available
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">⚡</span>
                     <span className="text-sm text-gray-700">
-                      {station.chargers?.map(c => c.type).join(', ') || 'Multiple types'}
+                      {station.connector_types?.join(', ') || 'Multiple types'}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">🏪</span>
                     <span className="text-sm text-gray-700">
-                      {station.amenities?.slice(0, 2).join(', ') || 'Basic amenities'}
-                      {station.amenities?.length > 2 && ` +${station.amenities.length - 2} more`}
+                      {station.features?.slice(0, 2).join(', ') || 'Basic amenities'}
+                      {station.features?.length > 2 && ` +${station.features.length - 2} more`}
                     </span>
                   </div>
                 </div>
