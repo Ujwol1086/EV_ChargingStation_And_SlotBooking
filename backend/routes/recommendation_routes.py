@@ -20,7 +20,7 @@ route_service = RouteService()
 @recommendation_bp.route('/get-recommendations', methods=['POST'])
 @recommendation_bp.route('/recommendations', methods=['POST'])
 def get_recommendations():
-    """Get EV charging station recommendations"""
+    """Get EV charging station recommendations with enhanced context-aware scoring"""
     try:
         data = request.get_json()
         
@@ -37,21 +37,35 @@ def get_recommendations():
         
         preferences = data.get('preferences', {})
         
-        # Handle battery_percentage, plug_type, urgency_level from frontend
+        # Enhanced context parameters
         battery_percentage = data.get('battery_percentage')
         plug_type = data.get('plug_type')
         urgency_level = data.get('urgency_level', 'medium')
         
-        # Convert frontend preferences to standard format
-        if battery_percentage is not None or plug_type or urgency_level:
-            if not preferences:
-                preferences = {}
-            if battery_percentage is not None:
-                preferences['battery_percentage'] = battery_percentage
-            if plug_type:
-                preferences['plug_type'] = plug_type
-            if urgency_level:
-                preferences['urgency_level'] = urgency_level
+        # NEW: Context-aware parameters
+        ac_status = data.get('ac_status', False)
+        passengers = data.get('passengers', 1)
+        terrain = data.get('terrain', 'flat')
+        
+        # Build user context object
+        user_context = {}
+        if preferences:
+            user_context.update(preferences)
+        
+        # Add context parameters
+        context_params = {
+            'battery_percentage': battery_percentage,
+            'plug_type': plug_type,
+            'urgency': urgency_level,
+            'ac_status': ac_status,
+            'passengers': passengers,
+            'terrain': terrain
+        }
+        
+        # Only add non-None values
+        for key, value in context_params.items():
+            if value is not None:
+                user_context[key] = value
         
         if not user_location:
             return jsonify({
@@ -59,7 +73,7 @@ def get_recommendations():
             }), 400
         
         # Log received data for debugging
-        logger.info(f"Received location data: {user_location}, preferences: {preferences}")
+        logger.info(f"Received enhanced context: location={user_location}, context={user_context}")
         
         # Validate location format
         if not isinstance(user_location, list) or len(user_location) != 2:
@@ -78,6 +92,28 @@ def get_recommendations():
             return jsonify({
                 'error': 'Location coordinates must be valid numbers'
             }), 400
+        
+        # Validate context parameters
+        if battery_percentage is not None:
+            try:
+                battery_percentage = float(battery_percentage)
+                if not (0 <= battery_percentage <= 100):
+                    return jsonify({'error': 'Battery percentage must be between 0 and 100'}), 400
+                user_context['battery_percentage'] = battery_percentage
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Battery percentage must be a valid number'}), 400
+        
+        if passengers is not None:
+            try:
+                passengers = int(passengers)
+                if not (1 <= passengers <= 8):
+                    return jsonify({'error': 'Number of passengers must be between 1 and 8'}), 400
+                user_context['passengers'] = passengers
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Number of passengers must be a valid integer'}), 400
+        
+        if terrain and terrain.lower() not in ['flat', 'hilly', 'steep']:
+            return jsonify({'error': 'Terrain must be one of: flat, hilly, steep'}), 400
         
         # Get user data (optional - proceed even if user not found)
         user = None
@@ -108,7 +144,6 @@ def get_recommendations():
             }), 500
         
         # Prepare station data for algorithm
-        # Note: ChargingStation.get_all() returns dictionaries, not objects
         station_data = []
         for station in stations:
             try:
@@ -134,25 +169,52 @@ def get_recommendations():
                 'error': 'No valid station data available'
             }), 500
         
-        # Get recommendations using hybrid algorithm
+        # Get enhanced recommendations using hybrid algorithm
         try:
-            recommendations = hybrid_algorithm.get_recommendations(
-                user_location=user_location,
-                stations=station_data,
-                user_preferences=preferences,
-                max_recommendations=5
-            )
+            # Check if we should use enhanced recommendations
+            use_enhanced = any(key in user_context for key in ['ac_status', 'passengers', 'terrain', 'battery_percentage'])
             
-            logger.info(f"Generated {len(recommendations)} initial recommendations")
+            if use_enhanced:
+                result = hybrid_algorithm.get_enhanced_recommendations(
+                    user_location=user_location,
+                    stations=station_data,
+                    user_context=user_context,
+                    max_recommendations=5
+                )
+                # Extract recommendations from the result dictionary
+                if isinstance(result, dict) and 'recommendations' in result:
+                    recommendations = result['recommendations']
+                else:
+                    recommendations = result
+                logger.info(f"Generated {len(recommendations)} enhanced recommendations")
+            else:
+                # Fall back to simple recommendations for backward compatibility
+                recommendations = hybrid_algorithm.get_recommendations(
+                    user_location=user_location,
+                    stations=station_data,
+                    user_preferences=user_context,
+                    max_recommendations=5
+                )
+                logger.info(f"Generated {len(recommendations)} simple recommendations")
+                
         except Exception as algo_error:
             logger.error(f"Error generating recommendations: {algo_error}")
             return jsonify({
                 'error': 'Failed to generate recommendations'
             }), 500
         
+        # Ensure recommendations is a list
+        if not isinstance(recommendations, list):
+            logger.error(f"Recommendations is not a list: {type(recommendations)}")
+            return jsonify({
+                'error': 'Invalid recommendations format'
+            }), 500
+        
         # Get routes for top recommendations
         enhanced_recommendations = []
-        for rec in recommendations[:3]:  # Get routes for top 3 only
+        top_recommendations = recommendations[:3] if len(recommendations) > 3 else recommendations
+        
+        for rec in top_recommendations:  # Get routes for top 3 only
             try:
                 station_location = rec['location']
                 route_info = route_service.get_route_to_station(user_location, station_location)
@@ -183,7 +245,8 @@ def get_recommendations():
             enhanced_recommendations.append(rec)
         
         # Add remaining recommendations without detailed routes
-        for rec in recommendations[3:]:
+        remaining_recommendations = recommendations[3:] if len(recommendations) > 3 else []
+        for rec in remaining_recommendations:
             rec['route'] = {
                 'distance_km': rec['distance'],
                 'estimated_time': 'Estimate unavailable'
@@ -195,19 +258,22 @@ def get_recommendations():
         return jsonify({
             'success': True,
             'user_location': user_location,
+            'user_context': user_context,
             'user_found': user is not None,
             'recommendations': enhanced_recommendations,
             'algorithm_info': {
-                'type': 'hybrid_algorithm',
-                'factors_considered': ['distance', 'availability', 'load_balancing', 'user_preferences'],
-                'routing_method': 'osrm_api_with_fallback'
+                'type': 'enhanced_hybrid' if use_enhanced else 'simple_hybrid',
+                'factors_considered': list(user_context.keys()),
+                'total_stations_analyzed': len(station_data),
+                'recommendations_returned': len(enhanced_recommendations)
             }
         }), 200
         
     except Exception as e:
-        logger.error(f"Error generating recommendations: {e}")
+        logger.error(f"Unexpected error in get_recommendations: {e}")
         return jsonify({
-            'error': 'Internal server error while generating recommendations'
+            'error': 'Internal server error',
+            'message': str(e)
         }), 500
 
 @recommendation_bp.route('/route', methods=['POST'])

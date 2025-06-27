@@ -6,21 +6,24 @@ logger = logging.getLogger(__name__)
 
 class HybridAlgorithm:
     """
-    Hybrid recommendation algorithm using multiple approaches:
+    Enhanced Hybrid recommendation algorithm using multiple approaches:
     - Custom Dijkstra's algorithm for pathfinding
     - Min-heap for priority queue management
-    - Load balancing scoring system
+    - Context-aware energy consumption calculations
+    - Enhanced MCDM scoring with AC, passengers, terrain factors
     - Merge sort for final ranking
     """
     
     def __init__(self):
-        # Weights for scoring algorithm
+        # Enhanced weights for scoring algorithm with new context factors
         self.weights = {
-            'distance': 0.3,
-            'availability': 0.25,
-            'load': 0.2,
+            'distance': 0.25,
+            'availability': 0.20,
+            'energy_efficiency': 0.15,  # New: considers AC, passengers, terrain
             'urgency': 0.15,
-            'price': 0.1
+            'price': 0.10,
+            'plug_compatibility': 0.10,
+            'rating': 0.05
         }
         
         # Price mapping for different charging stations
@@ -30,7 +33,71 @@ class HybridAlgorithm:
             'Rapid': 25,
             'Ultra-fast': 30
         }
+        
+        # Energy consumption factors
+        self.energy_factors = {
+            'base_consumption_per_km': 0.2,  # kWh per km (base)
+            'ac_penalty': 0.15,  # 15% more energy when AC is on
+            'passenger_penalty_per_person': 0.03,  # 3% more per additional passenger
+            'terrain_multipliers': {
+                'flat': 1.0,
+                'hilly': 1.2,
+                'steep': 1.5
+            }
+        }
     
+    def calculate_energy_consumption(self, distance_km, ac_status=False, passengers=1, terrain='flat', battery_percentage=100):
+        """
+        Calculate estimated energy consumption based on context factors
+        
+        Args:
+            distance_km: Distance to travel in kilometers
+            ac_status: Boolean, True if AC is on
+            passengers: Number of passengers (including driver)
+            terrain: 'flat', 'hilly', or 'steep'
+            battery_percentage: Current battery level
+        
+        Returns:
+            Dict with energy consumption details
+        """
+        base_consumption = distance_km * self.energy_factors['base_consumption_per_km']
+        
+        # Apply AC penalty
+        if ac_status:
+            ac_penalty = base_consumption * self.energy_factors['ac_penalty']
+        else:
+            ac_penalty = 0
+        
+        # Apply passenger penalty (additional passengers beyond driver)
+        additional_passengers = max(0, passengers - 1)
+        passenger_penalty = base_consumption * (additional_passengers * self.energy_factors['passenger_penalty_per_person'])
+        
+        # Apply terrain multiplier
+        terrain_multiplier = self.energy_factors['terrain_multipliers'].get(terrain.lower(), 1.0)
+        terrain_penalty = base_consumption * (terrain_multiplier - 1.0)
+        
+        total_consumption = base_consumption + ac_penalty + passenger_penalty + terrain_penalty
+        
+        # Calculate if destination is reachable with current battery
+        # Assuming average EV has 60kWh battery capacity
+        estimated_battery_capacity = 60  # kWh
+        available_energy = (battery_percentage / 100) * estimated_battery_capacity
+        
+        # Keep 20% buffer for safety
+        usable_energy = available_energy * 0.8
+        
+        return {
+            'base_consumption_kwh': round(base_consumption, 2),
+            'ac_penalty_kwh': round(ac_penalty, 2),
+            'passenger_penalty_kwh': round(passenger_penalty, 2),
+            'terrain_penalty_kwh': round(terrain_penalty, 2),
+            'total_consumption_kwh': round(total_consumption, 2),
+            'available_energy_kwh': round(available_energy, 2),
+            'usable_energy_kwh': round(usable_energy, 2),
+            'is_reachable': total_consumption <= usable_energy,
+            'energy_efficiency_score': max(0, 1 - (total_consumption / usable_energy)) if usable_energy > 0 else 0
+        }
+
     def haversine_distance(self, lat1, lon1, lat2, lon2):
         """Calculate haversine distance between two points"""
         lat1_rad = math.radians(lat1)
@@ -46,113 +113,201 @@ class HybridAlgorithm:
         r = 6371  # Earth radius in km
         return c * r
     
-    def calculate_simple_score(self, station, distance, user_preferences=None):
+    def calculate_enhanced_score(self, station, distance, user_context=None):
         """
-        Calculate a simple composite score for a station
+        Calculate enhanced composite score for a station with context-aware factors
         
         Args:
             station: Station data dict
             distance: Distance to station in km
-            user_preferences: Dict of user preferences (optional)
+            user_context: Dict with user context (battery, AC, passengers, terrain, etc.)
         
         Returns:
-            Float score (0-1, higher is better)
+            Dict with detailed scoring breakdown
         """
-        if user_preferences is None:
-            user_preferences = {}
+        if user_context is None:
+            user_context = {}
         
-        # Distance score (closer is better, max distance considered is 50km)
+        # Extract context parameters
+        battery_percentage = user_context.get('battery_percentage', 100)
+        ac_status = user_context.get('ac_status', False)
+        passengers = user_context.get('passengers', 1)
+        terrain = user_context.get('terrain', 'flat')
+        plug_type = user_context.get('plug_type', '')
+        urgency = user_context.get('urgency', 'medium')
+        
+        # 1. Distance score (closer is better, max distance considered is 50km)
         max_distance = 50
         distance_score = max(0, 1 - (distance / max_distance))
         
-        # Availability score
+        # 2. Availability score
         availability = station.get('availability', 0)
         total_slots = station.get('total_slots', 1)
         availability_score = availability / total_slots if total_slots > 0 else 0
         
-        # Pricing score (lower price is better)
+        # 3. Enhanced Energy Efficiency Score
+        energy_analysis = self.calculate_energy_consumption(
+            distance, ac_status, passengers, terrain, battery_percentage
+        )
+        energy_efficiency_score = energy_analysis['energy_efficiency_score']
+        
+        # Penalty if station is not reachable
+        if not energy_analysis['is_reachable']:
+            energy_efficiency_score = 0
+        
+        # 4. Urgency score
+        urgency_multipliers = {
+            'low': 0.5,
+            'medium': 1.0,
+            'high': 1.5,
+            'emergency': 2.0
+        }
+        urgency_multiplier = urgency_multipliers.get(urgency.lower(), 1.0)
+        urgency_score = min(1.0, urgency_multiplier * 0.5)
+        
+        # 5. Pricing score (lower price is better)
         pricing = station.get('pricing', 20)  # Default to 20 NPR/kWh
-        max_price = 35  # Assumed max price
-        min_price = 10  # Assumed min price
+        max_price = 35
+        min_price = 10
         price_score = max(0, 1 - ((pricing - min_price) / (max_price - min_price)))
         
-        # Rating score
+        # 6. Plug compatibility score
+        station_plugs = station.get('connector_types', [])
+        plug_compatibility_score = 1.0 if plug_type in station_plugs or not plug_type else 0.3
+        
+        # 7. Rating score
         rating = station.get('rating', 4.0)
-        rating_score = rating / 5.0  # Normalize to 0-1
+        rating_score = rating / 5.0
         
-        # Features score (bonus for preferred features)
-        features = station.get('features', [])
-        features_score = 0
-        preferred_features = user_preferences.get('preferred_features', [])
-        if preferred_features:
-            matching_features = len(set(features) & set(preferred_features))
-            features_score = matching_features / len(preferred_features) if preferred_features else 0
-        
-        # Composite score with weights
+        # Calculate composite score with enhanced weights
         composite_score = (
-            0.4 * distance_score +      # Distance is most important
-            0.25 * availability_score + # Availability is crucial
-            0.15 * price_score +        # Price consideration
-            0.15 * rating_score +       # Quality rating
-            0.05 * features_score       # Feature bonus
+            self.weights['distance'] * distance_score +
+            self.weights['availability'] * availability_score +
+            self.weights['energy_efficiency'] * energy_efficiency_score +
+            self.weights['urgency'] * urgency_score +
+            self.weights['price'] * price_score +
+            self.weights['plug_compatibility'] * plug_compatibility_score +
+            self.weights['rating'] * rating_score
         )
         
-        return min(1.0, max(0.0, composite_score))
-    
-    def get_recommendations(self, user_location, stations, user_preferences=None, max_recommendations=5):
+        return {
+            'total_score': min(1.0, max(0.0, composite_score)),
+            'breakdown': {
+                'distance_score': round(distance_score, 3),
+                'availability_score': round(availability_score, 3),
+                'energy_efficiency_score': round(energy_efficiency_score, 3),
+                'urgency_score': round(urgency_score, 3),
+                'price_score': round(price_score, 3),
+                'plug_compatibility_score': round(plug_compatibility_score, 3),
+                'rating_score': round(rating_score, 3)
+            },
+            'energy_analysis': energy_analysis,
+            'is_reachable': energy_analysis['is_reachable']
+        }
+
+    def get_enhanced_recommendations(self, user_location, stations, user_context=None, max_recommendations=5):
         """
-        Get station recommendations using simplified API
+        Get enhanced station recommendations with context-aware scoring
         
         Args:
             user_location: [lat, lon] of user
             stations: List of station dicts
-            user_preferences: Dict of user preferences (optional)
+            user_context: Dict with context parameters (battery, AC, passengers, terrain, etc.)
             max_recommendations: Maximum number of recommendations to return
         
         Returns:
-            List of recommended stations with scores and distances
+            Dict with recommendations and metadata
         """
         try:
             if not stations:
-                return []
+                logger.warning("No stations provided for recommendations")
+                return {
+                    'recommendations': [],
+                    'algorithm_info': {
+                        'algorithm_used': 'Enhanced Hybrid Algorithm',
+                        'processing_time_ms': 0,
+                        'total_stations_processed': 0
+                    }
+                }
             
-            if user_preferences is None:
-                user_preferences = {}
+            import time
+            start_time = time.time()
             
-            # Calculate scores for all stations
+            if user_context is None:
+                user_context = {}
+            
+            # Calculate enhanced scores for all stations
             scored_stations = []
             
             for station in stations:
-                # Calculate distance
-                station_location = station.get('location', [0, 0])
-                if len(station_location) != 2:
-                    logger.warning(f"Invalid station location for station {station.get('id', 'unknown')}")
+                try:
+                    # Extract location - handle both formats
+                    station_location = None
+                    
+                    # Try the ChargingStation model format first (latitude/longitude fields)
+                    if 'latitude' in station and 'longitude' in station:
+                        station_location = [station['latitude'], station['longitude']]
+                    # Fallback to nested location format
+                    elif 'location' in station:
+                        if isinstance(station['location'], dict) and 'coordinates' in station['location']:
+                            station_location = station['location']['coordinates']
+                        elif isinstance(station['location'], list) and len(station['location']) == 2:
+                            station_location = station['location']
+                    
+                    if not station_location or len(station_location) != 2:
+                        logger.warning(f"Invalid station location for station {station.get('id', 'unknown')}")
+                        continue
+                    
+                    # Calculate distance
+                    distance = self.haversine_distance(
+                        user_location[0], user_location[1],
+                        station_location[0], station_location[1]
+                    )
+                    
+                    # Convert station data to expected format
+                    normalized_station = self._normalize_station_data(station)
+                    
+                    # Calculate enhanced composite score
+                    score_analysis = self.calculate_enhanced_score(normalized_station, distance, user_context)
+                    
+                    # Skip stations that are not reachable with current battery if filtering is enabled
+                    if not score_analysis['is_reachable'] and user_context.get('filter_unreachable', False):
+                        continue
+                    
+                    # Create enhanced recommendation entry
+                    recommendation = {
+                        'id': station.get('id'),
+                        'name': station.get('name', 'Unknown Station'),
+                        'location': station_location,
+                        'address': station.get('address', 'Unknown Address'),
+                        'distance': round(distance, 2),
+                        'score': score_analysis['total_score'],
+                        'score_breakdown': score_analysis['breakdown'],
+                        'energy_analysis': score_analysis['energy_analysis'],
+                        'is_reachable': score_analysis['is_reachable'],
+                        'availability': normalized_station.get('availability', 0),
+                        'total_slots': normalized_station.get('total_slots', 0),
+                        'available_slots': normalized_station.get('availability', 0),
+                        'connector_types': normalized_station.get('connector_types', []),
+                        'pricing': normalized_station.get('pricing', 0),
+                        'pricing_per_kwh': normalized_station.get('pricing', 0),
+                        'features': normalized_station.get('features', []),
+                        'amenities': station.get('features', []),  # Use features from the model
+                        'operating_hours': station.get('operating_hours', 'Unknown'),
+                        'rating': normalized_station.get('rating', 4.0),
+                        'context_factors': {
+                            'ac_impact': score_analysis['energy_analysis']['ac_penalty_kwh'],
+                            'passenger_impact': score_analysis['energy_analysis']['passenger_penalty_kwh'],
+                            'terrain_impact': score_analysis['energy_analysis']['terrain_penalty_kwh'],
+                            'total_energy_needed': score_analysis['energy_analysis']['total_consumption_kwh']
+                        }
+                    }
+                    
+                    scored_stations.append(recommendation)
+                    
+                except Exception as e:
+                    logger.warning(f"Error processing station {station.get('id', 'unknown')}: {e}")
                     continue
-                
-                distance = self.haversine_distance(
-                    user_location[0], user_location[1],
-                    station_location[0], station_location[1]
-                )
-                
-                # Calculate composite score
-                score = self.calculate_simple_score(station, distance, user_preferences)
-                
-                # Create recommendation entry
-                recommendation = {
-                    'id': station.get('id'),
-                    'name': station.get('name', 'Unknown Station'),
-                    'location': station_location,
-                    'distance': round(distance, 2),
-                    'score': round(score, 3),
-                    'availability': station.get('availability', 0),
-                    'total_slots': station.get('total_slots', 0),
-                    'connector_types': station.get('connector_types', []),
-                    'pricing': station.get('pricing', 0),
-                    'features': station.get('features', []),
-                    'rating': station.get('rating', 4.0)
-                }
-                
-                scored_stations.append(recommendation)
             
             # Sort by score (descending)
             scored_stations.sort(key=lambda x: x['score'], reverse=True)
@@ -160,13 +315,92 @@ class HybridAlgorithm:
             # Return top recommendations
             recommendations = scored_stations[:max_recommendations]
             
-            logger.info(f"Generated {len(recommendations)} recommendations from {len(stations)} stations")
+            processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
             
-            return recommendations
+            logger.info(f"Generated {len(recommendations)} enhanced recommendations from {len(stations)} stations")
+            
+            return {
+                'recommendations': recommendations,
+                'algorithm_info': {
+                    'algorithm_used': 'Enhanced Hybrid Algorithm',
+                    'processing_time_ms': round(processing_time, 2),
+                    'total_stations_processed': len(stations),
+                    'stations_filtered': len(stations) - len(scored_stations),
+                    'context_aware': bool(user_context)
+                }
+            }
             
         except Exception as e:
-            logger.error(f"Error generating recommendations: {e}")
-            return []
+            logger.error(f"Error generating enhanced recommendations: {e}")
+            return {
+                'recommendations': [],
+                'algorithm_info': {
+                    'algorithm_used': 'Enhanced Hybrid Algorithm',
+                    'processing_time_ms': 0,
+                    'total_stations_processed': 0,
+                    'error': str(e)
+                }
+            }
+
+    def _normalize_station_data(self, station):
+        """
+        Normalize station data from ChargingStation model format to expected algorithm format
+        
+        Args:
+            station: Station data from ChargingStation model
+            
+        Returns:
+            Normalized station data dict
+        """
+        # Handle both ChargingStation model format and raw JSON format
+        if 'chargers' in station:
+            # Raw JSON format
+            chargers = station.get('chargers', [])
+            
+            # Calculate availability
+            available_chargers = [c for c in chargers if c.get('available', False)]
+            total_slots = len(chargers)
+            availability = len(available_chargers)
+            
+            # Extract connector types
+            connector_types = list(set([c.get('type', '') for c in chargers if c.get('type')]))
+            
+            # Extract pricing (convert from string if needed)
+            pricing_str = station.get('pricing', '20')
+            pricing = 20  # Default
+            try:
+                # Extract number from strings like "NPR 15 per kWh"
+                import re
+                match = re.search(r'(\d+)', pricing_str)
+                if match:
+                    pricing = int(match.group(1))
+            except:
+                pricing = 20
+            
+            # Extract features/amenities
+            features = station.get('amenities', [])
+            
+        else:
+            # ChargingStation model format
+            total_slots = station.get('total_slots', 0)
+            availability = station.get('available_slots', 0)
+            connector_types = station.get('connector_types', [])
+            pricing = station.get('pricing_per_kwh', 20)
+            features = station.get('features', [])
+            chargers = []  # Not available in this format
+        
+        return {
+            'id': station.get('id'),
+            'name': station.get('name', 'Unknown Station'),
+            'location': [station.get('latitude', 0), station.get('longitude', 0)],
+            'availability': availability,
+            'total_slots': total_slots,
+            'connector_types': connector_types,
+            'pricing': pricing,
+            'features': features,
+            'rating': station.get('rating', 4.0),
+            'chargers': chargers
+        }
 
     # Legacy method - kept for backward compatibility
     def get_recommendations_legacy(self, user_input):
@@ -589,3 +823,52 @@ class HybridAlgorithm:
         result.extend(right[j:])
         
         return result 
+
+    def get_recommendations(self, user_location, stations, user_preferences=None, max_recommendations=5):
+        """
+        Get station recommendations using simplified API (backward compatibility)
+        
+        Args:
+            user_location: [lat, lon] of user
+            stations: List of station dicts
+            user_preferences: Dict of user preferences (optional)
+            max_recommendations: Maximum number of recommendations to return
+        
+        Returns:
+            List of recommended stations with scores and distances
+        """
+        # Convert old preferences format to new context format
+        user_context = {}
+        if user_preferences:
+            user_context.update(user_preferences)
+        
+        # Use enhanced recommendations but return simplified format for compatibility
+        enhanced_result = self.get_enhanced_recommendations(
+            user_location, stations, user_context, max_recommendations
+        )
+        
+        # Extract recommendations from enhanced result
+        if isinstance(enhanced_result, dict) and 'recommendations' in enhanced_result:
+            enhanced_recommendations = enhanced_result['recommendations']
+        else:
+            enhanced_recommendations = enhanced_result
+        
+        # Convert to simple format for backward compatibility
+        simple_recommendations = []
+        for rec in enhanced_recommendations:
+            simple_rec = {
+                'id': rec.get('id'),
+                'name': rec.get('name'),
+                'location': rec.get('location'),
+                'distance': rec.get('distance'),
+                'score': round(rec.get('score', 0), 3),
+                'availability': rec.get('availability'),
+                'total_slots': rec.get('total_slots'),
+                'connector_types': rec.get('connector_types'),
+                'pricing': rec.get('pricing'),
+                'features': rec.get('features'),
+                'rating': rec.get('rating')
+            }
+            simple_recommendations.append(simple_rec)
+        
+        return simple_recommendations 

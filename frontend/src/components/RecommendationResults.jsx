@@ -11,6 +11,7 @@ const RecommendationResults = ({
   autoBookings = []
 }) => {
   const [bookingLoading, setBookingLoading] = useState({});
+  const [expandedScores, setExpandedScores] = useState({});
 
   if (!recommendations?.length) {
     return (
@@ -25,20 +26,26 @@ const RecommendationResults = ({
     return userBookings.find(booking => booking.station_id === stationId);
   };
 
+  const toggleScoreBreakdown = (stationId) => {
+    setExpandedScores(prev => ({
+      ...prev,
+      [stationId]: !prev[stationId]
+    }));
+  };
+
   const handleBookSlot = async (station) => {
     setBookingLoading(prev => ({ ...prev, [station.id]: true }));
     
     try {
       const response = await axios.post('/recommendations/book-slot', {
         station_id: station.id,
-        charger_type: station.connector_types?.[0] || 'Type 2', // Default to first available connector type
+        charger_type: station.connector_types?.[0] || 'Type 2',
         urgency_level: 'medium'
       });
 
       if (response.data.success) {
         alert(`Booking successful! Booking ID: ${response.data.booking.booking_id}`);
-        // You might want to trigger a refresh of user bookings here
-        window.location.reload(); // Simple refresh for now
+        window.location.reload();
       } else {
         alert(response.data.error || 'Booking failed');
       }
@@ -49,16 +56,95 @@ const RecommendationResults = ({
     }
   };
 
+  const renderEnergyAnalysis = (station) => {
+    if (!station.energy_analysis) return null;
+
+    const { energy_analysis } = station;
+    return (
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <h5 className="font-semibold text-blue-800 mb-2">⚡ Energy Analysis</h5>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-blue-700">
+              <strong>Energy Needed:</strong> {energy_analysis.total_consumption_kwh} kWh
+            </p>
+            <p className="text-blue-700">
+              <strong>Available Energy:</strong> {energy_analysis.usable_energy_kwh} kWh
+            </p>
+          </div>
+          <div>
+            <p className={`font-medium ${energy_analysis.is_reachable ? 'text-green-600' : 'text-red-600'}`}>
+              {energy_analysis.is_reachable ? '✅ Reachable' : '❌ May not be reachable'}
+            </p>
+            <p className="text-blue-700">
+              <strong>Efficiency Score:</strong> {(energy_analysis.energy_efficiency_score * 100).toFixed(0)}%
+            </p>
+          </div>
+        </div>
+        
+        {(energy_analysis.ac_penalty_kwh > 0 || energy_analysis.passenger_penalty_kwh > 0 || energy_analysis.terrain_penalty_kwh > 0) && (
+          <div className="mt-2 pt-2 border-t border-blue-300">
+            <p className="text-xs text-blue-600 font-medium">Impact Factors:</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {energy_analysis.ac_penalty_kwh > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                  AC: +{energy_analysis.ac_penalty_kwh} kWh
+                </span>
+              )}
+              {energy_analysis.passenger_penalty_kwh > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                  Passengers: +{energy_analysis.passenger_penalty_kwh} kWh
+                </span>
+              )}
+              {energy_analysis.terrain_penalty_kwh > 0 && (
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                  Terrain: +{energy_analysis.terrain_penalty_kwh} kWh
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderScoreBreakdown = (station) => {
+    if (!station.score_breakdown || !expandedScores[station.id]) return null;
+
+    const { score_breakdown } = station;
+    return (
+      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+        <h5 className="font-semibold text-gray-800 mb-2">📊 Score Breakdown</h5>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {Object.entries(score_breakdown).map(([factor, score]) => (
+            <div key={factor} className="flex justify-between">
+              <span className="text-gray-600 capitalize">
+                {factor.replace('_', ' ')}:
+              </span>
+              <span className="font-medium text-gray-800">
+                {(score * 100).toFixed(0)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-800">
-          Smart Recommendations ({recommendations.length})
+          🎯 Smart Recommendations ({recommendations.length})
         </h3>
         {metadata && (
           <div className="text-sm text-gray-600">
-            Algorithm: {metadata.algorithm_used} • 
-            Processed in {metadata.processing_time}
+            <div>Algorithm: {metadata.type || 'hybrid'}</div>
+            {metadata.factors_considered && (
+              <div className="text-xs text-gray-500">
+                Factors: {metadata.factors_considered.join(', ')}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -82,6 +168,7 @@ const RecommendationResults = ({
           const station = rec;
           const hasBooking = findBookingForStation(station.id);
           const isLoadingBooking = bookingLoading[station.id];
+          const isEnhanced = station.energy_analysis || station.score_breakdown;
           
           return (
             <div 
@@ -101,30 +188,54 @@ const RecommendationResults = ({
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-800 text-lg">{station.name}</h4>
-                    {index === 0 && (
-                      <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                        🏆 Top Recommendation
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {index === 0 && (
+                        <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
+                          🏆 Top Recommendation
+                        </span>
+                      )}
+                      {isEnhanced && (
+                        <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
+                          🧠 Smart Analysis
+                        </span>
+                      )}
+                      {station.is_reachable === false && (
+                        <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
+                          ⚠️ Low Battery Warning
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
                 <div className="text-right">
                   <div className="text-lg font-bold text-blue-600">
-                    Score: {rec.score}
+                    Score: {(station.score * 100).toFixed(0)}%
                   </div>
                   <div className="text-sm text-gray-600">
-                    {rec.distance} km away
+                    {station.distance} km away
                   </div>
+                  {isEnhanced && (
+                    <button
+                      onClick={() => toggleScoreBreakdown(station.id)}
+                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                    >
+                      {expandedScores[station.id] ? '▼ Hide Details' : '▶ Show Details'}
+                    </button>
+                  )}
                 </div>
               </div>
+
+              {/* Enhanced Analysis */}
+              {renderEnergyAnalysis(station)}
+              {renderScoreBreakdown(station)}
 
               {/* Station Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">📍</span>
-                    <span className="text-sm text-gray-700">{station.location?.address || 'Location data unavailable'}</span>
+                    <span className="text-sm text-gray-700">{station.location?.address || `${station.location?.[0]?.toFixed(4)}, ${station.location?.[1]?.toFixed(4)}`}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">💰</span>
@@ -158,6 +269,33 @@ const RecommendationResults = ({
                   </div>
                 </div>
               </div>
+
+              {/* Context Factors Display */}
+              {station.context_factors && (
+                <div className="mb-4 p-2 bg-gray-50 rounded">
+                  <p className="text-xs text-gray-600 font-medium mb-1">🚗 Trip Context Impact:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {station.context_factors.ac_impact > 0 && (
+                      <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">
+                        AC: +{station.context_factors.ac_impact} kWh
+                      </span>
+                    )}
+                    {station.context_factors.passenger_impact > 0 && (
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
+                        Passengers: +{station.context_factors.passenger_impact} kWh
+                      </span>
+                    )}
+                    {station.context_factors.terrain_impact > 0 && (
+                      <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                        Terrain: +{station.context_factors.terrain_impact} kWh
+                      </span>
+                    )}
+                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                      Total: {station.context_factors.total_energy_needed} kWh
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Auto-booking status */}
               {rec.auto_booking?.auto_booked && (
@@ -202,10 +340,10 @@ const RecommendationResults = ({
                 {!hasBooking && !rec.auto_booking?.auto_booked && (
                   <button
                     onClick={() => handleBookSlot(station)}
-                    disabled={isLoadingBooking}
-                    className="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    disabled={isLoadingBooking || station.availability === 0}
+                    className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {isLoadingBooking ? 'Booking...' : 'Book Slot'}
+                    {isLoadingBooking ? 'Booking...' : 'Book Now'}
                   </button>
                 )}
               </div>
@@ -213,20 +351,6 @@ const RecommendationResults = ({
           );
         })}
       </div>
-
-      {/* Additional Information */}
-      {metadata && (
-        <div className="mt-6 pt-4 border-t border-gray-200">
-          <div className="text-sm text-gray-600 space-y-1">
-            <div>🧠 Using hybrid algorithm combining distance, availability, and load balancing</div>
-            <div>📊 Stations ranked by composite score including traffic patterns</div>
-            <div>⚡ Real-time availability and pricing data</div>
-            {metadata.notes && (
-              <div>💡 {metadata.notes}</div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
