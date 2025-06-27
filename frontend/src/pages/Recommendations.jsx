@@ -202,6 +202,19 @@ const Recommendations = () => {
     }
   };
 
+  const handleAutoBook = (booking) => {
+    // Add the auto-booking to the userBookings state
+    setUserBookings(prev => [...prev, booking]);
+    
+    // Show success message with details
+    alert(`Auto-booking successful!\nStation: ${booking.station_details?.name}\nBooking ID: ${booking.booking_id}`);
+    
+    // Reload recommendations to update availability
+    if (recommendations) {
+      handleRecommendations(recommendations);
+    }
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -294,6 +307,7 @@ const Recommendations = () => {
                 metadata={recommendations.metadata}
                 autoBookings={recommendations.auto_bookings}
                 data={recommendations}
+                onAutoBook={handleAutoBook}
               />
             )}
 

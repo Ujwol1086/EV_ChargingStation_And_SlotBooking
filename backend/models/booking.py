@@ -172,4 +172,160 @@ class Booking:
             
         except Exception as e:
             logger.error(f"Error finding active bookings for user: {e}")
-            return [] 
+            return []
+    
+    @staticmethod
+    def check_slot_availability(station_id, charger_type, booking_date, booking_time):
+        """
+        Check if a slot is available for the given station, charger type, date and time
+        Returns the number of available slots for that time slot
+        """
+        try:
+            logger.info(f"Checking slot availability for station {station_id} on {booking_date} at {booking_time}")
+            
+            # Parse the booking datetime
+            from datetime import datetime, timedelta
+            booking_datetime = datetime.strptime(f"{booking_date} {booking_time}", "%Y-%m-%d %H:%M")
+            
+            # Define time slot window (1 hour slot)
+            slot_start = booking_datetime
+            slot_end = booking_datetime + timedelta(hours=1)
+            
+            # Count existing bookings for this time slot
+            existing_bookings = mongo.db.bookings.count_documents({
+                "station_id": station_id,
+                "charger_type": charger_type,
+                "status": {"$in": ["confirmed", "in_progress"]},
+                "booking_datetime": {"$gte": slot_start, "$lt": slot_end}
+            })
+            
+            # Get total slots for this charger type at the station
+            # For now, assume each station has 2 slots per charger type
+            # This should be fetched from the station data in a real implementation
+            total_slots = 2
+            available_slots = total_slots - existing_bookings
+            
+            logger.info(f"Station {station_id}: {available_slots}/{total_slots} slots available for {booking_date} {booking_time}")
+            
+            return {
+                'available': available_slots > 0,
+                'available_slots': max(0, available_slots),
+                'total_slots': total_slots,
+                'existing_bookings': existing_bookings
+            }
+            
+        except Exception as e:
+            logger.error(f"Error checking slot availability: {e}")
+            return {
+                'available': False,
+                'available_slots': 0,
+                'total_slots': 0,
+                'existing_bookings': 0
+            }
+    
+    @staticmethod
+    def get_available_time_slots(station_id, charger_type, booking_date):
+        """
+        Get all available time slots for a given station, charger type and date
+        Returns a list of available time slots with their availability status
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            # Generate time slots from 6 AM to 10 PM (16 hours)
+            base_date = datetime.strptime(booking_date, "%Y-%m-%d")
+            time_slots = []
+            
+            for hour in range(6, 23):  # 6 AM to 10 PM
+                slot_time = f"{hour:02d}:00"
+                slot_datetime = base_date.replace(hour=hour, minute=0, second=0)
+                
+                # Skip past time slots for today
+                if booking_date == datetime.now().strftime("%Y-%m-%d") and slot_datetime < datetime.now():
+                    continue
+                
+                # Check availability for this slot
+                availability = Booking.check_slot_availability(station_id, charger_type, booking_date, slot_time)
+                
+                time_slots.append({
+                    'time': slot_time,
+                    'datetime': slot_datetime.isoformat(),
+                    'available': availability['available'],
+                    'available_slots': availability['available_slots'],
+                    'total_slots': availability['total_slots'],
+                    'display_time': f"{hour % 12 if hour % 12 != 0 else 12}:00 {'AM' if hour < 12 else 'PM'}"
+                })
+            
+            logger.info(f"Generated {len(time_slots)} time slots for station {station_id} on {booking_date}")
+            return time_slots
+            
+        except Exception as e:
+            logger.error(f"Error generating time slots: {e}")
+            return []
+    
+    @staticmethod
+    def create_timed_booking(user_id, station_id, charger_type, booking_date, booking_time, booking_data):
+        """
+        Create a booking with specific date and time
+        """
+        try:
+            from datetime import datetime
+            
+            # Check slot availability first
+            availability = Booking.check_slot_availability(station_id, charger_type, booking_date, booking_time)
+            
+            if not availability['available']:
+                return {
+                    'success': False,
+                    'error': 'No slots available for the selected time',
+                    'availability': availability
+                }
+            
+            # Parse booking datetime
+            booking_datetime = datetime.strptime(f"{booking_date} {booking_time}", "%Y-%m-%d %H:%M")
+            
+            # Create booking document with specific datetime
+            booking = {
+                "user_id": ObjectId(user_id),
+                "station_id": station_id,
+                "charger_type": charger_type,
+                "booking_id": booking_data.get('booking_id'),
+                "booking_datetime": booking_datetime,
+                "booking_date": booking_date,
+                "booking_time": booking_time,
+                "power": booking_data.get('power'),
+                "estimated_time": booking_data.get('estimated_time'),
+                "auto_booked": booking_data.get('auto_booked', False),
+                "status": "confirmed",
+                "created_at": datetime.utcnow(),
+                "estimated_duration": booking_data.get('booking_duration', 60),
+                "station_details": booking_data.get('station_details', {}),
+                "user_location": booking_data.get('user_location', []),
+                "distance_to_station": booking_data.get('distance_to_station', 0),
+                "urgency_level": booking_data.get('urgency_level', 'medium'),
+                "plug_type": booking_data.get('plug_type', charger_type)
+            }
+            
+            # Insert booking into database
+            result = mongo.db.bookings.insert_one(booking)
+            booking_id = result.inserted_id
+            
+            logger.info(f"Timed booking created with ID: {booking_id} for {booking_date} {booking_time}")
+            
+            # Return the booking document
+            booking_doc = mongo.db.bookings.find_one({"_id": booking_id})
+            if booking_doc:
+                booking_doc["_id"] = str(booking_doc["_id"])
+                booking_doc["user_id"] = str(booking_doc["user_id"])
+            
+            return {
+                'success': True,
+                'booking': booking_doc
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating timed booking: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            } 

@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useNavigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import axios from "../api/axios";
 import L from "leaflet";
 import BookingForm from "../components/BookingForm";
 import RecommendationForm from "../components/RecommendationForm";
 import RecommendationResults from "../components/RecommendationResults";
+import StationBookingModal from "../components/StationBookingModal";
+import { useAuth } from "../context/useAuth";
 
 // Fix for the default marker icon issue in react-leaflet
 // This is needed because webpack doesn't handle Leaflet's assets correctly
@@ -110,6 +113,8 @@ const deg2rad = (deg) => {
 };
 
 const Map = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [stations, setStations] = useState([]);
   const [filteredStations, setFilteredStations] = useState([]);
   const [selectedStation, setSelectedStation] = useState(null);
@@ -124,6 +129,10 @@ const Map = () => {
   const [recommendations, setRecommendations] = useState(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [viewMode, setViewMode] = useState('explore'); // 'explore' or 'recommendations'
+  
+  // NEW: Station Booking State (now for side panel instead of modal)
+  const [showBookingPanel, setShowBookingPanel] = useState(false);
+  const [stationToBook, setStationToBook] = useState(null);
   
   const mapRef = useRef(null);
 
@@ -204,6 +213,18 @@ const Map = () => {
       const response = await axios.get(`/stations/${stationId}`);
       if (response.data.success) {
         setSelectedStation(response.data.station);
+        
+        // Center map on selected station
+        const station = response.data.station;
+        if (mapRef.current && station.location) {
+          const map = mapRef.current;
+          const position = station.location.coordinates 
+            ? [station.location.coordinates[0], station.location.coordinates[1]]
+            : station.location;
+          if (position && position.length === 2) {
+            map.setView(position, 15);
+          }
+        }
       }
     } catch (err) {
       console.error("Error fetching station details:", err);
@@ -262,6 +283,84 @@ const Map = () => {
     });
   };
 
+  // UPDATED: Handle booking from station cards - now shows in side panel
+  const handleBookFromCard = (station) => {
+    if (!isAuthenticated) {
+      alert('Please log in to book a charging slot');
+      navigate('/login');
+      return;
+    }
+    setStationToBook(station);
+    setShowBookingPanel(true);
+  };
+
+  const handleBookingSuccess = (booking) => {
+    alert(`Booking successful! Booking ID: ${booking.booking_id}`);
+    setShowBookingPanel(false);
+    setStationToBook(null);
+    // Refresh stations data to update availability
+    const fetchStations = async () => {
+      try {
+        const response = await axios.get('/stations/list');
+        if (response.data.success) {
+          setStations(response.data.stations);
+        }
+      } catch (err) {
+        console.error('Error fetching stations:', err);
+      }
+    };
+    fetchStations();
+  };
+
+  const handleCloseBookingPanel = () => {
+    setShowBookingPanel(false);
+    setStationToBook(null);
+  };
+
+  // Auto-book function for high urgency recommendations
+  const handleAutoBookRecommendation = async (recommendation) => {
+    if (!isAuthenticated) {
+      alert('Please log in to use auto-booking feature');
+      navigate('/login');
+      return;
+    }
+    
+    setBookingLoading(prev => ({ ...prev, [recommendation.id]: true }));
+    
+    try {
+      const bookingData = {
+        station_id: recommendation.id,
+        charger_type: recommendation.connector_types?.[0] || 'Type 2',
+        urgency_level: 'high',
+        auto_booked: true,
+        booking_duration: 60,
+        station_details: {
+          name: recommendation.name,
+          location: recommendation.location,
+          pricing: recommendation.pricing
+        },
+        user_location: userPosition || []
+      };
+
+      const response = await axios.post('/recommendations/auto-book-slot', bookingData);
+      
+      if (response.data.success) {
+        alert(`Auto-booking successful! Booking ID: ${response.data.booking.booking_id}`);
+      } else {
+        alert(`Auto-booking failed: ${response.data.error}`);
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        alert('Please log in to use auto-booking feature');
+        navigate('/login');
+      } else {
+        alert(`Auto-booking error: ${err.response?.data?.error || 'Unknown error'}`);
+      }
+    } finally {
+      setBookingLoading(prev => ({ ...prev, [recommendation.id]: false }));
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -300,7 +399,11 @@ const Map = () => {
             </h1>
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setViewMode('explore')}
+                onClick={() => {
+                  setViewMode('explore');
+                  setShowBookingPanel(false);
+                  setStationToBook(null);
+                }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   viewMode === 'explore'
                     ? 'bg-blue-600 text-white'
@@ -310,7 +413,11 @@ const Map = () => {
                 🔍 Explore
               </button>
               <button
-                onClick={() => setViewMode('recommendations')}
+                onClick={() => {
+                  setViewMode('recommendations');
+                  setShowBookingPanel(false);
+                  setStationToBook(null);
+                }}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                   viewMode === 'recommendations'
                     ? 'bg-green-600 text-white'
@@ -319,6 +426,18 @@ const Map = () => {
               >
                 🎯 Smart Recommendations
               </button>
+              {showBookingPanel && (
+                <button
+                  onClick={() => setViewMode('booking')}
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    viewMode === 'booking'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  📅 Booking
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -328,7 +447,29 @@ const Map = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Panel - Forms and Results */}
           <div className="lg:col-span-1 space-y-6">
-            {viewMode === 'recommendations' ? (
+            {viewMode === 'booking' && stationToBook ? (
+              // Booking Form Panel
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-800">Book Charging Slot</h2>
+                  <button
+                    onClick={handleCloseBookingPanel}
+                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Booking Form Content (extracted from modal) */}
+                <BookingFormContent 
+                  station={stationToBook}
+                  onBookingSuccess={handleBookingSuccess}
+                  onClose={handleCloseBookingPanel}
+                />
+              </div>
+            ) : viewMode === 'recommendations' ? (
               <>
                 {/* Smart Recommendation Form */}
                 <RecommendationForm
@@ -358,33 +499,33 @@ const Map = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                Maximum Distance: {maxDistance} km
-              </label>
-              <input
-                type="range"
-                min="5"
+                        Maximum Distance: {maxDistance} km
+                      </label>
+                      <input
+                        type="range"
+                        min="5"
                         max="200"
-                value={maxDistance}
+                        value={maxDistance}
                         onChange={(e) => setMaxDistance(parseInt(e.target.value))}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-              />
+                      />
                       <div className="flex justify-between text-xs text-gray-500 mt-1">
                         <span>5 km</span>
                         <span>100 km</span>
                         <span>200 km</span>
                       </div>
-            </div>
+                    </div>
                     
                     <div className="text-sm text-gray-600">
                       <p>📍 Showing {getDisplayStations().length} stations within {maxDistance} km</p>
                       {userPosition && (
                         <p className="text-xs text-gray-500 mt-1">
                           Your location: {userPosition[0].toFixed(4)}, {userPosition[1].toFixed(4)}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Station List */}
                 <div className="bg-white rounded-lg shadow-md p-6">
@@ -395,16 +536,46 @@ const Map = () => {
                     {getDisplayStations().map((station, index) => (
                       <div
                         key={station.id}
-                        className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer"
-                        onClick={() => handleStationClick(station.id)}
+                        className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
                       >
-                        <h4 className="font-medium text-gray-800">{station.name}</h4>
-                        <p className="text-sm text-gray-600">
-                          {station.distance?.toFixed(1)} km away
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {station.available_slots || 0}/{station.total_slots || 0} slots available
-                        </p>
+                        <div 
+                          className="cursor-pointer"
+                          onClick={() => handleStationClick(station.id)}
+                        >
+                          <h4 className="font-medium text-gray-800">{station.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            📍 {station.distance?.toFixed(1)} km away
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            🔌 {station.available_slots || 0}/{station.total_slots || 0} slots available
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            💰 Rs. {station.pricing || station.pricing_per_kwh || 'N/A'} per kWh
+                          </p>
+                        </div>
+                        
+                        {/* Action buttons */}
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStationClick(station.id);
+                            }}
+                            className="flex-1 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                          >
+                            📍 View on Map
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleBookFromCard(station);
+                            }}
+                            disabled={station.available_slots === 0}
+                            className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            {station.available_slots === 0 ? '❌ Full' : '📅 Book Now'}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -417,16 +588,16 @@ const Map = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: "600px" }}>
               {mapCenter && (
-            <MapContainer
+                <MapContainer
                   center={mapCenter}
                   zoom={13}
-              style={{ height: "100%", width: "100%" }}
-              ref={mapRef}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+                  style={{ height: "100%", width: "100%" }}
+                  ref={mapRef}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
 
                   {/* User Location Marker */}
                   <LocationMarker position={userPosition} setPosition={setUserPosition} />
@@ -440,15 +611,15 @@ const Map = () => {
                     if (!position || position.length !== 2) return null;
                     
                     return (
-                <Marker
-                  key={station.id}
+                      <Marker
+                        key={station.id}
                         position={position}
                         icon={getStationIcon(station, index)}
-                  eventHandlers={{
-                    click: () => handleStationClick(station.id),
-                  }}
-                >
-                  <Popup>
+                        eventHandlers={{
+                          click: () => handleStationClick(station.id),
+                        }}
+                      >
+                        <Popup>
                           <div className="min-w-48">
                             <h3 className="font-bold text-gray-800 mb-2">{station.name}</h3>
                             
@@ -462,8 +633,8 @@ const Map = () => {
                                     🏆 Top Choice
                                   </span>
                                 )}
-                    </div>
-                  )}
+                              </div>
+                            )}
 
                             <div className="space-y-1 text-sm">
                               <p><strong>Distance:</strong> {station.distance?.toFixed(1) || 'N/A'} km</p>
@@ -475,15 +646,15 @@ const Map = () => {
                                   ⚠️ May not be reachable with current battery
                                 </p>
                               )}
-                  </div>
+                            </div>
 
-                  <button
-                    onClick={() => setShowBookingForm(true)}
+                            <button
+                              onClick={() => handleBookFromCard(station)}
                               className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                  >
-                              View Details
-                  </button>
-                </div>
+                            >
+                              📅 Book Slot
+                            </button>
+                          </div>
                         </Popup>
                       </Marker>
                     );
@@ -495,7 +666,7 @@ const Map = () => {
         </div>
       </div>
 
-      {/* Booking Form Modal */}
+      {/* Keep the original booking form modal for detailed view if needed */}
       {showBookingForm && selectedStation && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-md w-full mx-4 max-h-screen overflow-y-auto">
@@ -508,6 +679,230 @@ const Map = () => {
         </div>
       )}
     </div>
+  );
+};
+
+// Extract booking form content as a separate component for reuse
+const BookingFormContent = ({ station, onBookingSuccess, onClose }) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
+  const [formData, setFormData] = useState({
+    charger_type: station?.connector_types?.[0] || 'Type 2',
+    plug_type: station?.connector_types?.[0] || 'Type 2',
+    booking_date: '',
+    booking_time: '',
+    user_battery_percentage: 50,
+    urgency_level: 'medium'
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!isAuthenticated) {
+      alert('Please log in to book a charging slot');
+      navigate('/login');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+
+    try {
+      const bookingData = {
+        station_id: station.id,
+        charger_type: formData.charger_type,
+        plug_type: formData.plug_type,
+        urgency_level: formData.urgency_level,
+        user_battery_percentage: formData.user_battery_percentage,
+        station_details: station
+      };
+
+      if (formData.booking_date) {
+        bookingData.preferred_date = formData.booking_date;
+      }
+      if (formData.booking_time) {
+        bookingData.preferred_time = formData.booking_time;
+      }
+
+      const response = await axios.post('/recommendations/book-slot', bookingData);
+
+      if (response.data.success) {
+        onBookingSuccess(response.data.booking);
+      } else {
+        setError(response.data.error || 'Booking failed');
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        alert('Please log in to book a charging slot');
+        navigate('/login');
+      } else {
+        setError(err.response?.data?.error || 'Error creating booking');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const availableSlots = station.available_slots || 0;
+  const totalSlots = station.total_slots || 0;
+  const connectorTypes = station.connector_types || ['Type 2', 'CCS', 'CHAdeMO'];
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Station Information */}
+      <div className="bg-gray-50 rounded-lg p-4">
+        <h3 className="font-bold text-gray-800 text-lg mb-2">{station.name}</h3>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <span className="text-gray-600">📍 Distance:</span>
+            <p className="font-medium">{station.distance?.toFixed(1) || 'N/A'} km</p>
+          </div>
+          <div>
+            <span className="text-gray-600">💰 Price:</span>
+            <p className="font-medium">Rs. {station.pricing || station.pricing_per_kwh || 'N/A'}/kWh</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Slot Availability */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <h4 className="font-semibold text-gray-800 mb-2">Slot Availability</h4>
+        <div className="flex items-center justify-between">
+          <span className="text-gray-600">Available:</span>
+          <div className="flex items-center">
+            <span className="text-xl font-bold text-green-600">{availableSlots}</span>
+            <span className="text-gray-500 ml-1">/ {totalSlots}</span>
+          </div>
+        </div>
+        <div className="mt-2">
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-green-500 h-2 rounded-full" 
+              style={{ width: `${totalSlots > 0 ? (availableSlots / totalSlots) * 100 : 0}%` }}
+            ></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Form Fields */}
+      <div className="space-y-4">
+        {/* Charger Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Charger Type <span className="text-red-500">*</span>
+          </label>
+          <select
+            name="charger_type"
+            value={formData.charger_type}
+            onChange={handleInputChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          >
+            {connectorTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date/Time */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date <span className="text-gray-400">(Optional)</span>
+            </label>
+            <input
+              type="date"
+              name="booking_date"
+              value={formData.booking_date}
+              onChange={handleInputChange}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Time <span className="text-gray-400">(Optional)</span>
+            </label>
+            <input
+              type="time"
+              name="booking_time"
+              value={formData.booking_time}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            />
+          </div>
+        </div>
+
+        {/* Battery Level */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Battery Level: {formData.user_battery_percentage}%
+          </label>
+          <input
+            type="range"
+            name="user_battery_percentage"
+            value={formData.user_battery_percentage}
+            onChange={handleInputChange}
+            min="0"
+            max="100"
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+        </div>
+
+        {/* Urgency */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Urgency Level
+          </label>
+          <select
+            name="urgency_level"
+            value={formData.urgency_level}
+            onChange={handleInputChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          >
+            <option value="low">🟢 Low</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="high">🔴 High</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <p className="text-red-600 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex gap-3 pt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={loading || availableSlots === 0}
+          className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm"
+        >
+          {loading ? 'Booking...' : '📅 Book Slot'}
+        </button>
+      </div>
+    </form>
   );
 };
 

@@ -40,6 +40,10 @@ def normalize_station_data(station, index):
                     'available': True  # Default to available
                 })
         
+        # Calculate slot availability from chargers
+        total_slots = len(chargers)
+        available_slots = sum(1 for charger in chargers if charger.get('available', True))
+        
         # Normalize amenities
         amenities = station.get('amenities', [])
         if isinstance(amenities, list):
@@ -55,6 +59,8 @@ def normalize_station_data(station, index):
                 'coordinates': coordinates
             },
             'chargers': chargers,
+            'total_slots': total_slots,
+            'available_slots': available_slots,
             'amenities': amenities,
             'operatingHours': station.get('operatingHours', station.get('time', '24/7')),
             'pricing': station.get('pricing', 'Contact for pricing'),

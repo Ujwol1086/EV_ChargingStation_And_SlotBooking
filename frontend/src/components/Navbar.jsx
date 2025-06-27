@@ -41,7 +41,7 @@ export default function Navbar() {
               to="/recommendations" 
               className="px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300 font-medium"
             >
-              Smart Recommendations
+              Automated Booking
             </Link>
 
             {isAuthenticated ? (

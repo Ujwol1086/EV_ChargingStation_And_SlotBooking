@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 import json
 import os
 import logging
+import time
 from services.Hybrid_Algorithm import HybridAlgorithm
 from services.route_service import RouteService
 from models.booking import Booking
@@ -357,7 +358,9 @@ def book_charging_slot():
         "charger_type": str,
         "booking_duration": int (minutes, optional),
         "station_details": dict (optional),
-        "user_location": [lat, lng] (optional)
+        "user_location": [lat, lng] (optional),
+        "preferred_date": str (optional, YYYY-MM-DD),
+        "preferred_time": str (optional, HH:MM)
     }
     """
     try:
@@ -378,62 +381,127 @@ def book_charging_slot():
                 'error': 'Station ID and charger type are required'
             }), 400
         
-        # Generate booking ID
-        import time
-        booking_id = f"MANUAL_{data['station_id']}_{user_id}_{int(time.time())}"
+        # Check if this is a time-based booking
+        preferred_date = data.get('preferred_date')
+        preferred_time = data.get('preferred_time')
         
-        # Calculate distance if user location provided
-        distance_to_station = 0
-        if 'user_location' in data and 'station_details' in data:
-            station_coords = data['station_details'].get('location', {}).get('coordinates', [])
-            if len(station_coords) == 2:
-                distance_to_station = route_service.haversine_distance(
-                    data['user_location'][0], data['user_location'][1],
-                    station_coords[0], station_coords[1]
-                )
-        
-        # Prepare booking data
-        booking_data = {
-            'booking_id': booking_id,
-            'power': data.get('power', 'Unknown'),
-            'estimated_time': data.get('estimated_time', 'Unknown'),
-            'auto_booked': False,
-            'booking_duration': data.get('booking_duration', 60),
-            'station_details': data.get('station_details', {}),
-            'user_location': data.get('user_location', []),
-            'distance_to_station': round(distance_to_station, 2)
-        }
-        
-        # Store booking in database
-        booking = Booking.create_booking(
-            user_id=user_id,
-            station_id=data['station_id'],
-            charger_type=data['charger_type'],
-            booking_data=booking_data
-        )
-        
-        if not booking:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to create booking'
-            }), 500
-        
-        response = {
-            'success': True,
-            'booking': {
-                'booking_id': booking_id,
-                'database_id': booking['_id'],
-                'station_id': data['station_id'],
-                'charger_type': data['charger_type'],
-                'status': 'confirmed',
-                'booking_time': booking['booking_time'].isoformat() if 'booking_time' in booking else None,
-                'estimated_duration': booking_data['booking_duration'],
-                'distance_to_station': booking_data['distance_to_station'],
-                'user_id': user_id
+        if preferred_date and preferred_time:
+            # Use time-based booking
+            booking_data = {
+                'booking_id': f"TIMED_{data['station_id']}_{user_id}_{int(time.time())}",
+                'power': data.get('power', 'Unknown'),
+                'estimated_time': data.get('estimated_time', '1 hour'),
+                'auto_booked': False,
+                'booking_duration': data.get('booking_duration', 60),
+                'station_details': data.get('station_details', {}),
+                'user_location': data.get('user_location', []),
+                'distance_to_station': 0,
+                'urgency_level': data.get('urgency_level', 'medium'),
+                'plug_type': data.get('plug_type', data['charger_type'])
             }
-        }
-        
-        logger.info(f"Manual booking created for user {user_id}: {booking_id}")
+            
+            # Calculate distance if user location provided
+            if 'user_location' in data and 'station_details' in data:
+                station_coords = data['station_details'].get('location', {}).get('coordinates', [])
+                if len(station_coords) == 2:
+                    distance_to_station = route_service.haversine_distance(
+                        data['user_location'][0], data['user_location'][1],
+                        station_coords[0], station_coords[1]
+                    )
+                    booking_data['distance_to_station'] = round(distance_to_station, 2)
+            
+            # Create timed booking
+            result = Booking.create_timed_booking(
+                user_id=user_id,
+                station_id=data['station_id'],
+                charger_type=data['charger_type'],
+                booking_date=preferred_date,
+                booking_time=preferred_time,
+                booking_data=booking_data
+            )
+            
+            if not result['success']:
+                return jsonify(result), 400
+            
+            booking = result['booking']
+            
+            response = {
+                'success': True,
+                'booking': {
+                    'booking_id': booking_data['booking_id'],
+                    'database_id': booking['_id'],
+                    'station_id': data['station_id'],
+                    'charger_type': data['charger_type'],
+                    'booking_date': preferred_date,
+                    'booking_time': preferred_time,
+                    'status': 'confirmed',
+                    'estimated_duration': booking_data['booking_duration'],
+                    'distance_to_station': booking_data['distance_to_station'],
+                    'user_id': user_id
+                }
+            }
+            
+            logger.info(f"Timed booking created for user {user_id}: {booking_data['booking_id']}")
+            
+        else:
+            # Generate booking ID
+            import time
+            booking_id = f"MANUAL_{data['station_id']}_{user_id}_{int(time.time())}"
+            
+            # Calculate distance if user location provided
+            distance_to_station = 0
+            if 'user_location' in data and 'station_details' in data:
+                station_coords = data['station_details'].get('location', {}).get('coordinates', [])
+                if len(station_coords) == 2:
+                    distance_to_station = route_service.haversine_distance(
+                        data['user_location'][0], data['user_location'][1],
+                        station_coords[0], station_coords[1]
+                    )
+            
+            # Prepare booking data
+            booking_data = {
+                'booking_id': booking_id,
+                'power': data.get('power', 'Unknown'),
+                'estimated_time': data.get('estimated_time', 'Unknown'),
+                'auto_booked': False,
+                'booking_duration': data.get('booking_duration', 60),
+                'station_details': data.get('station_details', {}),
+                'user_location': data.get('user_location', []),
+                'distance_to_station': round(distance_to_station, 2),
+                'urgency_level': data.get('urgency_level', 'medium'),
+                'plug_type': data.get('plug_type', data['charger_type'])
+            }
+            
+            # Store booking in database using original method
+            booking = Booking.create_booking(
+                user_id=user_id,
+                station_id=data['station_id'],
+                charger_type=data['charger_type'],
+                booking_data=booking_data
+            )
+            
+            if not booking:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to create booking'
+                }), 500
+            
+            response = {
+                'success': True,
+                'booking': {
+                    'booking_id': booking_id,
+                    'database_id': booking['_id'],
+                    'station_id': data['station_id'],
+                    'charger_type': data['charger_type'],
+                    'status': 'confirmed',
+                    'booking_time': booking['booking_time'].isoformat() if 'booking_time' in booking else None,
+                    'estimated_duration': booking_data['booking_duration'],
+                    'distance_to_station': booking_data['distance_to_station'],
+                    'user_id': user_id
+                }
+            }
+            
+            logger.info(f"Manual booking created for user {user_id}: {booking_id}")
         
         return jsonify(response)
         
@@ -798,5 +866,178 @@ def get_supported_cities():
     except Exception as e:
         logger.error(f"Error getting supported cities: {e}")
         return jsonify({
+            'error': 'Internal server error'
+        }), 500
+
+@recommendation_bp.route('/check-slot-availability', methods=['POST'])
+def check_slot_availability():
+    """
+    Check slot availability for a specific station, charger type, date and time
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        station_id = data.get('station_id')
+        charger_type = data.get('charger_type')
+        booking_date = data.get('booking_date')
+        booking_time = data.get('booking_time')
+        
+        if not all([station_id, charger_type, booking_date, booking_time]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: station_id, charger_type, booking_date, booking_time'
+            }), 400
+        
+        # Check availability
+        availability = Booking.check_slot_availability(station_id, charger_type, booking_date, booking_time)
+        
+        return jsonify({
+            'success': True,
+            'availability': availability
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking slot availability: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@recommendation_bp.route('/get-time-slots', methods=['POST'])
+def get_available_time_slots():
+    """
+    Get all available time slots for a specific station, charger type and date
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        station_id = data.get('station_id')
+        charger_type = data.get('charger_type')
+        booking_date = data.get('booking_date')
+        
+        if not all([station_id, charger_type, booking_date]):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: station_id, charger_type, booking_date'
+            }), 400
+        
+        # Get time slots
+        time_slots = Booking.get_available_time_slots(station_id, charger_type, booking_date)
+        
+        return jsonify({
+            'success': True,
+            'time_slots': time_slots,
+            'total_slots': len(time_slots),
+            'available_slots': len([slot for slot in time_slots if slot['available']])
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting time slots: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@recommendation_bp.route('/auto-book-slot', methods=['POST'])
+@require_auth
+def auto_book_charging_slot():
+    """
+    Automatically book a charging slot with specific date and time
+    """
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        # Validate required fields
+        required_fields = ['station_id', 'charger_type', 'booking_date', 'booking_time']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
+        
+        station_id = data['station_id']
+        charger_type = data['charger_type']
+        booking_date = data['booking_date']
+        booking_time = data['booking_time']
+        
+        # Generate booking ID
+        import time
+        booking_id = f"AUTO_{station_id}_{user_id}_{int(time.time())}"
+        
+        # Prepare booking data
+        booking_data = {
+            'booking_id': booking_id,
+            'power': data.get('power', 'Unknown'),
+            'estimated_time': data.get('estimated_time', '1 hour'),
+            'auto_booked': True,
+            'booking_duration': data.get('booking_duration', 60),
+            'station_details': data.get('station_details', {}),
+            'user_location': data.get('user_location', []),
+            'distance_to_station': data.get('distance_to_station', 0),
+            'urgency_level': data.get('urgency_level', 'medium'),
+            'plug_type': data.get('plug_type', charger_type)
+        }
+        
+        # Create timed booking
+        result = Booking.create_timed_booking(
+            user_id=user_id,
+            station_id=station_id,
+            charger_type=charger_type,
+            booking_date=booking_date,
+            booking_time=booking_time,
+            booking_data=booking_data
+        )
+        
+        if not result['success']:
+            return jsonify(result), 400
+        
+        booking = result['booking']
+        
+        response = {
+            'success': True,
+            'booking': {
+                'booking_id': booking_id,
+                'database_id': booking['_id'],
+                'station_id': station_id,
+                'charger_type': charger_type,
+                'booking_date': booking_date,
+                'booking_time': booking_time,
+                'status': 'confirmed',
+                'auto_booked': True,
+                'estimated_duration': booking_data['booking_duration'],
+                'distance_to_station': booking_data['distance_to_station'],
+                'user_id': user_id
+            }
+        }
+        
+        logger.info(f"Auto booking created for user {user_id}: {booking_id}")
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Error in auto_book_charging_slot: {str(e)}")
+        return jsonify({
+            'success': False,
             'error': 'Internal server error'
         }), 500 

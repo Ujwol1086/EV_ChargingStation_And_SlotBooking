@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
 import axios from "../api/axios";
 
 const RecommendationResults = ({ 
@@ -9,8 +11,11 @@ const RecommendationResults = ({
   loadingRoute = false,
   metadata = null,
   autoBookings = [],
-  data = null  // Add data prop to handle complete response
+  data = null,  // Add data prop to handle complete response
+  onAutoBook = null // Add callback for automated booking
 }) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [bookingLoading, setBookingLoading] = useState({});
   const [expandedScores, setExpandedScores] = useState({});
 
@@ -45,23 +50,90 @@ const RecommendationResults = ({
   };
 
   const handleBookSlot = async (station) => {
+    if (!isAuthenticated) {
+      alert('Please log in to book a charging slot');
+      navigate('/login');
+      return;
+    }
+    
     setBookingLoading(prev => ({ ...prev, [station.id]: true }));
     
     try {
       const response = await axios.post('/recommendations/book-slot', {
         station_id: station.id,
         charger_type: station.connector_types?.[0] || 'Type 2',
-        urgency_level: 'medium'
+        urgency_level: userContext?.urgency || 'medium',
+        booking_duration: 60,
+        station_details: {
+          name: station.name,
+          location: station.location,
+          pricing: station.pricing
+        },
+        user_location: userContext?.location || []
       });
 
       if (response.data.success) {
         alert(`Booking successful! Booking ID: ${response.data.booking.booking_id}`);
-        window.location.reload();
+        // Trigger refresh of recommendations/bookings
+        if (window.location.pathname.includes('recommendations')) {
+          window.location.reload();
+        }
       } else {
         alert(response.data.error || 'Booking failed');
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Error creating booking');
+      if (err.response?.status === 401) {
+        alert('Please log in to book a charging slot');
+        navigate('/login');
+      } else {
+        alert(err.response?.data?.error || 'Error creating booking');
+      }
+    } finally {
+      setBookingLoading(prev => ({ ...prev, [station.id]: false }));
+    }
+  };
+
+  const handleAutoBookRecommendation = async (station) => {
+    if (!isAuthenticated) {
+      alert('Please log in to use auto-booking feature');
+      navigate('/login');
+      return;
+    }
+    
+    if (!onAutoBook) return;
+    
+    setBookingLoading(prev => ({ ...prev, [station.id]: true }));
+    
+    try {
+      const bookingData = {
+        station_id: station.id,
+        charger_type: station.connector_types?.[0] || 'Type 2',
+        urgency_level: 'high',
+        auto_booked: true,
+        booking_duration: 60,
+        station_details: {
+          name: station.name,
+          location: station.location,
+          pricing: station.pricing
+        },
+        user_location: userContext?.location || []
+      };
+
+      const response = await axios.post('/recommendations/auto-book-slot', bookingData);
+      
+      if (response.data.success) {
+        alert(`Auto-booking successful! Booking ID: ${response.data.booking.booking_id}`);
+        onAutoBook(response.data.booking);
+      } else {
+        alert(`Auto-booking failed: ${response.data.error}`);
+      }
+    } catch (err) {
+      if (err.response?.status === 401) {
+        alert('Please log in to use auto-booking feature');
+        navigate('/login');
+      } else {
+        alert(`Auto-booking error: ${err.response?.data?.error || 'Unknown error'}`);
+      }
     } finally {
       setBookingLoading(prev => ({ ...prev, [station.id]: false }));
     }
@@ -335,8 +407,12 @@ const RecommendationResults = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">🔌</span>
-                    <span className="text-sm text-gray-700">
-                      {station.availability || 0}/{station.total_slots || 0} available
+                    <span className={`text-sm font-medium ${
+                      station.availability === 0 ? 'text-red-600' : 
+                      station.availability < 3 ? 'text-orange-600' : 'text-green-600'
+                    }`}>
+                      {station.availability === 0 ? 'BOOKED' : 
+                       `${station.availability}/${station.total_slots || 0} available`}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -423,13 +499,35 @@ const RecommendationResults = ({
                 </button>
 
                 {!hasBooking && !rec.auto_booking?.auto_booked && (
-                  <button
-                    onClick={() => handleBookSlot(station)}
-                    disabled={isLoadingBooking || station.availability === 0}
-                    className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isLoadingBooking ? 'Booking...' : 'Book Now'}
-                  </button>
+                  <>
+                    {station.availability > 0 ? (
+                      <button
+                        onClick={() => handleBookSlot(station)}
+                        disabled={isLoadingBooking}
+                        className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isLoadingBooking ? 'Booking...' : 'Book Now'}
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded opacity-50 cursor-not-allowed"
+                      >
+                        BOOKED OUT
+                      </button>
+                    )}
+
+                    {/* Auto-book button for high urgency */}
+                    {userContext?.urgency === 'high' && index === 0 && onAutoBook && station.availability > 0 && (
+                      <button
+                        onClick={() => handleAutoBookRecommendation(station)}
+                        disabled={isLoadingBooking}
+                        className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isLoadingBooking ? 'Auto-booking...' : '⚡ Auto-Book'}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
