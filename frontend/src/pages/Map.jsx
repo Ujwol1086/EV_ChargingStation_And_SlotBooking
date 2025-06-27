@@ -358,33 +358,33 @@ const Map = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Maximum Distance: {maxDistance} km
-                      </label>
-                      <input
-                        type="range"
-                        min="5"
+                Maximum Distance: {maxDistance} km
+              </label>
+              <input
+                type="range"
+                min="5"
                         max="200"
-                        value={maxDistance}
+                value={maxDistance}
                         onChange={(e) => setMaxDistance(parseInt(e.target.value))}
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                      />
+              />
                       <div className="flex justify-between text-xs text-gray-500 mt-1">
                         <span>5 km</span>
                         <span>100 km</span>
                         <span>200 km</span>
                       </div>
-                    </div>
+            </div>
                     
                     <div className="text-sm text-gray-600">
                       <p>📍 Showing {getDisplayStations().length} stations within {maxDistance} km</p>
                       {userPosition && (
                         <p className="text-xs text-gray-500 mt-1">
                           Your location: {userPosition[0].toFixed(4)}, {userPosition[1].toFixed(4)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
 
                 {/* Station List */}
                 <div className="bg-white rounded-lg shadow-md p-6">
@@ -417,17 +417,17 @@ const Map = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: "600px" }}>
               {mapCenter && (
-                <MapContainer
+            <MapContainer
                   center={mapCenter}
                   zoom={13}
-                  style={{ height: "100%", width: "100%" }}
-                  ref={mapRef}
-                >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
-                  
+              style={{ height: "100%", width: "100%" }}
+              ref={mapRef}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+
                   {/* User Location Marker */}
                   <LocationMarker position={userPosition} setPosition={setUserPosition} />
                   
@@ -440,15 +440,15 @@ const Map = () => {
                     if (!position || position.length !== 2) return null;
                     
                     return (
-                      <Marker
-                        key={station.id}
+                <Marker
+                  key={station.id}
                         position={position}
                         icon={getStationIcon(station, index)}
-                        eventHandlers={{
-                          click: () => handleStationClick(station.id),
-                        }}
-                      >
-                        <Popup>
+                  eventHandlers={{
+                    click: () => handleStationClick(station.id),
+                  }}
+                >
+                  <Popup>
                           <div className="min-w-48">
                             <h3 className="font-bold text-gray-800 mb-2">{station.name}</h3>
                             
@@ -462,9 +462,9 @@ const Map = () => {
                                     🏆 Top Choice
                                   </span>
                                 )}
-                              </div>
-                            )}
-                            
+                    </div>
+                  )}
+
                             <div className="space-y-1 text-sm">
                               <p><strong>Distance:</strong> {station.distance?.toFixed(1) || 'N/A'} km</p>
                               <p><strong>Available:</strong> {station.availability || station.available_slots || 0}/{station.total_slots || 0} slots</p>
@@ -475,15 +475,15 @@ const Map = () => {
                                   ⚠️ May not be reachable with current battery
                                 </p>
                               )}
-                            </div>
-                            
-                            <button
-                              onClick={() => setShowBookingForm(true)}
+                  </div>
+
+                  <button
+                    onClick={() => setShowBookingForm(true)}
                               className="mt-2 w-full px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                            >
+                  >
                               View Details
-                            </button>
-                          </div>
+                  </button>
+                </div>
                         </Popup>
                       </Marker>
                     );

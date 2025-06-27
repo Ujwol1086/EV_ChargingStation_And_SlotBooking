@@ -251,7 +251,7 @@ class RouteService:
         
         instructions.append("Arrive at the charging station")
         return instructions
-
+    
     def create_grid_node(self, lat, lon):
         """Create a grid node for pathfinding (fallback only)"""
         return {
@@ -444,4 +444,4 @@ class RouteService:
                 'waypoints': [],
                 'metrics': {},
                 'instructions': []
-            } 
+            }

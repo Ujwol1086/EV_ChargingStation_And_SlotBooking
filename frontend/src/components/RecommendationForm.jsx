@@ -105,7 +105,7 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
     }
 
     setIsLoading(true);
-    
+
     try {
       // Choose the appropriate endpoint based on route mode
       const endpoint = routeMode 
@@ -149,7 +149,7 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
       <h2 className="text-xl font-bold text-gray-800 mb-4">
         🔋 Smart Charging Recommendations
       </h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -312,8 +312,8 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
               <small className="form-hint">
                 Optional: Choose your destination for route-optimized recommendations
               </small>
-            </div>
-          )}
+          </div>
+        )}
 
           {routeMode && (
             <div className="form-group">
@@ -336,8 +336,8 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
           )}
         </div>
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           className={`submit-button ${isLoading ? 'loading' : ''}`}
           disabled={isLoading || !userLocation}
         >
@@ -355,7 +355,7 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
             </>
           )}
         </button>
-
+        
         {!userLocation && (
           <p className="text-sm text-amber-600 text-center">
             📍 Waiting for location access...

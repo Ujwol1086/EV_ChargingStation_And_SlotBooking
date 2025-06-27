@@ -338,7 +338,7 @@ def get_route():
                 'success': False,
                 'error': route_info.get('error', 'Route calculation failed')
             }), 500
-            
+        
     except Exception as e:
         logger.error(f"Error calculating route: {e}")
         return jsonify({
