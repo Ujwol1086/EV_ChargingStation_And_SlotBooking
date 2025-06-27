@@ -293,6 +293,7 @@ const Recommendations = () => {
                 loadingRoute={loadingRoute}
                 metadata={recommendations.metadata}
                 autoBookings={recommendations.auto_bookings}
+                data={recommendations}
               />
             )}
 

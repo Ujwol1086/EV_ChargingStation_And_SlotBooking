@@ -343,6 +343,7 @@ const Map = () => {
                     onStationSelect={handleStationSelect}
                     onShowRoute={handleShowRoute}
                     metadata={recommendations.algorithm_info}
+                    data={recommendations}
                   />
                 )}
               </>

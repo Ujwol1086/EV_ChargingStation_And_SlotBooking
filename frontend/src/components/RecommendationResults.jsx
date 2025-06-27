@@ -8,16 +8,27 @@ const RecommendationResults = ({
   userBookings = [], 
   loadingRoute = false,
   metadata = null,
-  autoBookings = []
+  autoBookings = [],
+  data = null  // Add data prop to handle complete response
 }) => {
   const [bookingLoading, setBookingLoading] = useState({});
   const [expandedScores, setExpandedScores] = useState({});
+
+  // Extract route info and user context from data prop
+  const routeInfo = data?.route_info;
+  const userContext = data?.user_context;
+  const algorithmInfo = data?.algorithm_info;
 
   if (!recommendations?.length) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
         <h3 className="text-xl font-bold mb-4 text-gray-800">No Recommendations</h3>
-        <p className="text-gray-600">No charging stations found matching your criteria.</p>
+        <p className="text-gray-600">
+          {routeInfo 
+            ? `No charging stations found along the route to ${routeInfo.destination_city}.`
+            : 'No charging stations found matching your criteria.'
+          }
+        </p>
       </div>
     );
   }
@@ -133,20 +144,94 @@ const RecommendationResults = ({
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
+      {/* Route Information Section */}
+      {routeInfo && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+          <h2 className="text-xl font-bold text-blue-800 mb-3 flex items-center">
+            🗺️ Route Planning Information
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+              <div className="text-sm text-gray-600">Origin</div>
+              <div className="font-semibold text-gray-800">
+                {routeInfo.origin[0].toFixed(4)}, {routeInfo.origin[1].toFixed(4)}
+              </div>
+            </div>
+            <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+              <div className="text-sm text-gray-600">Destination</div>
+              <div className="font-semibold text-blue-600 text-lg">
+                📍 {routeInfo.destination_city}
+              </div>
+            </div>
+            <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+              <div className="text-sm text-gray-600">Direct Distance</div>
+              <div className="font-semibold text-green-600">
+                {routeInfo.direct_distance_km} km
+              </div>
+            </div>
+          </div>
+          
+          {userContext?.max_detour_km && (
+            <div className="mt-3 text-center">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                ⚠️ Max detour: {userContext.max_detour_km} km
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-bold text-gray-800">
-          🎯 Smart Recommendations ({recommendations.length})
+          {routeInfo ? '🛣️ Route Charging Stations' : '🎯 Smart Recommendations'} ({recommendations.length})
         </h3>
-        {metadata && (
-          <div className="text-sm text-gray-600">
-            <div>Algorithm: {metadata.type || 'hybrid'}</div>
-            {metadata.factors_considered && (
-              <div className="text-xs text-gray-500">
-                Factors: {metadata.factors_considered.join(', ')}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="text-right">
+          {/* Enhanced Context Display */}
+          {userContext && (
+            <div className="flex flex-wrap justify-end gap-1 mb-2">
+              {userContext.battery_percentage && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  🔋 {userContext.battery_percentage}%
+                </span>
+              )}
+              {userContext.ac_status && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  ❄️ AC On
+                </span>
+              )}
+              {userContext.passengers > 1 && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                  👥 {userContext.passengers} passengers
+                </span>
+              )}
+              {userContext.terrain !== 'flat' && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                  🏔️ {userContext.terrain} terrain
+                </span>
+              )}
+              {userContext.urgency && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  ⚡ {userContext.urgency} urgency
+                </span>
+              )}
+              {userContext.route_mode && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  🗺️ Route Mode
+                </span>
+              )}
+            </div>
+          )}
+          {(metadata || algorithmInfo) && (
+            <div className="text-sm text-gray-600">
+              <div>Algorithm: {algorithmInfo?.algorithm_used || metadata?.type || 'hybrid'}</div>
+              {(algorithmInfo?.factors_considered || metadata?.factors_considered) && (
+                <div className="text-xs text-gray-500">
+                  Factors: {(algorithmInfo?.factors_considered || metadata?.factors_considered).join(', ')}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {autoBookings.length > 0 && (

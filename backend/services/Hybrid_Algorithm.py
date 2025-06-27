@@ -11,6 +11,8 @@ class HybridAlgorithm:
     - Min-heap for priority queue management
     - Context-aware energy consumption calculations
     - Enhanced MCDM scoring with AC, passengers, terrain factors
+    - City-name-based destination filtering
+    - Route-based station recommendations
     - Merge sort for final ranking
     """
     
@@ -44,6 +46,31 @@ class HybridAlgorithm:
                 'hilly': 1.2,
                 'steep': 1.5
             }
+        }
+        
+        # City coordinates mapping for destination-based filtering
+        self.city_coords = {
+            # Major cities in Nepal
+            "Kathmandu": (27.7172, 85.3240),
+            "Pokhara": (28.2096, 83.9856),
+            "Butwal": (27.7000, 83.4500),
+            "Biratnagar": (26.4525, 87.2718),
+            "Bharatpur": (27.6780, 84.4360),
+            "Janakpur": (26.7288, 85.9244),
+            "Dharan": (26.8147, 87.2791),
+            "Hetauda": (27.4280, 85.0440),
+            "Nepalgunj": (28.0500, 81.6167),
+            "Birgunj": (27.0170, 84.8800),
+            "Dhangadhi": (28.7000, 80.6000),
+            "Itahari": (26.6650, 87.2700),
+            "Gorkha": (28.0000, 84.6333),
+            "Palpa": (27.8667, 83.5500),
+            "Lumbini": (27.4833, 83.2833),
+            "Chitwan": (27.5291, 84.3542),
+            "Dang": (28.0333, 82.3000),
+            "Kanchanpur": (28.8333, 80.1667),
+            "Mahendranagar": (28.9644, 80.1811),
+            "Dadeldhura": (29.3000, 80.5833)
         }
     
     def calculate_energy_consumption(self, distance_km, ac_status=False, passengers=1, terrain='flat', battery_percentage=100):
@@ -207,12 +234,12 @@ class HybridAlgorithm:
 
     def get_enhanced_recommendations(self, user_location, stations, user_context=None, max_recommendations=5):
         """
-        Get enhanced station recommendations with context-aware scoring
+        Get enhanced station recommendations with context-aware scoring and destination filtering
         
         Args:
             user_location: [lat, lon] of user
             stations: List of station dicts
-            user_context: Dict with context parameters (battery, AC, passengers, terrain, etc.)
+            user_context: Dict with context parameters (battery, AC, passengers, terrain, destination_city, etc.)
             max_recommendations: Maximum number of recommendations to return
         
         Returns:
@@ -236,8 +263,22 @@ class HybridAlgorithm:
             if user_context is None:
                 user_context = {}
             
+            # Check for destination-based filtering
+            destination_city = user_context.get('destination_city')
+            destination_coords = None
+            route_filtering_enabled = False
+            
+            if destination_city:
+                destination_coords = self.get_city_coordinates(destination_city)
+                if destination_coords:
+                    route_filtering_enabled = True
+                    logger.info(f"Destination-based filtering enabled for {destination_city}: {destination_coords}")
+                else:
+                    logger.warning(f"Unknown destination city: {destination_city}")
+            
             # Calculate enhanced scores for all stations
             scored_stations = []
+            route_filtered_count = 0
             
             for station in stations:
                 try:
@@ -258,6 +299,21 @@ class HybridAlgorithm:
                         logger.warning(f"Invalid station location for station {station.get('id', 'unknown')}")
                         continue
                     
+                    # Route-based filtering if destination is specified
+                    route_analysis = None
+                    if route_filtering_enabled and destination_coords:
+                        route_analysis = self.is_station_along_route(
+                            user_location, 
+                            destination_coords, 
+                            station_location,
+                            max_detour_km=user_context.get('max_detour_km', 20)
+                        )
+                        
+                        # Skip stations not along the route
+                        if not route_analysis['is_along_route']:
+                            route_filtered_count += 1
+                            continue
+                    
                     # Calculate distance
                     distance = self.haversine_distance(
                         user_location[0], user_location[1],
@@ -269,6 +325,13 @@ class HybridAlgorithm:
                     
                     # Calculate enhanced composite score
                     score_analysis = self.calculate_enhanced_score(normalized_station, distance, user_context)
+                    
+                    # Boost score for stations along route to destination
+                    if route_analysis and route_analysis['is_along_route']:
+                        # Boost score based on route efficiency
+                        route_efficiency_bonus = route_analysis['route_efficiency'] * 0.1  # Up to 10% bonus
+                        score_analysis['total_score'] = min(1.0, score_analysis['total_score'] + route_efficiency_bonus)
+                        score_analysis['breakdown']['route_efficiency_bonus'] = round(route_efficiency_bonus, 3)
                     
                     # Skip stations that are not reachable with current battery if filtering is enabled
                     if not score_analysis['is_reachable'] and user_context.get('filter_unreachable', False):
@@ -303,6 +366,15 @@ class HybridAlgorithm:
                         }
                     }
                     
+                    # Add route analysis if available
+                    if route_analysis:
+                        recommendation['route_analysis'] = {
+                            'is_along_route': route_analysis['is_along_route'],
+                            'detour_distance': round(route_analysis['detour_distance'], 2),
+                            'route_efficiency': round(route_analysis['route_efficiency'], 3),
+                            'distance_to_destination': round(route_analysis['distance_station_to_dest'], 2)
+                        }
+                    
                     scored_stations.append(recommendation)
                     
                 except Exception as e:
@@ -317,16 +389,26 @@ class HybridAlgorithm:
             
             processing_time = (time.time() - start_time) * 1000  # Convert to milliseconds
             
+            algorithm_used = 'Enhanced Hybrid Algorithm'
+            if route_filtering_enabled:
+                algorithm_used += f' (Route to {destination_city})'
+            
             logger.info(f"Generated {len(recommendations)} enhanced recommendations from {len(stations)} stations")
+            if route_filtering_enabled:
+                logger.info(f"Route filtering: {route_filtered_count} stations filtered out")
             
             return {
                 'recommendations': recommendations,
                 'algorithm_info': {
-                    'algorithm_used': 'Enhanced Hybrid Algorithm',
+                    'algorithm_used': algorithm_used,
                     'processing_time_ms': round(processing_time, 2),
                     'total_stations_processed': len(stations),
                     'stations_filtered': len(stations) - len(scored_stations),
-                    'context_aware': bool(user_context)
+                    'route_filtered': route_filtered_count if route_filtering_enabled else 0,
+                    'context_aware': bool(user_context),
+                    'destination_filtering': route_filtering_enabled,
+                    'destination_city': destination_city,
+                    'destination_coords': destination_coords
                 }
             }
             
@@ -872,3 +954,112 @@ class HybridAlgorithm:
             simple_recommendations.append(simple_rec)
         
         return simple_recommendations 
+
+    def get_city_coordinates(self, city_name):
+        """
+        Get coordinates for a city name
+        
+        Args:
+            city_name: Name of the city
+            
+        Returns:
+            Tuple of (lat, lon) or None if city not found
+        """
+        # Normalize city name (case-insensitive, strip whitespace)
+        normalized_name = city_name.strip().title()
+        
+        # Direct lookup
+        if normalized_name in self.city_coords:
+            return self.city_coords[normalized_name]
+        
+        # Fuzzy matching for common variations
+        for city, coords in self.city_coords.items():
+            if normalized_name.lower() in city.lower() or city.lower() in normalized_name.lower():
+                return coords
+        
+        return None
+    
+    def is_station_along_route(self, user_location, destination_coords, station_location, max_detour_km=20):
+        """
+        Determine if a charging station is along the route from user to destination
+        
+        Args:
+            user_location: [lat, lon] of user
+            destination_coords: [lat, lon] of destination
+            station_location: [lat, lon] of station
+            max_detour_km: Maximum detour distance to consider station "along route"
+            
+        Returns:
+            Dict with route analysis
+        """
+        # Calculate direct distance from user to destination
+        direct_distance = self.haversine_distance(
+            user_location[0], user_location[1],
+            destination_coords[0], destination_coords[1]
+        )
+        
+        # Calculate distance via station (user -> station -> destination)
+        distance_to_station = self.haversine_distance(
+            user_location[0], user_location[1],
+            station_location[0], station_location[1]
+        )
+        
+        distance_station_to_dest = self.haversine_distance(
+            station_location[0], station_location[1],
+            destination_coords[0], destination_coords[1]
+        )
+        
+        via_station_distance = distance_to_station + distance_station_to_dest
+        detour_distance = via_station_distance - direct_distance
+        
+        # Check if station is along the route (within acceptable detour)
+        is_along_route = detour_distance <= max_detour_km
+        
+        # Additional check: station should be in the general direction of destination
+        # Calculate bearing from user to destination and user to station
+        bearing_to_dest = self.calculate_bearing(user_location, destination_coords)
+        bearing_to_station = self.calculate_bearing(user_location, station_location)
+        
+        # Calculate angle difference (normalized to 0-180 degrees)
+        angle_diff = abs(bearing_to_dest - bearing_to_station)
+        if angle_diff > 180:
+            angle_diff = 360 - angle_diff
+        
+        # Station should be in roughly the same direction (within 90 degrees)
+        is_right_direction = angle_diff <= 90
+        
+        return {
+            'is_along_route': is_along_route and is_right_direction,
+            'detour_distance': detour_distance,
+            'direct_distance': direct_distance,
+            'via_station_distance': via_station_distance,
+            'angle_difference': angle_diff,
+            'distance_to_station': distance_to_station,
+            'distance_station_to_dest': distance_station_to_dest,
+            'route_efficiency': direct_distance / via_station_distance if via_station_distance > 0 else 0
+        }
+    
+    def calculate_bearing(self, start_coords, end_coords):
+        """
+        Calculate the bearing between two coordinates
+        
+        Args:
+            start_coords: [lat, lon] of start point
+            end_coords: [lat, lon] of end point
+            
+        Returns:
+            Bearing in degrees (0-360)
+        """
+        lat1, lon1 = math.radians(start_coords[0]), math.radians(start_coords[1])
+        lat2, lon2 = math.radians(end_coords[0]), math.radians(end_coords[1])
+        
+        dlon = lon2 - lon1
+        
+        y = math.sin(dlon) * math.cos(lat2)
+        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dlon)
+        
+        bearing = math.atan2(y, x)
+        bearing = math.degrees(bearing)
+        bearing = (bearing + 360) % 360
+        
+        return bearing 

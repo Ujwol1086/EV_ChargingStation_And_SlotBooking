@@ -3,16 +3,20 @@ import axios from "../api/axios";
 
 const RecommendationForm = ({ onRecommendations, userLocation }) => {
   const [formData, setFormData] = useState({
-    battery_percentage: 50,
-    plug_type: "",
-    urgency_level: "medium",
-    ac_status: false,
+    batteryPercentage: 80,
+    plugType: '',
+    urgencyLevel: 'medium',
+    acStatus: false,
     passengers: 1,
-    terrain: "flat"
+    terrain: 'flat',
+    maxDetourKm: 20
   });
-  
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const [energyImpact, setEnergyImpact] = useState(null);
+  const [supportedCities, setSupportedCities] = useState([]);
+  const [destinationCity, setDestinationCity] = useState('');
+  const [routeMode, setRouteMode] = useState(false);
 
   const plugTypes = [
     { value: "Type 1", label: "Type 1 (J1772)" },
@@ -35,6 +39,22 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
     { value: "steep", label: "Steep - Mountain roads, steep hills" }
   ];
 
+  // Fetch supported cities on component mount
+  useEffect(() => {
+    const fetchSupportedCities = async () => {
+      try {
+        const response = await axios.get('/recommendations/cities');
+        if (response.data.success) {
+          setSupportedCities(response.data.cities || []);
+        }
+      } catch (error) {
+        console.error('Error fetching supported cities:', error);
+      }
+    };
+
+    fetchSupportedCities();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -43,68 +63,85 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
     }));
   };
 
+  // Calculate estimated energy impact
+  useEffect(() => {
+    const calculateEnergyImpact = () => {
+      let baseConsumption = 100; // Base consumption percentage
+      const impacts = [];
+      
+      if (formData.acStatus) {
+        impacts.push("AC (+15% energy)");
+        baseConsumption += 15;
+      }
+      
+      if (formData.passengers > 2) {
+        impacts.push(`${formData.passengers} passengers (+${(formData.passengers - 2) * 3}% energy)`);
+        baseConsumption += (formData.passengers - 2) * 3;
+      }
+      
+      if (formData.terrain === 'hilly') {
+        impacts.push("Hilly terrain (+10% energy)");
+        baseConsumption += 10;
+      } else if (formData.terrain === 'steep') {
+        impacts.push("Steep terrain (+25% energy)");
+        baseConsumption += 25;
+      }
+      
+      setEnergyImpact({
+        totalImpact: baseConsumption,
+        factors: impacts
+      });
+    };
+
+    calculateEnergyImpact();
+  }, [formData.acStatus, formData.passengers, formData.terrain]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!userLocation) {
-      setError("Location not available. Please enable location services.");
+      setLocationError('Please enable location access first');
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
+    setIsLoading(true);
+    
     try {
+      // Choose the appropriate endpoint based on route mode
+      const endpoint = routeMode 
+        ? '/recommendations/route-to-city'
+        : '/recommendations/enhanced';  // Use the correct enhanced endpoint
+      
       const requestData = {
         location: userLocation,
-        battery_percentage: parseInt(formData.battery_percentage),
-        plug_type: formData.plug_type,
-        urgency_level: formData.urgency_level,
-        ac_status: formData.ac_status,
-        passengers: parseInt(formData.passengers),
-        terrain: formData.terrain
+        battery_percentage: formData.batteryPercentage,
+        plug_type: formData.plugType,
+        urgency_level: formData.urgencyLevel,
+        ac_status: formData.acStatus,
+        passengers: formData.passengers,
+        terrain: formData.terrain,
+        ...(routeMode && {
+          destination_city: destinationCity || null, // Allow null/empty destination
+          max_detour_km: formData.maxDetourKm
+        })
       };
 
-      console.log("Sending enhanced recommendation request:", requestData);
-
-      const response = await axios.post("/recommendations/recommendations", requestData);
+      console.log('Sending request:', requestData);
       
-      if (response.data.success) {
+      const response = await axios.post(endpoint, requestData);
+      
+      if (response.data) {
         onRecommendations(response.data);
       } else {
-        setError(response.data.error || "Failed to get recommendations");
+        console.error('Recommendation error:', response.data);
+        alert(response.data.error || 'Failed to get recommendations');
       }
-    } catch (err) {
-      console.error("Error getting recommendations:", err);
-      setError(
-        err.response?.data?.error || 
-        err.response?.data?.message || 
-        "Error connecting to server"
-      );
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      alert('Failed to get recommendations. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  const calculateEnergyImpact = () => {
-    let impact = "Base consumption";
-    const impacts = [];
-    
-    if (formData.ac_status) {
-      impacts.push("AC (+15% energy)");
-    }
-    
-    const additionalPassengers = Math.max(0, formData.passengers - 1);
-    if (additionalPassengers > 0) {
-      impacts.push(`+${additionalPassengers} passengers (+${additionalPassengers * 3}% energy)`);
-    }
-    
-    if (formData.terrain !== "flat") {
-      const terrainPenalty = formData.terrain === "hilly" ? 20 : 50;
-      impacts.push(`${formData.terrain} terrain (+${terrainPenalty}% energy)`);
-    }
-    
-    return impacts.length > 0 ? impacts.join(", ") : impact;
   };
 
   return (
@@ -116,14 +153,14 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            🔋 Current Battery Level: {formData.battery_percentage}%
+            🔋 Current Battery Level: {formData.batteryPercentage}%
           </label>
           <input
             type="range"
-            name="battery_percentage"
+            name="batteryPercentage"
             min="5"
             max="100"
-            value={formData.battery_percentage}
+            value={formData.batteryPercentage}
             onChange={handleInputChange}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
           />
@@ -139,8 +176,8 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
             🔌 Plug Type
           </label>
           <select
-            name="plug_type"
-            value={formData.plug_type}
+            name="plugType"
+            value={formData.plugType}
             onChange={handleInputChange}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
@@ -158,8 +195,8 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
             ⚡ Urgency Level
           </label>
           <select
-            name="urgency_level"
-            value={formData.urgency_level}
+            name="urgencyLevel"
+            value={formData.urgencyLevel}
             onChange={handleInputChange}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
@@ -179,9 +216,9 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
           <div className="flex items-center mb-3">
             <input
               type="checkbox"
-              name="ac_status"
+              name="acStatus"
               id="ac_status"
-              checked={formData.ac_status}
+              checked={formData.acStatus}
               onChange={handleInputChange}
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
@@ -230,30 +267,92 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
 
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
             <p className="text-sm text-blue-800">
-              <strong>⚡ Energy Impact:</strong> {calculateEnergyImpact()}
+              <strong>⚡ Energy Impact:</strong> {energyImpact ? energyImpact.factors.join(", ") : "Calculating..."}
             </p>
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={loading || !userLocation}
-          className={`w-full py-3 px-4 rounded-md font-medium text-white transition-colors ${
-            loading || !userLocation
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
-          }`}
+        <div className="form-section">
+          <h3>🎯 Trip Planning</h3>
+          <div className="form-group">
+            <label className="form-label">
+              <input
+                type="checkbox"
+                checked={routeMode}
+                onChange={(e) => {
+                  setRouteMode(e.target.checked);
+                  if (!e.target.checked) {
+                    setDestinationCity('');
+                  }
+                }}
+                className="checkbox-input"
+              />
+              Plan route to destination city
+            </label>
+            <small className="form-hint">
+              Get recommendations for charging stations along your route
+            </small>
+          </div>
+
+          {routeMode && (
+            <div className="form-group">
+              <label className="form-label">Destination City (Optional)</label>
+              <select
+                value={destinationCity}
+                onChange={(e) => setDestinationCity(e.target.value)}
+                className="form-input"
+              >
+                <option value="">Select destination city (optional)</option>
+                {supportedCities.map((city) => (
+                  <option key={city.name} value={city.name}>
+                    {city.name}
+                  </option>
+                ))}
+              </select>
+              <small className="form-hint">
+                Optional: Choose your destination for route-optimized recommendations
+              </small>
+            </div>
+          )}
+
+          {routeMode && (
+            <div className="form-group">
+              <label className="form-label">Maximum Detour</label>
+              <div className="slider-container">
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  value={formData.maxDetourKm}
+                  onChange={(e) => setFormData({...formData, maxDetourKm: parseInt(e.target.value)})}
+                  className="form-slider"
+                />
+                <span className="slider-value">{formData.maxDetourKm} km</span>
+              </div>
+              <small className="form-hint">
+                Maximum distance you're willing to detour from direct route
+              </small>
+            </div>
+          )}
+        </div>
+
+        <button 
+          type="submit" 
+          className={`submit-button ${isLoading ? 'loading' : ''}`}
+          disabled={isLoading || !userLocation}
         >
-          {loading ? (
-            <span className="flex items-center justify-center">
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Analyzing Smart Recommendations...
-            </span>
+          {isLoading ? (
+            <>
+              <span className="spinner"></span>
+              {routeMode ? 'Finding Route Stations...' : 'Finding Stations...'}
+            </>
           ) : (
-            "🎯 Get Smart Recommendations"
+            <>
+              🔍 {routeMode ? 
+                (destinationCity ? `Find Stations to ${destinationCity}` : 'Find Route Stations') : 
+                'Find Charging Stations'
+              }
+            </>
           )}
         </button>
 
@@ -264,9 +363,9 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
         )}
       </form>
 
-      {error && (
+      {locationError && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-800">{error}</p>
+          <p className="text-sm text-red-800">{locationError}</p>
         </div>
       )}
     </div>

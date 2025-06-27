@@ -18,7 +18,7 @@ hybrid_algorithm = HybridAlgorithm()
 route_service = RouteService()
 
 @recommendation_bp.route('/get-recommendations', methods=['POST'])
-@recommendation_bp.route('/recommendations', methods=['POST'])
+@recommendation_bp.route('/enhanced', methods=['POST'])
 def get_recommendations():
     """Get EV charging station recommendations with enhanced context-aware scoring"""
     try:
@@ -47,6 +47,10 @@ def get_recommendations():
         passengers = data.get('passengers', 1)
         terrain = data.get('terrain', 'flat')
         
+        # NEW: Destination-based filtering
+        destination_city = data.get('destination_city')
+        max_detour_km = data.get('max_detour_km', 20)  # Maximum detour for route filtering
+        
         # Build user context object
         user_context = {}
         if preferences:
@@ -59,7 +63,9 @@ def get_recommendations():
             'urgency': urgency_level,
             'ac_status': ac_status,
             'passengers': passengers,
-            'terrain': terrain
+            'terrain': terrain,
+            'destination_city': destination_city,
+            'max_detour_km': max_detour_km
         }
         
         # Only add non-None values
@@ -114,6 +120,28 @@ def get_recommendations():
         
         if terrain and terrain.lower() not in ['flat', 'hilly', 'steep']:
             return jsonify({'error': 'Terrain must be one of: flat, hilly, steep'}), 400
+        
+        # Validate destination city if provided
+        if destination_city:
+            if not isinstance(destination_city, str) or len(destination_city.strip()) == 0:
+                return jsonify({'error': 'Destination city must be a non-empty string'}), 400
+            
+            # Check if city is supported (optional validation)
+            city_coords = hybrid_algorithm.get_city_coordinates(destination_city)
+            if not city_coords:
+                return jsonify({
+                    'error': f'Destination city "{destination_city}" not found. Supported cities: {", ".join(hybrid_algorithm.city_coords.keys())}'
+                }), 400
+        
+        # Validate max detour distance
+        if max_detour_km is not None:
+            try:
+                max_detour_km = float(max_detour_km)
+                if not (1 <= max_detour_km <= 100):
+                    return jsonify({'error': 'Maximum detour distance must be between 1 and 100 km'}), 400
+                user_context['max_detour_km'] = max_detour_km
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Maximum detour distance must be a valid number'}), 400
         
         # Get user data (optional - proceed even if user not found)
         user = None
@@ -172,7 +200,7 @@ def get_recommendations():
         # Get enhanced recommendations using hybrid algorithm
         try:
             # Check if we should use enhanced recommendations
-            use_enhanced = any(key in user_context for key in ['ac_status', 'passengers', 'terrain', 'battery_percentage'])
+            use_enhanced = any(key in user_context for key in ['ac_status', 'passengers', 'terrain', 'battery_percentage', 'destination_city'])
             
             if use_enhanced:
                 result = hybrid_algorithm.get_enhanced_recommendations(
@@ -566,5 +594,209 @@ def cancel_booking(booking_id):
         logger.error(f"Error cancelling booking: {str(e)}")
         return jsonify({
             'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@recommendation_bp.route('/route-to-city', methods=['POST'])
+def get_route_recommendations():
+    """Get EV charging station recommendations along route to destination city"""
+    try:
+        data = request.get_json()
+        
+        # Extract required fields
+        user_location = data.get('location')
+        destination_city = data.get('destination_city')
+        
+        # Also check for separate latitude/longitude fields
+        if not user_location:
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+            if latitude is not None and longitude is not None:
+                user_location = [latitude, longitude]
+        
+        # Validate required fields
+        if not user_location:
+            return jsonify({
+                'error': 'Missing required field: location (provide either "location" array or "latitude"/"longitude" fields)'
+            }), 400
+        
+        # destination_city is now optional
+        # if not destination_city:
+        #     return jsonify({
+        #         'error': 'Missing required field: destination_city'
+        #     }), 400
+        
+        # Validate location format
+        if not isinstance(user_location, list) or len(user_location) != 2:
+            return jsonify({
+                'error': 'Location must be a list of [latitude, longitude]'
+            }), 400
+        
+        # Validate coordinates
+        try:
+            lat, lon = float(user_location[0]), float(user_location[1])
+            if not (-90 <= lat <= 90) or not (-180 <= lon <= 180):
+                return jsonify({
+                    'error': 'Invalid coordinates: latitude must be between -90 and 90, longitude between -180 and 180'
+                }), 400
+        except (ValueError, TypeError):
+            return jsonify({
+                'error': 'Location coordinates must be valid numbers'
+            }), 400
+        
+        # Validate destination city if provided
+        city_coords = None
+        if destination_city and isinstance(destination_city, str) and len(destination_city.strip()) > 0:
+            # Check if city is supported
+            city_coords = hybrid_algorithm.get_city_coordinates(destination_city)
+            if not city_coords:
+                return jsonify({
+                    'error': f'Destination city "{destination_city}" not found',
+                    'supported_cities': list(hybrid_algorithm.city_coords.keys())
+                }), 400
+        else:
+            # No destination city provided - this is now allowed
+            destination_city = None
+        
+        # Validate terrain parameter
+        terrain = data.get('terrain', 'flat')
+        if terrain not in ['flat', 'hilly', 'steep']:
+            return jsonify({
+                'error': 'Invalid terrain. Must be one of: flat, hilly, steep'
+            }), 400
+        
+        # Validate max_detour_km parameter
+        max_detour_km = data.get('max_detour_km', 20)
+        try:
+            max_detour_km = float(max_detour_km)
+            if not (1 <= max_detour_km <= 100):
+                return jsonify({
+                    'error': 'max_detour_km must be between 1 and 100 km'
+                }), 400
+        except (ValueError, TypeError):
+            return jsonify({
+                'error': 'max_detour_km must be a valid number'
+            }), 400
+        
+        # Extract optional parameters with defaults optimized for route travel
+        battery_percentage = data.get('battery_percentage', 50)
+        plug_type = data.get('plug_type', '')
+        urgency_level = data.get('urgency_level', 'medium')
+        ac_status = data.get('ac_status', True)  # Default AC on for long trips
+        passengers = data.get('passengers', 2)   # Default 2 passengers for trips
+        
+        # Build user context for route-based recommendations
+        user_context = {
+            'battery_percentage': battery_percentage,
+            'plug_type': plug_type,
+            'urgency': urgency_level,
+            'ac_status': ac_status,
+            'passengers': passengers,
+            'terrain': terrain,
+            'max_detour_km': max_detour_km,
+            'route_mode': True  # Flag to indicate this is route-based
+        }
+        
+        # Add destination info if provided
+        if destination_city and city_coords:
+            user_context['destination_city'] = destination_city
+            logger.info(f"Route-based recommendations requested: {user_location} → {destination_city}")
+        else:
+            logger.info(f"Route-based recommendations requested from: {user_location} (no specific destination)")
+        
+        # Get all charging stations
+        try:
+            stations = ChargingStation.get_all()
+            if not stations:
+                return jsonify({
+                    'message': 'No charging stations available',
+                    'recommendations': []
+                }), 200
+        except Exception as stations_error:
+            logger.error(f"Error loading charging stations: {stations_error}")
+            return jsonify({
+                'error': 'Failed to load charging stations data'
+            }), 500
+        
+        # Check if enhanced recommendations should be used
+        context_params = ['ac_status', 'passengers', 'terrain', 'battery_percentage']
+        if destination_city:
+            context_params.append('destination_city')
+        use_enhanced = any(key in user_context for key in context_params)
+        
+        # Get enhanced recommendations with route filtering
+        try:
+            result = hybrid_algorithm.get_enhanced_recommendations(
+                user_location=user_location,
+                stations=stations,
+                user_context=user_context,
+                max_recommendations=5  # More recommendations when no specific destination
+            )
+            
+            if isinstance(result, dict) and 'recommendations' in result:
+                recommendations = result['recommendations']
+                algorithm_info = result['algorithm_info']
+            else:
+                recommendations = result
+                algorithm_info = {}
+                
+            logger.info(f"Generated {len(recommendations)} route-based recommendations")
+            
+        except Exception as algo_error:
+            logger.error(f"Error generating route recommendations: {algo_error}")
+            return jsonify({
+                'error': 'Failed to generate route recommendations'
+            }), 500
+        
+        # Build response
+        response_data = {
+            'success': True,
+            'recommendations': recommendations,
+            'algorithm_info': algorithm_info,
+            'user_context': user_context
+        }
+        
+        # Add route info if destination is specified
+        if destination_city and city_coords:
+            response_data['route_info'] = {
+                'origin': user_location,
+                'destination_city': destination_city,
+                'destination_coords': city_coords,
+                'direct_distance_km': round(hybrid_algorithm.haversine_distance(
+                    user_location[0], user_location[1], city_coords[0], city_coords[1]
+                ), 2)
+            }
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        logger.error(f"Unexpected error in route recommendations: {e}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': str(e)
+        }), 500
+
+@recommendation_bp.route('/cities', methods=['GET'])
+def get_supported_cities():
+    """Get list of supported cities for destination-based recommendations"""
+    try:
+        cities = list(hybrid_algorithm.city_coords.keys())
+        cities_with_coords = [
+            {
+                'name': city,
+                'coordinates': hybrid_algorithm.city_coords[city]
+            }
+            for city in sorted(cities)
+        ]
+        
+        return jsonify({
+            'success': True,
+            'cities': cities_with_coords,
+            'total_cities': len(cities)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting supported cities: {e}")
+        return jsonify({
             'error': 'Internal server error'
         }), 500 
