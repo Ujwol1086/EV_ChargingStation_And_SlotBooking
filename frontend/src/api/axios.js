@@ -1,16 +1,18 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-const axiosInstance = axios.create({
-    baseURL,
+// Create axios instance with base configuration
+const api = axios.create({
+    baseURL: process.env.NODE_ENV === 'production'
+        ? 'http://your-production-url/api'  // Replace with your production URL
+        : 'http://192.168.1.67:5000/api',   // Use local network IP for mobile access
+    timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
 // Add a request interceptor for adding auth token
-axiosInstance.interceptors.request.use(
+api.interceptors.request.use(
     (config) =>
     {
         const token = localStorage.getItem('token');
@@ -26,4 +28,4 @@ axiosInstance.interceptors.request.use(
     }
 );
 
-export default axiosInstance;
+export default api;
