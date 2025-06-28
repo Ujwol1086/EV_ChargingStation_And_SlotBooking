@@ -26,7 +26,7 @@ L.Icon.Default.mergeOptions({
 // Create custom icons
 const userLocationIcon = new L.Icon({
   iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
   iconSize: [25, 41],
@@ -66,7 +66,14 @@ const LocationMarker = ({ position, setPosition }) => {
   useEffect(() => {
     // Get user's current position when component mounts
     if (!position) {
-      map.locate({ setView: true, maxZoom: 14 });
+      map.locate({ 
+        setView: true, 
+        watch:true,
+        maxZoom: 14,
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 10000,
+       });
 
       map.on("locationfound", (e) => {
         setPosition([e.latlng.lat, e.latlng.lng]);
