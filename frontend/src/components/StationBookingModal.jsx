@@ -12,7 +12,6 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
     plug_type: station?.connector_types?.[0] || 'Type 2',
     booking_date: '',
     booking_time: '',
-    user_battery_percentage: 50,
     urgency_level: 'medium'
   });
   const [loading, setLoading] = useState(false);
@@ -79,7 +78,6 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
         charger_type: formData.charger_type,
         plug_type: formData.plug_type,
         urgency_level: formData.urgency_level,
-        user_battery_percentage: formData.user_battery_percentage,
         station_details: station
       };
 
@@ -244,26 +242,6 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
               )}
             </div>
           )}
-
-          {/* Battery Percentage */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Current Battery: {formData.user_battery_percentage}%
-            </label>
-            <input
-              type="range"
-              name="user_battery_percentage"
-              min="0"
-              max="100"
-              value={formData.user_battery_percentage}
-              onChange={handleInputChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Empty</span>
-              <span>Full</span>
-            </div>
-          </div>
 
           {/* Urgency Level */}
           <div>

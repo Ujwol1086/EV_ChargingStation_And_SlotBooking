@@ -56,41 +56,13 @@ const RecommendationResults = ({
       return;
     }
     
-    setBookingLoading(prev => ({ ...prev, [station.id]: true }));
-    
-    try {
-      const response = await axios.post('/recommendations/book-slot', {
-        station_id: station.id,
-        charger_type: station.connector_types?.[0] || 'Type 2',
-        urgency_level: userContext?.urgency || 'medium',
-        booking_duration: 60,
-        station_details: {
-          name: station.name,
-          location: station.location,
-          pricing: station.pricing
-        },
-        user_location: userContext?.location || []
-      });
-
-      if (response.data.success) {
-        alert(`Booking successful! Booking ID: ${response.data.booking.booking_id}`);
-        // Trigger refresh of recommendations/bookings
-        if (window.location.pathname.includes('recommendations')) {
-          window.location.reload();
-        }
-      } else {
-        alert(response.data.error || 'Booking failed');
+    // Redirect to dedicated booking page with station data
+    navigate(`/booking/${station.id}`, {
+      state: { 
+        station: station,
+        userContext: userContext 
       }
-    } catch (err) {
-      if (err.response?.status === 401) {
-        alert('Please log in to book a charging slot');
-        navigate('/login');
-      } else {
-        alert(err.response?.data?.error || 'Error creating booking');
-      }
-    } finally {
-      setBookingLoading(prev => ({ ...prev, [station.id]: false }));
-    }
+    });
   };
 
   const handleAutoBookRecommendation = async (station) => {
@@ -109,7 +81,6 @@ const RecommendationResults = ({
         station_id: station.id,
         charger_type: station.connector_types?.[0] || 'Type 2',
         urgency_level: 'high',
-        auto_booked: true,
         booking_duration: 60,
         station_details: {
           name: station.name,
@@ -119,24 +90,53 @@ const RecommendationResults = ({
         user_location: userContext?.location || []
       };
 
-      const response = await axios.post('/recommendations/auto-book-slot', bookingData);
+      // Use instant booking endpoint for high urgency
+      const response = await axios.post('/recommendations/instant-book', bookingData);
       
       if (response.data.success) {
-        alert(`Auto-booking successful! Booking ID: ${response.data.booking.booking_id}`);
+        alert(`Instant booking successful! Booking ID: ${response.data.booking.booking_id}`);
         onAutoBook(response.data.booking);
+        // Trigger refresh of recommendations/bookings
+        if (window.location.pathname.includes('recommendations')) {
+          window.location.reload();
+        }
       } else {
-        alert(`Auto-booking failed: ${response.data.error}`);
+        alert(`Instant booking failed: ${response.data.error}`);
       }
     } catch (err) {
       if (err.response?.status === 401) {
         alert('Please log in to use auto-booking feature');
         navigate('/login');
       } else {
-        alert(`Auto-booking error: ${err.response?.data?.error || 'Unknown error'}`);
+        alert(`Instant booking error: ${err.response?.data?.error || 'Unknown error'}`);
       }
     } finally {
       setBookingLoading(prev => ({ ...prev, [station.id]: false }));
     }
+  };
+
+  // Helper function to get real-time availability display
+  const getAvailabilityDisplay = (station) => {
+    if (station.charger_availability) {
+      // Use real-time availability data
+      const chargerType = station.connector_types?.[0] || 'Type 2';
+      const availability = station.charger_availability[chargerType];
+      
+      if (availability) {
+        return {
+          available: availability.available_slots > 0,
+          text: `${availability.available_slots}/${availability.total_slots} available`,
+          slots: availability.available_slots
+        };
+      }
+    }
+    
+    // Fallback to static availability
+    return {
+      available: station.availability > 0,
+      text: station.availability > 0 ? `${station.availability} slots available` : 'Fully booked',
+      slots: station.availability
+    };
   };
 
   const renderEnergyAnalysis = (station) => {
@@ -500,34 +500,60 @@ const RecommendationResults = ({
 
                 {!hasBooking && !rec.auto_booking?.auto_booked && (
                   <>
-                    {station.availability > 0 ? (
-                      <button
-                        onClick={() => handleBookSlot(station)}
-                        disabled={isLoadingBooking}
-                        className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isLoadingBooking ? 'Booking...' : 'Book Now'}
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded opacity-50 cursor-not-allowed"
-                      >
-                        BOOKED OUT
-                      </button>
-                    )}
+                    {(() => {
+                      const availabilityInfo = getAvailabilityDisplay(station);
+                      return availabilityInfo.available ? (
+                        <button
+                          onClick={() => handleBookSlot(station)}
+                          disabled={isLoadingBooking}
+                          className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isLoadingBooking ? 'Booking...' : 'Book Now'}
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded opacity-50 cursor-not-allowed"
+                        >
+                          BOOKED OUT
+                        </button>
+                      );
+                    })()}
 
                     {/* Auto-book button for high urgency */}
-                    {userContext?.urgency === 'high' && index === 0 && onAutoBook && station.availability > 0 && (
-                      <button
-                        onClick={() => handleAutoBookRecommendation(station)}
-                        disabled={isLoadingBooking}
-                        className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        {isLoadingBooking ? 'Auto-booking...' : '⚡ Auto-Book'}
-                      </button>
-                    )}
+                    {userContext?.urgency === 'high' && index === 0 && onAutoBook && (() => {
+                      const availabilityInfo = getAvailabilityDisplay(station);
+                      return availabilityInfo.available && (
+                        <button
+                          onClick={() => handleAutoBookRecommendation(station)}
+                          disabled={isLoadingBooking}
+                          className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {isLoadingBooking ? 'Auto-booking...' : '⚡ Instant Book'}
+                        </button>
+                      );
+                    })()}
                   </>
+                )}
+
+                {/* Display real-time availability info */}
+                {station.charger_availability && (
+                  <div className="mt-2 text-xs text-gray-600">
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(station.charger_availability).map(([chargerType, availability]) => (
+                        <span 
+                          key={chargerType}
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            availability.available_slots > 0 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {chargerType}: {availability.available_slots}/{availability.total_slots}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

@@ -176,17 +176,22 @@ def get_recommendations():
         station_data = []
         for station in stations:
             try:
+                # Get real-time availability for the station
+                availability_info = Booking.get_station_real_time_availability(station.get('id'))
+                
                 station_info = {
                     'id': station.get('id'),
                     'name': station.get('name'),
                     'location': [station.get('latitude', 0), station.get('longitude', 0)],
-                    'availability': station.get('available_slots', 0),
-                    'total_slots': station.get('total_slots', 0),
+                    'availability': availability_info.get('available_slots', 0),
+                    'total_slots': availability_info.get('total_slots', 0),
+                    'active_bookings': availability_info.get('active_bookings', 0),
                     'connector_types': station.get('connector_types', []),
                     'pricing': station.get('pricing_per_kwh', 15),
                     'features': station.get('features', []),
                     'rating': station.get('rating', 4.0),
-                    'distance': 0  # Will be calculated by algorithm
+                    'distance': 0,  # Will be calculated by algorithm
+                    'chargers': station.get('chargers', [])  # Include charger details
                 }
                 station_data.append(station_info)
             except Exception as station_error:
@@ -245,6 +250,30 @@ def get_recommendations():
         
         for rec in top_recommendations:  # Get routes for top 3 only
             try:
+                # Add real-time availability info to each recommendation
+                station_id = rec.get('id')
+                if station_id:
+                    # Get availability for specific charger types if plug_type is specified
+                    if plug_type:
+                        availability_info = Booking.get_station_real_time_availability(station_id, plug_type)
+                        rec['charger_availability'] = {
+                            plug_type: {
+                                'available_slots': availability_info.get('available_slots', 0),
+                                'total_slots': availability_info.get('total_slots', 0),
+                                'active_bookings': availability_info.get('active_bookings', 0)
+                            }
+                        }
+                    else:
+                        # Get availability for all charger types
+                        rec['charger_availability'] = {}
+                        for charger_type in rec.get('connector_types', []):
+                            availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
+                            rec['charger_availability'][charger_type] = {
+                                'available_slots': availability_info.get('available_slots', 0),
+                                'total_slots': availability_info.get('total_slots', 0),
+                                'active_bookings': availability_info.get('active_bookings', 0)
+                            }
+                
                 station_location = rec['location']
                 route_info = route_service.get_route_to_station(user_location, station_location)
                 
@@ -273,9 +302,31 @@ def get_recommendations():
             
             enhanced_recommendations.append(rec)
         
-        # Add remaining recommendations without detailed routes
+        # Add remaining recommendations without detailed routes but with availability
         remaining_recommendations = recommendations[3:] if len(recommendations) > 3 else []
         for rec in remaining_recommendations:
+            # Add availability info for remaining recommendations too
+            station_id = rec.get('id')
+            if station_id:
+                if plug_type:
+                    availability_info = Booking.get_station_real_time_availability(station_id, plug_type)
+                    rec['charger_availability'] = {
+                        plug_type: {
+                            'available_slots': availability_info.get('available_slots', 0),
+                            'total_slots': availability_info.get('total_slots', 0),
+                            'active_bookings': availability_info.get('active_bookings', 0)
+                        }
+                    }
+                else:
+                    rec['charger_availability'] = {}
+                    for charger_type in rec.get('connector_types', []):
+                        availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
+                        rec['charger_availability'][charger_type] = {
+                            'available_slots': availability_info.get('available_slots', 0),
+                            'total_slots': availability_info.get('total_slots', 0),
+                            'active_bookings': availability_info.get('active_bookings', 0)
+                        }
+            
             rec['route'] = {
                 'distance_km': rec['distance'],
                 'estimated_time': 'Estimate unavailable'
@@ -445,7 +496,6 @@ def book_charging_slot():
             
         else:
             # Generate booking ID
-            import time
             booking_id = f"MANUAL_{data['station_id']}_{user_id}_{int(time.time())}"
             
             # Calculate distance if user location provided
@@ -982,7 +1032,6 @@ def auto_book_charging_slot():
         booking_time = data['booking_time']
         
         # Generate booking ID
-        import time
         booking_id = f"AUTO_{station_id}_{user_id}_{int(time.time())}"
         
         # Prepare booking data
@@ -1037,6 +1086,146 @@ def auto_book_charging_slot():
         
     except Exception as e:
         logger.error(f"Error in auto_book_charging_slot: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@recommendation_bp.route('/instant-book', methods=['POST'])
+@require_auth
+def instant_book_charging_slot():
+    """
+    Instantly book a charging slot for high urgency situations
+    This endpoint checks real-time availability and books immediately if available
+    """
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        # Validate required fields
+        required_fields = ['station_id', 'charger_type']
+        missing_fields = [field for field in required_fields if field not in data]
+        
+        if missing_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Missing required fields: {", ".join(missing_fields)}'
+            }), 400
+        
+        station_id = data['station_id']
+        charger_type = data['charger_type']
+        urgency_level = data.get('urgency_level', 'high')
+        
+        # Generate booking ID
+        booking_id = f"INSTANT_{station_id}_{user_id}_{int(time.time())}"
+        
+        # Calculate distance if user location provided
+        distance_to_station = 0
+        if 'user_location' in data and 'station_details' in data:
+            station_coords = data['station_details'].get('location', {}).get('coordinates', [])
+            if len(station_coords) == 2:
+                distance_to_station = route_service.haversine_distance(
+                    data['user_location'][0], data['user_location'][1],
+                    station_coords[0], station_coords[1]
+                )
+        
+        # Prepare booking data
+        booking_data = {
+            'booking_id': booking_id,
+            'power': data.get('power', 'Unknown'),
+            'estimated_time': data.get('estimated_time', '1 hour'),
+            'auto_booked': True,
+            'booking_duration': data.get('booking_duration', 60),
+            'station_details': data.get('station_details', {}),
+            'user_location': data.get('user_location', []),
+            'distance_to_station': round(distance_to_station, 2),
+            'urgency_level': urgency_level,
+            'plug_type': data.get('plug_type', charger_type)
+        }
+        
+        # Create instant booking using the new method
+        result = Booking.create_instant_booking(
+            user_id=user_id,
+            station_id=station_id,
+            charger_type=charger_type,
+            booking_data=booking_data
+        )
+        
+        if not result['success']:
+            return jsonify(result), 400
+        
+        booking = result['booking']
+        
+        response = {
+            'success': True,
+            'booking': {
+                'booking_id': booking_id,
+                'database_id': booking['_id'],
+                'station_id': station_id,
+                'charger_type': charger_type,
+                'booking_date': booking.get('booking_date'),
+                'booking_time': booking.get('booking_time'),
+                'status': 'confirmed',
+                'instant_booking': True,
+                'urgency_level': urgency_level,
+                'estimated_duration': booking_data['booking_duration'],
+                'distance_to_station': booking_data['distance_to_station'],
+                'user_id': user_id
+            }
+        }
+        
+        logger.info(f"Instant booking created for user {user_id}: {booking_id}")
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logger.error(f"Error in instant_book_charging_slot: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@recommendation_bp.route('/check-availability', methods=['POST'])
+def check_real_time_availability():
+    """
+    Check real-time availability for a station and charger type
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                'success': False,
+                'error': 'No JSON data provided'
+            }), 400
+        
+        station_id = data.get('station_id')
+        charger_type = data.get('charger_type')  # Optional
+        
+        if not station_id:
+            return jsonify({
+                'success': False,
+                'error': 'Station ID is required'
+            }), 400
+        
+        # Get real-time availability
+        availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
+        
+        return jsonify({
+            'success': True,
+            'station_id': station_id,
+            'charger_type': charger_type,
+            'availability': availability_info
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking availability: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Internal server error'
