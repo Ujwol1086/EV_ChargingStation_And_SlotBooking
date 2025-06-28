@@ -41,12 +41,6 @@ export default function Navbar() {
             >
               Stations
             </Link>
-            <Link
-              to="/recommendations"
-              className="px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300 font-medium"
-            >
-              Automated Booking
-            </Link>
 
             {isAuthenticated ? (
               <div className="flex items-center space-x-1 ml-4 pl-4 border-l border-white/20">

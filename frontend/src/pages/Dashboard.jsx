@@ -248,10 +248,10 @@ export default function Dashboard() {
                           </button>
                         )}
                         <Link
-                          to="/recommendations"
+                          to={`/route/${booking.station_id}`}
                           className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                         >
-                          View
+                          View Station
                         </Link>
                       </div>
                     </div>
