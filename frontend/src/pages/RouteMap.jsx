@@ -35,6 +35,48 @@ const stationIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
+// Create directional user icon for live tracking
+const createDirectionalIcon = (heading) => {
+  const svgIcon = `
+    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="20" cy="20" r="18" fill="#3B82F6" stroke="#FFFFFF" stroke-width="4"/>
+      <circle cx="20" cy="20" r="12" fill="#1E40AF" opacity="0.8"/>
+      <polygon points="20,8 26,24 20,20 14,24" fill="#FFFFFF" transform="rotate(${heading} 20 20)"/>
+      <circle cx="20" cy="20" r="3" fill="#FFFFFF"/>
+    </svg>
+  `;
+  
+  return new L.DivIcon({
+    html: svgIcon,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    className: 'custom-directional-icon'
+  });
+};
+
+// Custom CSS for directional icon
+const customStyles = `
+  .custom-directional-icon {
+    background: none !important;
+    border: none !important;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    transition: all 0.3s ease;
+  }
+  .custom-directional-icon svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  }
+  .custom-directional-icon:hover {
+    transform: scale(1.1);
+  }
+`;
+
+// Inject custom styles
+if (typeof document !== 'undefined') {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = customStyles;
+  document.head.appendChild(styleElement);
+}
+
 const RouteMap = () => {
   const { stationId } = useParams();
   const navigate = useNavigate();
@@ -44,6 +86,11 @@ const RouteMap = () => {
   const [routeInfo, setRouteInfo] = useState({ distance: null, duration: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isLiveTracking, setIsLiveTracking] = useState(false);
+  const [userHeading, setUserHeading] = useState(0);
+  const [watchId, setWatchId] = useState(null);
+  const [previousLocation, setPreviousLocation] = useState(null);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -179,6 +226,125 @@ const RouteMap = () => {
     return deg * (Math.PI / 180);
   };
 
+  // Calculate bearing between two points (for movement direction)
+  const calculateBearing = (lat1, lon1, lat2, lon2) => {
+    const dLon = deg2rad(lon2 - lon1);
+    const lat1Rad = deg2rad(lat1);
+    const lat2Rad = deg2rad(lat2);
+    
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    
+    let bearing = Math.atan2(y, x);
+    bearing = bearing * (180 / Math.PI); // Convert to degrees
+    bearing = (bearing + 360) % 360; // Normalize to 0-360
+    
+    return bearing;
+  };
+
+  // Live tracking functions
+  const startLiveTracking = () => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by this browser");
+      return;
+    }
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 1000
+    };
+
+    const id = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, heading, speed } = position.coords;
+        const newLocation = [latitude, longitude];
+        
+        // Update speed if available
+        if (speed !== null && speed !== undefined) {
+          setCurrentSpeed(speed * 3.6); // Convert m/s to km/h
+        }
+        
+        // Calculate movement direction if we have a previous location
+        let calculatedHeading = userHeading;
+        if (previousLocation && speed && speed > 0.5) { // Only update if moving (0.5 m/s threshold)
+          calculatedHeading = calculateBearing(
+            previousLocation[0], previousLocation[1],
+            latitude, longitude
+          );
+        }
+        
+        // Use device heading if available and device is moving, otherwise use calculated heading
+        let finalHeading = calculatedHeading;
+        if (heading !== null && heading !== undefined && speed && speed > 1) {
+          finalHeading = heading;
+        } else if (previousLocation && speed && speed > 0.5) {
+          finalHeading = calculatedHeading;
+        }
+        
+        setUserLocation(newLocation);
+        setPreviousLocation(newLocation);
+        setUserHeading(finalHeading);
+
+        // Update map view to follow user
+        if (mapRef.current && isLiveTracking) {
+          const map = mapRef.current;
+          map.setView(newLocation, 16, {
+            animate: true,
+            duration: 0.5
+          });
+        }
+
+        // Recalculate route with new position
+        if (station) {
+          const stationLocation = station.location.coordinates 
+            ? station.location.coordinates 
+            : [station.location[0], station.location[1]];
+          calculateRoute(newLocation, stationLocation);
+        }
+      },
+      (error) => {
+        console.error("Live tracking error:", error);
+        setError("Unable to get live location updates");
+        stopLiveTracking();
+      },
+      options
+    );
+
+    setWatchId(id);
+    setIsLiveTracking(true);
+  };
+
+  const stopLiveTracking = () => {
+    if (watchId) {
+      navigator.geolocation.clearWatch(watchId);
+      setWatchId(null);
+    }
+    setIsLiveTracking(false);
+    
+    // Reset map orientation
+    if (mapRef.current) {
+      const map = mapRef.current;
+      // Return to overview of both user and station
+      if (userLocation && station) {
+        const stationLocation = station.location.coordinates 
+          ? station.location.coordinates 
+          : [station.location[0], station.location[1]];
+        const bounds = L.latLngBounds([userLocation, stationLocation]);
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [watchId]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -257,6 +423,25 @@ const RouteMap = () => {
                 <div className="flex items-center gap-4">
                   <span>📍 {routeInfo.distance} km</span>
                   <span>⏱️ {routeInfo.duration} min</span>
+                  <button
+                    onClick={isLiveTracking ? stopLiveTracking : startLiveTracking}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isLiveTracking
+                        ? 'bg-red-500 text-white hover:bg-red-600'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    {isLiveTracking ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                        Stop Live Tracking
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        🧭 Start Live Tracking
+                      </div>
+                    )}
+                  </button>
                 </div>
               ) : (
                 <span>📍 Calculating route...</span>
@@ -340,6 +525,65 @@ const RouteMap = () => {
         </div>
       )}
 
+      {/* Live Tracking Status Panel */}
+      {isLiveTracking && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-4 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">🧭 Live Navigation Active</h3>
+                  <p className="text-blue-100 text-sm">
+                    Your location is being tracked in real-time
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-blue-100">Current Speed</p>
+                <p className="text-lg font-bold">{currentSpeed.toFixed(1)} km/h</p>
+              </div>
+            </div>
+            
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🎯</span>
+                  <div>
+                    <p className="text-xs text-blue-100">Distance to Destination</p>
+                    <p className="font-semibold">{routeInfo.distance} km</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⏰</span>
+                  <div>
+                    <p className="text-xs text-blue-100">ETA</p>
+                    <p className="font-semibold">{routeInfo.duration} min</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🧭</span>
+                  <div>
+                    <p className="text-xs text-blue-100">Heading</p>
+                    <p className="font-semibold">
+                      {userHeading > 0 ? `${Math.round(userHeading)}°` : 'Detecting...'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Map */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: "600px" }}>
@@ -355,8 +599,28 @@ const RouteMap = () => {
             />
             
             {/* User location marker */}
-            <Marker position={userLocation} icon={userLocationIcon}>
-              <Popup>📍 Your Location</Popup>
+            <Marker 
+              position={userLocation} 
+              icon={isLiveTracking ? createDirectionalIcon(userHeading) : userLocationIcon}
+            >
+              <Popup>
+                <div>
+                  <strong>📍 Your Location</strong>
+                  {isLiveTracking && (
+                    <div className="mt-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm text-green-600 font-medium">Live Tracking Active</span>
+                      </div>
+                      {userHeading > 0 && (
+                        <p className="text-xs text-gray-600 mt-1">
+                          Heading: {Math.round(userHeading)}°
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Popup>
             </Marker>
             
             {/* Station marker */}
