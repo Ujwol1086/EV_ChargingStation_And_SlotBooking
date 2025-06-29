@@ -43,6 +43,10 @@ def init_db(app):
         app.config['MONGO_CLIENT'] = mongo_client
         app.config['MONGO_DB'] = mongo_db
         
+        # Initialize the mongo helper object
+        mongo.cx = mongo_client
+        mongo.db = mongo_db
+        
         # Print collections in the database
         collections = mongo_db.list_collection_names()
         logger.info(f"Collections in {mongo_db.name}: {collections}")

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axiosInstance from "../api/axios";
+import api from "../api/axios";
 import { AuthContext } from "./context";
 
 export function AuthProvider({ children }) {
@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
 
       if (token) {
         try {
-          const response = await axiosInstance.get("/auth/me");
+          const response = await api.get("/auth/me");
           setUser(response.data.user);
           setIsAuthenticated(true);
         } catch (error) {
@@ -32,7 +32,7 @@ export function AuthProvider({ children }) {
   // Register user
   const register = async (userData) => {
     try {
-      const response = await axiosInstance.post("/auth/register", userData);
+      const response = await api.post("/auth/register", userData);
       localStorage.setItem("token", response.data.token);
       setUser(response.data.user);
       setIsAuthenticated(true);
@@ -48,7 +48,7 @@ export function AuthProvider({ children }) {
   // Login user
   const login = async (userData) => {
     try {
-      const response = await axiosInstance.post("/auth/login", userData);
+      const response = await api.post("/auth/login", userData);
       localStorage.setItem("token", response.data.token);
       setUser(response.data.user);
       setIsAuthenticated(true);
