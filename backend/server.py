@@ -21,14 +21,17 @@ def create_app():
     app = Flask(__name__)
     
     # Initialize CORS with more specific settings
-    CORS(app, resources={r"/*": {"origins": [
-        "http://localhost:5173", 
-        "http://127.0.0.1:5173",
-        "http://192.168.1.67:5173",  # Your local network IP
-        "http://192.168.1.*:5173"    # Allow any device on your local network
-    ], 
-    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    "allow_headers": ["Content-Type", "Authorization"]}})
+    CORS(app, resources={r"/*": {
+        "origins": [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",  # Common React dev port
+            "http://192.168.1.67:5173"  # Your local network IP for mobile
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }})
     
     # Initialize database
     try:

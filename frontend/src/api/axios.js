@@ -4,7 +4,7 @@ import axios from 'axios';
 const api = axios.create({
     baseURL: process.env.NODE_ENV === 'production'
         ? 'http://your-production-url/api'  // Replace with your production URL
-        : 'http://192.168.1.67:5000/api',   // Use local network IP for mobile access
+        : 'http://localhost:5000/api',      // Use localhost for development
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
