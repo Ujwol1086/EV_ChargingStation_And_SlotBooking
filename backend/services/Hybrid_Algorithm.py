@@ -48,6 +48,33 @@ class HybridAlgorithm:
             }
         }
         
+        # ETA calculation factors
+        self.eta_factors = {
+            'base_speed_kmh': 40,  # Base speed in km/h (urban average)
+            'driving_modes': {
+                'economy': 30,      # 30 km/h - fuel/energy efficient driving
+                'sports': 60,       # 60 km/h - performance-oriented driving
+                'random': 45        # 45 km/h - mixed driving style
+            },
+            'traffic_multipliers': {
+                'heavy': 0.6,       # 60% of normal speed in heavy traffic
+                'medium': 0.8,      # 80% of normal speed in medium traffic
+                'light': 1.0        # 100% of normal speed in light traffic
+            },
+            'terrain_speed_impact': {
+                'flat': 1.0,        # No impact on flat terrain
+                'hilly': 0.8,       # 20% slower on hilly terrain
+                'steep': 0.6        # 40% slower on steep terrain
+            },
+            'weather_impact': {
+                'clear': 1.0,       # No impact in clear weather
+                'rain': 0.9,        # 10% slower in rain
+                'fog': 0.7,         # 30% slower in fog
+                'snow': 0.5         # 50% slower in snow
+            },
+
+        }
+        
         # City coordinates mapping for destination-based filtering
         self.city_coords = {
             # Major cities in Nepal
@@ -125,6 +152,150 @@ class HybridAlgorithm:
             'energy_efficiency_score': max(0, 1 - (total_consumption / usable_energy)) if usable_energy > 0 else 0
         }
 
+    def calculate_eta(self, distance_km, driving_mode='random', traffic_condition='light', 
+                     terrain='flat', weather='clear', custom_speed=None):
+        """
+        Calculate Estimated Time of Arrival (ETA) using hardcoded algorithms
+        
+        Args:
+            distance_km: Distance to travel in kilometers
+            driving_mode: 'economy', 'sports', 'random'
+            traffic_condition: 'heavy', 'medium', 'light'
+            terrain: 'flat', 'hilly', 'steep'
+            weather: 'clear', 'rain', 'fog', 'snow'
+            custom_speed: Custom speed override in km/h (optional)
+        
+        Returns:
+            Dict with ETA details
+        """
+        # Use custom speed if provided, otherwise calculate based on factors
+        if custom_speed is not None:
+            effective_speed = custom_speed
+        else:
+            # Get base speed from driving mode
+            base_speed = self.eta_factors['driving_modes'].get(driving_mode, 45)  # Default to random mode
+            
+            # Apply traffic condition multiplier
+            traffic_multiplier = self.eta_factors['traffic_multipliers'].get(traffic_condition, 1.0)
+            
+            # Apply terrain impact
+            terrain_multiplier = self.eta_factors['terrain_speed_impact'].get(terrain, 1.0)
+            
+            # Apply weather impact
+            weather_multiplier = self.eta_factors['weather_impact'].get(weather, 1.0)
+            
+            # Calculate effective speed
+            effective_speed = base_speed * traffic_multiplier * terrain_multiplier * weather_multiplier
+        
+        # Ensure minimum speed of 5 km/h and maximum of 120 km/h
+        effective_speed = max(5, min(120, effective_speed))
+        
+        # Calculate travel time in hours
+        travel_time_hours = distance_km / effective_speed
+        
+        # Convert to minutes and seconds
+        travel_time_minutes = travel_time_hours * 60
+        travel_time_seconds = travel_time_minutes * 60
+        
+        # Format ETA string
+        if travel_time_minutes < 1:
+            eta_string = f"{int(travel_time_seconds)} seconds"
+        elif travel_time_minutes < 60:
+            eta_string = f"{int(travel_time_minutes)} minutes"
+        else:
+            hours = int(travel_time_minutes // 60)
+            minutes = int(travel_time_minutes % 60)
+            if minutes == 0:
+                eta_string = f"{hours} hour{'s' if hours > 1 else ''}"
+            else:
+                eta_string = f"{hours}h {minutes}m"
+        
+        # Calculate arrival time (current time + travel time)
+        import datetime
+        current_time = datetime.datetime.now()
+        arrival_time = current_time + datetime.timedelta(hours=travel_time_hours)
+        
+        return {
+            'distance_km': round(distance_km, 2),
+            'effective_speed_kmh': round(effective_speed, 1),
+            'travel_time_hours': round(travel_time_hours, 3),
+            'travel_time_minutes': round(travel_time_minutes, 1),
+            'travel_time_seconds': round(travel_time_seconds, 0),
+            'eta_string': eta_string,
+            'arrival_time': arrival_time.strftime('%H:%M'),
+            'arrival_datetime': arrival_time.isoformat(),
+            'factors_applied': {
+                'driving_mode': driving_mode,
+                'traffic_condition': traffic_condition,
+                'terrain': terrain,
+                'weather': weather,
+                'custom_speed_used': custom_speed is not None
+            }
+        }
+
+    def calculate_route_eta(self, waypoints, driving_mode='random', traffic_condition='light', 
+                           terrain='flat', weather='clear', custom_speed=None):
+        """
+        Calculate ETA for a route with multiple waypoints
+        
+        Args:
+            waypoints: List of [lat, lon] coordinates
+            driving_mode: 'economy', 'sports', 'random'
+            traffic_condition: Traffic condition
+            terrain: Terrain type
+            weather: Weather condition
+            custom_speed: Custom speed override
+        
+        Returns:
+            Dict with route ETA details
+        """
+        if len(waypoints) < 2:
+            return None
+        
+        total_distance = 0
+        segment_etas = []
+        
+        # Calculate distance and ETA for each segment
+        for i in range(len(waypoints) - 1):
+            start_point = waypoints[i]
+            end_point = waypoints[i + 1]
+            
+            # Calculate distance between points
+            segment_distance = self.haversine_distance(
+                start_point[0], start_point[1], 
+                end_point[0], end_point[1]
+            )
+            
+            total_distance += segment_distance
+            
+            # Calculate ETA for this segment
+            segment_eta = self.calculate_eta(
+                segment_distance, driving_mode, traffic_condition, 
+                terrain, weather, custom_speed
+            )
+            
+            segment_etas.append({
+                'segment': i + 1,
+                'start_point': start_point,
+                'end_point': end_point,
+                'distance_km': segment_distance,
+                'eta': segment_eta
+            })
+        
+        # Calculate total ETA
+        total_eta = self.calculate_eta(
+            total_distance, driving_mode, traffic_condition, 
+            terrain, weather, custom_speed
+        )
+        
+        return {
+            'total_distance_km': round(total_distance, 2),
+            'total_eta': total_eta,
+            'segments': segment_etas,
+            'waypoints_count': len(waypoints),
+            'route_type': 'multi_segment'
+        }
+
     def haversine_distance(self, lat1, lon1, lat2, lon2):
         """Calculate haversine distance between two points"""
         lat1_rad = math.radians(lat1)
@@ -182,6 +353,16 @@ class HybridAlgorithm:
         if not energy_analysis['is_reachable']:
             energy_efficiency_score = 0
         
+        # 4. ETA Calculation
+        driving_mode = user_context.get('driving_mode', 'random')
+        traffic_condition = user_context.get('traffic_condition', 'light')
+        weather = user_context.get('weather', 'clear')
+        
+        eta_analysis = self.calculate_eta(
+            distance, driving_mode, traffic_condition, 
+            terrain, weather
+        )
+        
         # 4. Urgency score
         urgency_multipliers = {
             'low': 0.5,
@@ -206,6 +387,11 @@ class HybridAlgorithm:
         rating = station.get('rating', 4.0)
         rating_score = rating / 5.0
         
+        # 8. ETA score (shorter travel time is better)
+        # Convert travel time to a score (0-1, where 1 is best)
+        max_expected_time = 120  # 2 hours max expected travel time
+        eta_score = max(0, 1 - (eta_analysis['travel_time_minutes'] / max_expected_time))
+        
         # Calculate composite score with enhanced weights
         composite_score = (
             self.weights['distance'] * distance_score +
@@ -214,7 +400,8 @@ class HybridAlgorithm:
             self.weights['urgency'] * urgency_score +
             self.weights['price'] * price_score +
             self.weights['plug_compatibility'] * plug_compatibility_score +
-            self.weights['rating'] * rating_score
+            self.weights['rating'] * rating_score +
+            eta_score * 0.10  # Add ETA as 10% weight
         )
         
         return {
@@ -226,9 +413,11 @@ class HybridAlgorithm:
                 'urgency_score': round(urgency_score, 3),
                 'price_score': round(price_score, 3),
                 'plug_compatibility_score': round(plug_compatibility_score, 3),
-                'rating_score': round(rating_score, 3)
+                'rating_score': round(rating_score, 3),
+                'eta_score': round(eta_score, 3)
             },
             'energy_analysis': energy_analysis,
+            'eta_analysis': eta_analysis,
             'is_reachable': energy_analysis['is_reachable']
         }
 
@@ -347,6 +536,7 @@ class HybridAlgorithm:
                         'score': score_analysis['total_score'],
                         'score_breakdown': score_analysis['breakdown'],
                         'energy_analysis': score_analysis['energy_analysis'],
+                        'eta_analysis': score_analysis['eta_analysis'],
                         'is_reachable': score_analysis['is_reachable'],
                         'availability': normalized_station.get('availability', 0),
                         'total_slots': normalized_station.get('total_slots', 0),
