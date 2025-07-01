@@ -10,6 +10,8 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Map from "./pages/Map";
 import Recommendations from "./pages/Recommendations";
+import RouteMap from "./pages/RouteMap";
+import BookingPage from "./pages/BookingPage";
 
 const App = () => {
   return (
@@ -29,6 +31,22 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/route/:stationId"
+                element={
+                  <ProtectedRoute>
+                    <RouteMap />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/booking/:stationId"
+                element={
+                  <ProtectedRoute>
+                    <BookingPage />
                   </ProtectedRoute>
                 }
               />

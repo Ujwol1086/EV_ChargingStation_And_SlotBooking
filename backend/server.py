@@ -6,6 +6,11 @@ from routes.db_test_routes import db_test_bp
 from routes.stations_routes import stations_bp
 from routes.recommendation_routes import recommendation_bp
 import logging
+import threading
+import time
+from datetime import datetime, timedelta
+import os
+import sys
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,9 +21,17 @@ def create_app():
     app = Flask(__name__)
     
     # Initialize CORS with more specific settings
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"], 
-                                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-                                "allow_headers": ["Content-Type", "Authorization"]}})
+    CORS(app, resources={r"/*": {
+        "origins": [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",  # Common React dev port
+            "http://192.168.1.67:5173"  # Your local network IP for mobile
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }})
     
     # Initialize database
     try:
@@ -51,8 +64,38 @@ def create_app():
     
     return app
 
+def background_cleanup_task():
+    """
+    Background task that runs periodically to clean up expired bookings
+    """
+    while True:
+        try:
+            from models.booking import Booking
+            count = Booking.cleanup_expired_bookings()
+            if count > 0:
+                logger.info(f"Background cleanup: Marked {count} expired bookings as completed")
+        except Exception as e:
+            logger.error(f"Error in background cleanup task: {e}")
+        
+        # Sleep for 5 minutes before next cleanup
+        time.sleep(300)
+
 # Create app instance at module level
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    try:
+        # Start background cleanup task
+        cleanup_thread = threading.Thread(target=background_cleanup_task, daemon=True)
+        cleanup_thread.start()
+        logger.info("Background cleanup task started")
+        
+        # Get port from environment variable or use default
+        port = int(os.getenv('PORT', 5000))
+        host = os.getenv('HOST', '0.0.0.0')
+        
+        logger.info(f"Starting server on {host}:{port}")
+        app.run(host=host, port=port, debug=True)
+    except Exception as e:
+        logger.error(f"Failed to start server: {e}")
+        sys.exit(1)

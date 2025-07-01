@@ -572,16 +572,6 @@ const Map = () => {
                           >
                             📍 View on Map
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleBookFromCard(station);
-                            }}
-                            disabled={station.available_slots === 0}
-                            className="flex-1 px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {station.available_slots === 0 ? '❌ Full' : '📅 Book Now'}
-                          </button>
                         </div>
                       </div>
                     ))}
@@ -699,7 +689,6 @@ const BookingFormContent = ({ station, onBookingSuccess, onClose }) => {
     plug_type: station?.connector_types?.[0] || 'Type 2',
     booking_date: '',
     booking_time: '',
-    user_battery_percentage: 50,
     urgency_level: 'medium'
   });
   const [loading, setLoading] = useState(false);
@@ -731,7 +720,6 @@ const BookingFormContent = ({ station, onBookingSuccess, onClose }) => {
         charger_type: formData.charger_type,
         plug_type: formData.plug_type,
         urgency_level: formData.urgency_level,
-        user_battery_percentage: formData.user_battery_percentage,
         station_details: station
       };
 
@@ -849,22 +837,6 @@ const BookingFormContent = ({ station, onBookingSuccess, onClose }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             />
           </div>
-        </div>
-
-        {/* Battery Level */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Battery Level: {formData.user_battery_percentage}%
-          </label>
-          <input
-            type="range"
-            name="user_battery_percentage"
-            value={formData.user_battery_percentage}
-            onChange={handleInputChange}
-            min="0"
-            max="100"
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-          />
         </div>
 
         {/* Urgency */}
