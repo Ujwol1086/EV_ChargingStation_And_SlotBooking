@@ -91,6 +91,12 @@ const RouteMap = () => {
   const [watchId, setWatchId] = useState(null);
   const [previousLocation, setPreviousLocation] = useState(null);
   const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [etaInfo, setEtaInfo] = useState(null);
+  const [etaSettings, setEtaSettings] = useState({
+    drivingMode: 'random',
+    trafficCondition: 'light',
+    weather: 'clear'
+  });
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -152,6 +158,13 @@ const RouteMap = () => {
 
     fetchStationAndRoute();
   }, [userLocation, stationId]);
+
+  // Calculate initial ETA when route is loaded
+  useEffect(() => {
+    if (routeInfo.distance && userLocation && station) {
+      updateETA();
+    }
+  }, [routeInfo.distance, userLocation, station]);
 
   // Function to calculate route using OSRM API
   const calculateRoute = async (start, end) => {
@@ -242,6 +255,54 @@ const RouteMap = () => {
     return bearing;
   };
 
+  // Calculate ETA based on distance and speed
+  const calculateETA = (distanceKm, speedKmh) => {
+    if (speedKmh <= 0) return null;
+    
+    const travelTimeHours = distanceKm / speedKmh;
+    const travelTimeMinutes = travelTimeHours * 60;
+    
+    if (travelTimeMinutes < 1) {
+      return `${Math.round(travelTimeMinutes * 60)} seconds`;
+    } else if (travelTimeMinutes < 60) {
+      return `${Math.round(travelTimeMinutes)} minutes`;
+    } else {
+      const hours = Math.floor(travelTimeMinutes / 60);
+      const minutes = Math.round(travelTimeMinutes % 60);
+      return `${hours}h ${minutes}m`;
+    }
+  };
+
+  // Update ETA information during live tracking
+  const updateETA = () => {
+    if (!userLocation || !station || !route) return;
+    
+    // Calculate remaining distance to station
+    const remainingDistance = calculateStraightLineDistance(
+      userLocation[0], userLocation[1],
+      station.location[0], station.location[1]
+    );
+    
+    // Use current speed if available, otherwise use driving mode speed
+    const drivingModeSpeeds = {
+      'economy': 30,
+      'sports': 60,
+      'random': 45
+    };
+    const effectiveSpeed = currentSpeed > 0 ? currentSpeed : drivingModeSpeeds[etaSettings.drivingMode];
+    
+    const eta = calculateETA(remainingDistance, effectiveSpeed);
+    
+    if (eta) {
+      setEtaInfo({
+        remainingDistance: remainingDistance.toFixed(1),
+        effectiveSpeed: effectiveSpeed.toFixed(1),
+        eta: eta,
+        currentSpeed: currentSpeed > 0 ? currentSpeed.toFixed(1) : 'N/A'
+      });
+    }
+  };
+
   // Live tracking functions
   const startLiveTracking = () => {
     if (!navigator.geolocation) {
@@ -302,6 +363,9 @@ const RouteMap = () => {
             : [station.location[0], station.location[1]];
           calculateRoute(newLocation, stationLocation);
         }
+
+        // Update ETA information
+        updateETA();
       },
       (error) => {
         console.error("Live tracking error:", error);
@@ -547,13 +611,13 @@ const RouteMap = () => {
               </div>
             </div>
             
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white bg-opacity-10 rounded-lg p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🎯</span>
                   <div>
                     <p className="text-xs text-blue-100">Distance to Destination</p>
-                    <p className="font-semibold">{routeInfo.distance} km</p>
+                    <p className="font-semibold">{etaInfo ? etaInfo.remainingDistance : routeInfo.distance} km</p>
                   </div>
                 </div>
               </div>
@@ -562,8 +626,18 @@ const RouteMap = () => {
                 <div className="flex items-center gap-2">
                   <span className="text-lg">⏰</span>
                   <div>
-                    <p className="text-xs text-blue-100">ETA</p>
-                    <p className="font-semibold">{routeInfo.duration} min</p>
+                    <p className="text-xs text-blue-100">Real-time ETA</p>
+                    <p className="font-semibold">{etaInfo ? etaInfo.eta : `${routeInfo.duration} min`}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white bg-opacity-10 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🚗</span>
+                  <div>
+                    <p className="text-xs text-blue-100">Current Speed</p>
+                    <p className="font-semibold">{etaInfo ? etaInfo.currentSpeed : currentSpeed.toFixed(1)} km/h</p>
                   </div>
                 </div>
               </div>
@@ -583,6 +657,63 @@ const RouteMap = () => {
           </div>
         </div>
       )}
+
+      {/* ETA Settings Panel */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+        <div className="bg-white rounded-lg shadow-md p-4">
+          <h3 className="text-lg font-semibold text-gray-800 mb-3">⚙️ ETA Calculation Settings</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Driving Mode</label>
+              <select
+                value={etaSettings.drivingMode}
+                onChange={(e) => setEtaSettings({...etaSettings, drivingMode: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="economy">Economy (30 km/h)</option>
+                <option value="sports">Sports (60 km/h)</option>
+                <option value="random">Random (45 km/h)</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Traffic</label>
+              <select
+                value={etaSettings.trafficCondition}
+                onChange={(e) => setEtaSettings({...etaSettings, trafficCondition: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="light">Light</option>
+                <option value="medium">Medium</option>
+                <option value="heavy">Heavy</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Weather</label>
+              <select
+                value={etaSettings.weather}
+                onChange={(e) => setEtaSettings({...etaSettings, weather: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="clear">Clear</option>
+                <option value="rain">Rain</option>
+                <option value="fog">Fog</option>
+                <option value="snow">Snow</option>
+              </select>
+            </div>
+            
+
+          </div>
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <span className="font-medium">💡 ETA Info:</span> {' '}
+              Real-time ETA is calculated using your current speed when available, otherwise uses the driving mode speed above.
+              Traffic conditions already consider time of day patterns (peak hours, off-peak, night).
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Map */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">

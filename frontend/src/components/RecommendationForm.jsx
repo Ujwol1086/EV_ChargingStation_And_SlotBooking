@@ -9,7 +9,10 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
     acStatus: false,
     passengers: 1,
     terrain: 'flat',
-    maxDetourKm: 20
+    maxDetourKm: 20,
+    drivingMode: 'random',
+    trafficCondition: 'light',
+    weather: 'clear'
   });
   const [isLoading, setIsLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
@@ -38,6 +41,27 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
     { value: "hilly", label: "Hilly - Some elevation changes" },
     { value: "steep", label: "Steep - Mountain roads, steep hills" }
   ];
+
+  const drivingModes = [
+    { value: "economy", label: "Economy - 30 km/h (Energy efficient)" },
+    { value: "sports", label: "Sports - 60 km/h (Performance)" },
+    { value: "random", label: "Random - 45 km/h (Mixed)" }
+  ];
+
+  const trafficConditions = [
+    { value: "light", label: "Light - Minimal traffic" },
+    { value: "medium", label: "Medium - Normal traffic" },
+    { value: "heavy", label: "Heavy - Congested traffic" }
+  ];
+
+  const weatherConditions = [
+    { value: "clear", label: "Clear - Good weather" },
+    { value: "rain", label: "Rain - Wet conditions" },
+    { value: "fog", label: "Fog - Reduced visibility" },
+    { value: "snow", label: "Snow - Winter conditions" }
+  ];
+
+
 
   // Fetch supported cities on component mount
   useEffect(() => {
@@ -120,6 +144,9 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
         ac_status: formData.acStatus,
         passengers: formData.passengers,
         terrain: formData.terrain,
+        driving_mode: formData.drivingMode,
+        traffic_condition: formData.trafficCondition,
+        weather: formData.weather,
         ...(routeMode && {
           destination_city: destinationCity || null, // Allow null/empty destination
           max_detour_km: formData.maxDetourKm
@@ -152,34 +179,37 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            🔋 Current Battery Level: {formData.batteryPercentage}%
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            🔋 Current Battery Level
           </label>
-          <input
-            type="range"
-            name="batteryPercentage"
-            min="5"
-            max="100"
-            value={formData.batteryPercentage}
-            onChange={handleInputChange}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-          />
+          <div className="relative">
+            <input
+              type="number"
+              name="batteryPercentage"
+              min="5"
+              max="100"
+              value={formData.batteryPercentage}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+              placeholder="Enter battery percentage"
+            />
+            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">%</span>
+          </div>
           <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>5%</span>
-            <span>50%</span>
-            <span>100%</span>
+            <span>Min: 5%</span>
+            <span>Max: 100%</span>
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             🔌 Plug Type
           </label>
           <select
             name="plugType"
             value={formData.plugType}
             onChange={handleInputChange}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">Select plug type (optional)</option>
             {plugTypes.map(type => (
@@ -191,14 +221,14 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             ⚡ Urgency Level
           </label>
           <select
             name="urgencyLevel"
             value={formData.urgencyLevel}
             onChange={handleInputChange}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             {urgencyLevels.map(level => (
               <option key={level.value} value={level.value}>
@@ -208,76 +238,156 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
           </select>
         </div>
 
-        <div className="border-t pt-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">
-            🚗 Vehicle Context (Affects Energy Consumption)
+        <div className="border-t pt-6">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <span className="bg-blue-100 p-2 rounded-lg mr-3">🚗</span>
+            Vehicle Context (Affects Energy Consumption)
           </h3>
           
-          <div className="flex items-center mb-3">
-            <input
-              type="checkbox"
-              name="acStatus"
-              id="ac_status"
-              checked={formData.acStatus}
-              onChange={handleInputChange}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="ac_status" className="ml-2 block text-sm text-gray-700">
-              ❄️ Air Conditioning is ON (+15% energy consumption)
-            </label>
-          </div>
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="flex items-center mb-4">
+              <input
+                type="checkbox"
+                name="acStatus"
+                id="ac_status"
+                checked={formData.acStatus}
+                onChange={handleInputChange}
+                className="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="ac_status" className="ml-3 block text-sm font-medium text-gray-700">
+                ❄️ Air Conditioning is ON (+15% energy consumption)
+              </label>
+            </div>
 
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              👥 Number of Passengers (including driver): {formData.passengers}
-            </label>
-            <input
-              type="range"
-              name="passengers"
-              min="1"
-              max="8"
-              value={formData.passengers}
-              onChange={handleInputChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>1</span>
-              <span>4</span>
-              <span>8</span>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                👥 Number of Passengers (including driver)
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  name="passengers"
+                  min="1"
+                  max="8"
+                  value={formData.passengers}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-12"
+                  placeholder="Enter number of passengers"
+                />
+                <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">people</span>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Min: 1</span>
+                <span>Max: 8</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🏔️ Terrain Type
+              </label>
+              <select
+                name="terrain"
+                value={formData.terrain}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {terrainTypes.map(terrain => (
+                  <option key={terrain.value} value={terrain.value}>
+                    {terrain.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              🏔️ Terrain Type
-            </label>
-            <select
-              name="terrain"
-              value={formData.terrain}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {terrainTypes.map(terrain => (
-                <option key={terrain.value} value={terrain.value}>
-                  {terrain.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-            <p className="text-sm text-blue-800">
-              <strong>⚡ Energy Impact:</strong> {energyImpact ? energyImpact.factors.join(", ") : "Calculating..."}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center mb-2">
+              <span className="text-blue-600 text-lg mr-2">⚡</span>
+              <h4 className="font-semibold text-blue-800">Energy Impact Analysis</h4>
+            </div>
+            <p className="text-sm text-blue-700">
+              {energyImpact ? energyImpact.factors.join(", ") : "Calculating energy impact..."}
             </p>
           </div>
         </div>
 
-        <div className="form-section">
-          <h3>🎯 Trip Planning</h3>
-          <div className="form-group">
-            <label className="form-label">
+        <div className="border-t pt-6">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <span className="bg-green-100 p-2 rounded-lg mr-3">⏱️</span>
+            ETA Calculation Settings
+          </h3>
+          
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🚗 Driving Mode
+              </label>
+              <select
+                name="drivingMode"
+                value={formData.drivingMode}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                {drivingModes.map(mode => (
+                  <option key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🚦 Traffic Condition
+                </label>
+                <select
+                  name="trafficCondition"
+                  value={formData.trafficCondition}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {trafficConditions.map(condition => (
+                    <option key={condition.value} value={condition.value}>
+                      {condition.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🌤️ Weather Condition
+                </label>
+                <select
+                  name="weather"
+                  value={formData.weather}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {weatherConditions.map(weather => (
+                    <option key={weather.value} value={weather.value}>
+                      {weather.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-6">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+            <span className="bg-purple-100 p-2 rounded-lg mr-3">🎯</span>
+            Trip Planning
+          </h3>
+          
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="flex items-center mb-4">
               <input
                 type="checkbox"
+                id="route_mode"
                 checked={routeMode}
                 onChange={(e) => {
                   setRouteMode(e.target.checked);
@@ -285,87 +395,111 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
                     setDestinationCity('');
                   }
                 }}
-                className="checkbox-input"
+                className="h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
               />
-              Plan route to destination city
-            </label>
-            <small className="form-hint">
-              Get recommendations for charging stations along your route
-            </small>
-          </div>
-
-          {routeMode && (
-            <div className="form-group">
-              <label className="form-label">Destination City (Optional)</label>
-              <select
-                value={destinationCity}
-                onChange={(e) => setDestinationCity(e.target.value)}
-                className="form-input"
-              >
-                <option value="">Select destination city (optional)</option>
-                {supportedCities.map((city) => (
-                  <option key={city.name} value={city.name}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-              <small className="form-hint">
-                Optional: Choose your destination for route-optimized recommendations
-              </small>
-          </div>
-        )}
-
-          {routeMode && (
-            <div className="form-group">
-              <label className="form-label">Maximum Detour</label>
-              <div className="slider-container">
-                <input
-                  type="range"
-                  min="5"
-                  max="50"
-                  value={formData.maxDetourKm}
-                  onChange={(e) => setFormData({...formData, maxDetourKm: parseInt(e.target.value)})}
-                  className="form-slider"
-                />
-                <span className="slider-value">{formData.maxDetourKm} km</span>
-              </div>
-              <small className="form-hint">
-                Maximum distance you're willing to detour from direct route
-              </small>
+              <label htmlFor="route_mode" className="ml-3 block text-sm font-medium text-gray-700">
+                Plan route to destination city
+              </label>
             </div>
-          )}
+            <p className="text-sm text-gray-600 mb-4">
+              Get recommendations for charging stations along your route
+            </p>
+
+            {routeMode && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🏙️ Destination City (Optional)
+                  </label>
+                  <select
+                    value={destinationCity}
+                    onChange={(e) => setDestinationCity(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">Select destination city (optional)</option>
+                    {supportedCities.map((city) => (
+                      <option key={city.name} value={city.name}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Optional: Choose your destination for route-optimized recommendations
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🛣️ Maximum Detour Distance
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="5"
+                      max="50"
+                      value={formData.maxDetourKm}
+                      onChange={(e) => setFormData({...formData, maxDetourKm: parseInt(e.target.value)})}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent pr-12"
+                      placeholder="Enter detour distance"
+                    />
+                    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">km</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500 mt-1">
+                    <span>Min: 5 km</span>
+                    <span>Max: 50 km</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximum distance you're willing to detour from direct route
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <button
           type="submit"
-          className={`submit-button ${isLoading ? 'loading' : ''}`}
           disabled={isLoading || !userLocation}
+          className={`w-full py-4 px-6 text-lg font-semibold text-white rounded-lg transition-all duration-200 ${
+            isLoading || !userLocation 
+              ? 'bg-gray-400 cursor-not-allowed' 
+              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transform hover:scale-105 shadow-lg hover:shadow-xl'
+          }`}
         >
           {isLoading ? (
-            <>
-              <span className="spinner"></span>
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
               {routeMode ? 'Finding Route Stations...' : 'Finding Stations...'}
-            </>
+            </div>
           ) : (
-            <>
-              🔍 {routeMode ? 
+            <div className="flex items-center justify-center">
+              <span className="text-xl mr-2">🔍</span>
+              {routeMode ? 
                 (destinationCity ? `Find Stations to ${destinationCity}` : 'Find Route Stations') : 
                 'Find Charging Stations'
               }
-            </>
+            </div>
           )}
         </button>
         
         {!userLocation && (
-          <p className="text-sm text-amber-600 text-center">
-            📍 Waiting for location access...
-          </p>
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center justify-center">
+              <span className="text-amber-600 text-lg mr-2">📍</span>
+              <p className="text-sm text-amber-700 font-medium">
+                Waiting for location access...
+              </p>
+            </div>
+          </div>
         )}
       </form>
 
       {locationError && (
-        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-          <p className="text-sm text-red-800">{locationError}</p>
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center">
+            <span className="text-red-600 text-lg mr-2">⚠️</span>
+            <p className="text-sm text-red-800 font-medium">{locationError}</p>
+          </div>
         </div>
       )}
     </div>
