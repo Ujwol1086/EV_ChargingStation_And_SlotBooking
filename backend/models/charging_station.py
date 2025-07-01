@@ -15,6 +15,9 @@ class ChargingStation:
         try:
             logger.info("Fetching all charging stations")
             
+            # Ensure stations are synced to database
+            ChargingStation.ensure_stations_in_database()
+            
             # Try to get from database first
             if mongo.db is not None:
                 try:
@@ -312,4 +315,91 @@ class ChargingStation:
             
         except Exception as e:
             logger.error(f"Error initializing charging stations database: {e}")
+            return False
+    
+    @staticmethod
+    def ensure_stations_in_database():
+        """
+        Ensure all stations from JSON file are stored in the database with proper structure
+        """
+        try:
+            # Skip if database is not available
+            if mongo.db is None:
+                return False
+                
+            logger.info("Ensuring stations are properly stored in database...")
+            
+            # Load stations from JSON file
+            json_stations = ChargingStation._load_from_json_file()
+            
+            if not json_stations:
+                logger.warning("No stations found in JSON file")
+                return False
+            
+            # Get existing stations from database
+            existing_stations = list(mongo.db.charging_stations.find({}))
+            existing_ids = {station.get('id') for station in existing_stations}
+            
+            updated_count = 0
+            inserted_count = 0
+            
+            for station in json_stations:
+                station_id = station.get('id')
+                
+                if not station_id:
+                    logger.warning(f"Station missing ID: {station}")
+                    continue
+                
+                # Ensure proper charger structure
+                chargers = station.get('chargers', [])
+                if not chargers and station.get('connector_types'):
+                    # Convert old connector_types format to new chargers format
+                    chargers = []
+                    for connector_type in station.get('connector_types', []):
+                        chargers.append({
+                            'type': connector_type,
+                            'power_kw': 50,  # Default power
+                            'status': 'available',
+                            'connector_id': f"{station_id}_{connector_type}_{len(chargers) + 1}"
+                        })
+                    station['chargers'] = chargers
+                
+                # Ensure required fields
+                from datetime import datetime
+                station_doc = {
+                    'id': station_id,
+                    'name': station.get('name', f'Station {station_id}'),
+                    'latitude': float(station.get('latitude', 0)),
+                    'longitude': float(station.get('longitude', 0)),
+                    'connector_types': station.get('connector_types', []),
+                    'chargers': chargers,
+                    'available_slots': len([c for c in chargers if c.get('status') == 'available']),
+                    'total_slots': len(chargers),
+                    'pricing_per_kwh': station.get('pricing_per_kwh', 15),
+                    'features': station.get('features', []),
+                    'rating': station.get('rating', 4.0),
+                    'address': station.get('address', ''),
+                    'operating_hours': station.get('operating_hours', '24/7'),
+                    'photos': station.get('photos', []),
+                    'last_updated': datetime.utcnow()
+                }
+                
+                if station_id in existing_ids:
+                    # Update existing station
+                    result = mongo.db.charging_stations.update_one(
+                        {'id': station_id},
+                        {'$set': station_doc}
+                    )
+                    if result.modified_count > 0:
+                        updated_count += 1
+                else:
+                    # Insert new station
+                    mongo.db.charging_stations.insert_one(station_doc)
+                    inserted_count += 1
+            
+            logger.info(f"Station database sync complete: {inserted_count} inserted, {updated_count} updated")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error ensuring stations in database: {e}")
             return False 

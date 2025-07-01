@@ -175,6 +175,71 @@ class Booking:
             return []
     
     @staticmethod
+    def get_station_real_time_availability(station_id, charger_type=None):
+        """
+        Get real-time availability for a station by checking current bookings
+        """
+        try:
+            from datetime import datetime, timedelta
+            current_time = datetime.utcnow()
+            
+            # Get station info from database
+            from models.charging_station import ChargingStation
+            station = ChargingStation.get_by_id(station_id)
+            if not station:
+                logger.warning(f"Station {station_id} not found")
+                return {'available_slots': 0, 'total_slots': 0}
+            
+            # Count chargers by type
+            chargers = station.get('chargers', [])
+            if charger_type:
+                # Filter by specific charger type
+                type_chargers = [c for c in chargers if c.get('type') == charger_type]
+                total_slots = len(type_chargers)
+            else:
+                total_slots = len(chargers)
+            
+            if total_slots == 0:
+                return {'available_slots': 0, 'total_slots': 0}
+            
+            # Count active bookings for this station and charger type
+            query = {
+                "station_id": station_id,
+                "status": {"$in": ["confirmed", "in_progress"]},
+                # Check if booking is currently active (within the estimated duration)
+                "$expr": {
+                    "$and": [
+                        # Booking datetime exists
+                        {"$ne": ["$booking_datetime", None]},
+                        # Current time is after booking start
+                        {"$gte": [current_time, "$booking_datetime"]},
+                        # Current time is before booking end (booking_datetime + estimated_duration)
+                        {"$lte": [current_time, {
+                            "$add": ["$booking_datetime", {"$multiply": ["$estimated_duration", 60000]}]  # Convert minutes to milliseconds
+                        }]}
+                    ]
+                }
+            }
+            
+            if charger_type:
+                query["charger_type"] = charger_type
+            
+            active_bookings = mongo.db.bookings.count_documents(query)
+            available_slots = max(0, total_slots - active_bookings)
+            
+            logger.info(f"Station {station_id} ({charger_type or 'all types'}): {available_slots}/{total_slots} slots available")
+            
+            return {
+                'available_slots': available_slots,
+                'total_slots': total_slots,
+                'active_bookings': active_bookings
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting real-time availability for station {station_id}: {e}")
+            return {'available_slots': 0, 'total_slots': 0}
+    
+    @staticmethod
     def check_slot_availability(station_id, charger_type, booking_date, booking_time):
         """
         Check if a slot is available for the given station, charger type, date and time
@@ -191,6 +256,31 @@ class Booking:
             slot_start = booking_datetime
             slot_end = booking_datetime + timedelta(hours=1)
             
+            # Get station info to determine total slots
+            from models.charging_station import ChargingStation
+            station = ChargingStation.get_by_id(station_id)
+            if not station:
+                logger.warning(f"Station {station_id} not found")
+                return {
+                    'available': False,
+                    'available_slots': 0,
+                    'total_slots': 0,
+                    'existing_bookings': 0
+                }
+            
+            # Count chargers of the specified type
+            chargers = station.get('chargers', [])
+            type_chargers = [c for c in chargers if c.get('type') == charger_type]
+            total_slots = len(type_chargers)
+            
+            if total_slots == 0:
+                return {
+                    'available': False,
+                    'available_slots': 0,
+                    'total_slots': 0,
+                    'existing_bookings': 0
+                }
+            
             # Count existing bookings for this time slot
             existing_bookings = mongo.db.bookings.count_documents({
                 "station_id": station_id,
@@ -199,10 +289,6 @@ class Booking:
                 "booking_datetime": {"$gte": slot_start, "$lt": slot_end}
             })
             
-            # Get total slots for this charger type at the station
-            # For now, assume each station has 2 slots per charger type
-            # This should be fetched from the station data in a real implementation
-            total_slots = 2
             available_slots = total_slots - existing_bookings
             
             logger.info(f"Station {station_id}: {available_slots}/{total_slots} slots available for {booking_date} {booking_time}")
@@ -328,4 +414,111 @@ class Booking:
             return {
                 'success': False,
                 'error': str(e)
-            } 
+            }
+    
+    @staticmethod
+    def create_instant_booking(user_id, station_id, charger_type, booking_data):
+        """
+        Create an instant booking for high urgency cases
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            # Check real-time availability
+            availability = Booking.get_station_real_time_availability(station_id, charger_type)
+            
+            if availability['available_slots'] <= 0:
+                return {
+                    'success': False,
+                    'error': 'No slots currently available for instant booking',
+                    'availability': availability
+                }
+            
+            # Create booking for immediate use (current time)
+            current_time = datetime.utcnow()
+            
+            # Create booking document
+            booking = {
+                "user_id": ObjectId(user_id),
+                "station_id": station_id,
+                "charger_type": charger_type,
+                "booking_id": booking_data.get('booking_id'),
+                "booking_datetime": current_time,
+                "booking_date": current_time.strftime("%Y-%m-%d"),
+                "booking_time": current_time.strftime("%H:%M"),
+                "power": booking_data.get('power'),
+                "estimated_time": booking_data.get('estimated_time'),
+                "auto_booked": booking_data.get('auto_booked', False),
+                "status": "confirmed",
+                "created_at": current_time,
+                "estimated_duration": booking_data.get('booking_duration', 60),
+                "station_details": booking_data.get('station_details', {}),
+                "user_location": booking_data.get('user_location', []),
+                "distance_to_station": booking_data.get('distance_to_station', 0),
+                "urgency_level": booking_data.get('urgency_level', 'high'),
+                "plug_type": booking_data.get('plug_type', charger_type)
+            }
+            
+            # Insert booking into database
+            result = mongo.db.bookings.insert_one(booking)
+            booking_id = result.inserted_id
+            
+            logger.info(f"Instant booking created with ID: {booking_id} for immediate use")
+            
+            # Return the booking document
+            booking_doc = mongo.db.bookings.find_one({"_id": booking_id})
+            if booking_doc:
+                booking_doc["_id"] = str(booking_doc["_id"])
+                booking_doc["user_id"] = str(booking_doc["user_id"])
+            
+            return {
+                'success': True,
+                'booking': booking_doc
+            }
+            
+        except Exception as e:
+            logger.error(f"Error creating instant booking: {e}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def cleanup_expired_bookings():
+        """
+        Mark bookings as completed if their estimated duration has passed
+        This should be run periodically as a background task
+        """
+        try:
+            from datetime import datetime, timedelta
+            current_time = datetime.utcnow()
+            
+            # Find bookings that should be completed
+            expired_bookings = mongo.db.bookings.find({
+                "status": {"$in": ["confirmed", "in_progress"]},
+                "booking_datetime": {"$ne": None},
+                "$expr": {
+                    "$lt": [
+                        {"$add": ["$booking_datetime", {"$multiply": ["$estimated_duration", 60000]}]},
+                        current_time
+                    ]
+                }
+            })
+            
+            count = 0
+            for booking in expired_bookings:
+                # Update status to completed
+                mongo.db.bookings.update_one(
+                    {"_id": booking["_id"]},
+                    {"$set": {"status": "completed", "completed_at": current_time}}
+                )
+                count += 1
+            
+            if count > 0:
+                logger.info(f"Marked {count} expired bookings as completed")
+            
+            return count
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up expired bookings: {e}")
+            return 0 
