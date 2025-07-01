@@ -498,6 +498,101 @@
     "photos": [
       "charikot1.jpg"
     ]
+  },
+  {
+    "id": "cs019",
+    "name": "The Highway Coffee Shot – Malekhu",
+    "location": {
+      "address": "Benighat 45100, Malekhu, Dhading",
+      "coordinates": [27.9771, 85.1874]
+    },
+    "chargers": [
+      {
+        "type": "CCS2",
+        "power": "30kW",
+        "available": true
+      }
+    ],
+    "amenities": ["WiFi", "Parking", "Food", "Coffee", "Restroom"],
+    "operatingHours": "24/7",
+    "pricing": "NPR 15 per kWh",
+    "photos": []
+  },
+  {
+    "id": "cs020",
+    "name": "Hill Top Restaurant – Malekhu",
+    "location": {
+      "address": "Golghar, Malekhu, Dhading",
+      "coordinates": [27.9752, 85.1903]
+    },
+    "chargers": [
+      {
+        "type": "CCS2",
+        "power": "7.2kW",
+        "available": true
+      }
+    ],
+    "amenities": ["WiFi", "Parking", "Food", "Coffee", "Restroom"],
+    "operatingHours": "6:00 AM - 9:00 PM",
+    "pricing": "NPR 12 per kWh",
+    "photos": []
+  },
+  {
+    "id": "cs021",
+    "name": "Sipradi Dharke – Dhading",
+    "location": {
+      "address": "Dharke, Dhading",
+      "coordinates": [27.9750, 85.1898]
+    },
+    "chargers": [
+      {
+        "type": "GB/T",
+        "power": "30kW",
+        "available": true
+      }
+    ],
+    "amenities": ["Restroom", "Service Center"],
+    "operatingHours": "6:00 AM - 10:00 PM",
+    "pricing": "NPR 20 per kWh",
+    "photos": []
+  },
+  {
+    "id": "cs022",
+    "name": "Sipradi The Highway Coffee Shot – Malekhu",
+    "location": {
+      "address": "Malekhu, Dhading",
+      "coordinates": [27.9771, 85.1874]
+    },
+    "chargers": [
+      {
+        "type": "GB/T",
+        "power": "30kW",
+        "available": true
+      }
+    ],
+    "amenities": ["WiFi", "Parking", "Food", "Coffee", "Restroom"],
+    "operatingHours": "24/7",
+    "pricing": "NPR 15 per kWh",
+    "photos": []
+  },
+  {
+    "id": "cs023",
+    "name": "Sipradi Siddhartha Riverside Resort – Chumlingtar",
+    "location": {
+      "address": "Chumlingtar, Chitwan",
+      "coordinates": [27.6192, 84.3581]
+    },
+    "chargers": [
+      {
+        "type": "GB/T",
+        "power": "30kW",
+        "available": true
+      }
+    ],
+    "amenities": ["Restroom", "Service Center"],
+    "operatingHours": "6:00 AM - 10:00 PM",
+    "pricing": "NPR 20 per kWh",
+    "photos": []
   }
   ]
 }
