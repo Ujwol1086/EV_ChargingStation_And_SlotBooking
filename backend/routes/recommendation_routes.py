@@ -652,6 +652,16 @@ def get_route_to_station():
                 'error': 'Locations must be arrays of [lat, lng]'
             }), 400
         
+        # Extract ETA parameters
+        driving_mode = data.get('driving_mode', 'random')
+        traffic_condition = data.get('traffic_condition', 'light')
+        terrain = data.get('terrain', 'flat')
+        weather = data.get('weather', 'clear')
+        
+        # Validate ETA parameters
+        if driving_mode not in ['economy', 'sports', 'random']:
+            return jsonify({'error': 'Driving mode must be one of: economy, sports, random'}), 400
+        
         # Calculate route using hardcoded A* algorithm
         route_data = route_service.get_route_to_station(
             data['user_location'], 
@@ -660,6 +670,17 @@ def get_route_to_station():
         
         if not route_data['success']:
             return jsonify(route_data), 400
+        
+        # Calculate ETA using hybrid algorithm
+        if 'metrics' in route_data and 'total_distance' in route_data['metrics']:
+            eta_analysis = hybrid_algorithm.calculate_eta(
+                route_data['metrics']['total_distance'],
+                driving_mode,
+                traffic_condition,
+                terrain,
+                weather
+            )
+            route_data['eta_analysis'] = eta_analysis
         
         # Add user context
         route_data['user_id'] = user_id
