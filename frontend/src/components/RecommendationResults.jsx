@@ -24,6 +24,8 @@ const RecommendationResults = ({
   const userContext = data?.user_context;
   const algorithmInfo = data?.algorithm_info;
 
+  console.log('RecommendationResults received:', { recommendations, data, routeInfo });
+
   if (!recommendations?.length) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -34,6 +36,21 @@ const RecommendationResults = ({
             : 'No charging stations found matching your criteria.'
           }
         </p>
+        <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
+          <p>Debug info:</p>
+          <p>Recommendations type: {typeof recommendations}</p>
+          <p>Recommendations length: {recommendations?.length}</p>
+          <p>Data keys: {data ? Object.keys(data).join(', ') : 'No data'}</p>
+          {data?.algorithm_info && (
+            <div className="mt-2">
+              <p><strong>Algorithm Info:</strong></p>
+              <p>Algorithm: {data.algorithm_info.algorithm_used}</p>
+              <p>Total stations processed: {data.algorithm_info.total_stations_processed}</p>
+              <p>Route filtered: {data.algorithm_info.route_filtered || 0}</p>
+              <p>Destination city: {data.algorithm_info.destination_city || 'None'}</p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
