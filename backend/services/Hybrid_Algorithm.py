@@ -491,17 +491,42 @@ class HybridAlgorithm:
                     # Route-based filtering if destination is specified
                     route_analysis = None
                     if route_filtering_enabled and destination_coords:
+                        # Adjust max detour based on urgency level
+                        base_max_detour = user_context.get('max_detour_km', 20)
+                        urgency = user_context.get('urgency', 'medium')
+                        
+                        # For high urgency, be more lenient with route filtering
+                        urgency_detour_multipliers = {
+                            'low': 0.8,      # More strict for low urgency
+                            'medium': 1.0,   # Normal filtering
+                            'high': 1.5,     # More lenient for high urgency
+                            'emergency': 2.0  # Very lenient for emergency
+                        }
+                        
+                        adjusted_max_detour = base_max_detour * urgency_detour_multipliers.get(urgency.lower(), 1.0)
+                        
                         route_analysis = self.is_station_along_route(
                             user_location, 
                             destination_coords, 
                             station_location,
-                            max_detour_km=user_context.get('max_detour_km', 20)
+                            max_detour_km=adjusted_max_detour,
+                            urgency=urgency
                         )
                         
-                        # Skip stations not along the route
+                        # For emergency situations, include all stations within reasonable distance
+                        if urgency.lower() == 'emergency':
+                            # Include station if it's within 50km of the route
+                            emergency_max_distance = 50
+                            if route_analysis['distance_to_station'] <= emergency_max_distance:
+                                route_analysis['is_along_route'] = True
+                        
+                        # Skip stations not along the route (unless emergency)
                         if not route_analysis['is_along_route']:
                             route_filtered_count += 1
+                            logger.debug(f"Station {station.get('id', 'unknown')} filtered out: detour={route_analysis['detour_distance']:.1f}km, angle_diff={route_analysis['angle_difference']:.1f}°, urgency={urgency}")
                             continue
+                        else:
+                            logger.debug(f"Station {station.get('id', 'unknown')} included: detour={route_analysis['detour_distance']:.1f}km, angle_diff={route_analysis['angle_difference']:.1f}°, urgency={urgency}")
                     
                     # Calculate distance
                     distance = self.haversine_distance(
@@ -1169,7 +1194,7 @@ class HybridAlgorithm:
         
         return None
     
-    def is_station_along_route(self, user_location, destination_coords, station_location, max_detour_km=20):
+    def is_station_along_route(self, user_location, destination_coords, station_location, max_detour_km=20, urgency='medium'):
         """
         Determine if a charging station is along the route from user to destination
         
@@ -1216,7 +1241,19 @@ class HybridAlgorithm:
             angle_diff = 360 - angle_diff
         
         # Station should be in roughly the same direction (within 90 degrees)
-        is_right_direction = angle_diff <= 90
+        # For high urgency, be more lenient with direction
+        base_angle_limit = 90
+        urgency_angle_multipliers = {
+            'low': 0.8,      # More strict for low urgency (72 degrees)
+            'medium': 1.0,   # Normal filtering (90 degrees)
+            'high': 1.2,     # More lenient for high urgency (108 degrees)
+            'emergency': 1.5  # Very lenient for emergency (135 degrees)
+        }
+        
+        # Use the urgency parameter passed to the method
+        angle_limit = base_angle_limit * urgency_angle_multipliers.get(urgency.lower(), 1.0)
+        
+        is_right_direction = angle_diff <= angle_limit
         
         return {
             'is_along_route': is_along_route and is_right_direction,
