@@ -157,7 +157,9 @@ const RecommendationForm = ({ onRecommendations, userLocation }) => {
       
       const response = await axios.post(endpoint, requestData);
       
-      if (response.data) {
+      console.log('Response received:', response.data);
+      
+      if (response.data && response.data.success !== false) {
         onRecommendations(response.data);
       } else {
         console.error('Recommendation error:', response.data);

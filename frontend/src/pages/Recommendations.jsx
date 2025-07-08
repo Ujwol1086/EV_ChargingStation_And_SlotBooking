@@ -137,6 +137,7 @@ const Recommendations = () => {
   };
 
   const handleRecommendations = (data) => {
+    console.log('Setting recommendations:', data);
     setRecommendations(data);
     setSelectedStation(null);
     setRouteData(null);
@@ -299,13 +300,13 @@ const Recommendations = () => {
             {/* Recommendation Results */}
             {recommendations && (
               <RecommendationResults 
-                recommendations={recommendations.recommendations}
+                recommendations={recommendations.recommendations || recommendations}
                 onStationSelect={handleStationSelect}
                 onShowRoute={handleShowRoute}
                 userBookings={userBookings}
                 loadingRoute={loadingRoute}
-                metadata={recommendations.metadata}
-                autoBookings={recommendations.auto_bookings}
+                metadata={recommendations.algorithm_info || recommendations.metadata}
+                autoBookings={recommendations.auto_bookings || []}
                 data={recommendations}
                 onAutoBook={handleAutoBook}
               />
