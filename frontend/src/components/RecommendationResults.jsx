@@ -24,6 +24,8 @@ const RecommendationResults = ({
   const userContext = data?.user_context;
   const algorithmInfo = data?.algorithm_info;
 
+  console.log('RecommendationResults received:', { recommendations, data, routeInfo });
+
   if (!recommendations?.length) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6">
@@ -34,6 +36,21 @@ const RecommendationResults = ({
             : 'No charging stations found matching your criteria.'
           }
         </p>
+        <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
+          <p>Debug info:</p>
+          <p>Recommendations type: {typeof recommendations}</p>
+          <p>Recommendations length: {recommendations?.length}</p>
+          <p>Data keys: {data ? Object.keys(data).join(', ') : 'No data'}</p>
+          {data?.algorithm_info && (
+            <div className="mt-2">
+              <p><strong>Algorithm Info:</strong></p>
+              <p>Algorithm: {data.algorithm_info.algorithm_used}</p>
+              <p>Total stations processed: {data.algorithm_info.total_stations_processed}</p>
+              <p>Route filtered: {data.algorithm_info.route_filtered || 0}</p>
+              <p>Destination city: {data.algorithm_info.destination_city || 'None'}</p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -184,6 +201,52 @@ const RecommendationResults = ({
                   Terrain: +{energy_analysis.terrain_penalty_kwh} kWh
                 </span>
               )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderETAAnalysis = (station) => {
+    if (!station.eta_analysis) return null;
+
+    const { eta_analysis } = station;
+    return (
+      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <h5 className="font-semibold text-green-800 mb-2">⏱️ ETA Analysis</h5>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-green-700">
+              <strong>Travel Time:</strong> {eta_analysis.eta_string}
+            </p>
+            <p className="text-green-700">
+              <strong>Arrival Time:</strong> {eta_analysis.arrival_time}
+            </p>
+          </div>
+          <div>
+            <p className="text-green-700">
+              <strong>Effective Speed:</strong> {eta_analysis.effective_speed_kmh} km/h
+            </p>
+            <p className="text-green-700">
+              <strong>Distance:</strong> {eta_analysis.distance_km} km
+            </p>
+          </div>
+        </div>
+        
+        {eta_analysis.factors_applied && (
+          <div className="mt-2 pt-2 border-t border-green-300">
+            <p className="text-xs text-green-600 font-medium">Applied Factors:</p>
+            <div className="flex flex-wrap gap-2 mt-1">
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                {eta_analysis.factors_applied.driving_mode}
+              </span>
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                {eta_analysis.factors_applied.traffic_condition} traffic
+              </span>
+              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                {eta_analysis.factors_applied.weather}
+              </span>
             </div>
           </div>
         )}
@@ -385,6 +448,7 @@ const RecommendationResults = ({
 
               {/* Enhanced Analysis */}
               {renderEnergyAnalysis(station)}
+              {renderETAAnalysis(station)}
               {renderScoreBreakdown(station)}
 
               {/* Station Details */}
