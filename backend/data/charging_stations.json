@@ -186,1561 +186,186 @@
     },
     {
       "id": "cs011",
-      "name": "Sansar trading Pokhara",
+      "name": "Thankot Highway Fast Charge",
       "location": {
-        "address": "Chinedada Pokhara 14, Pokhara, ",
-        "coordinates": [28.1810766, 83.9430331]
+        "address": "Thankot, Kathmandu, Province 3",
+        "coordinates": [27.6845, 85.2136]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "CCS", "power": "50kW", "available": true},
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": ["Parking"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Cafe", "Parking"],
+      "operatingHours": "6:00 AM - 10:00 PM",
+      "pricing": "NPR 18 per kWh",
       "photos": []
     },
     {
       "id": "cs012",
-      "name": "KOS Dumre 40kW AC Charger",
+      "name": "Naubise EV Plaza",
       "location": {
-        "address": "Thumka - Korikha - Bahunbhanjyan Rd, Bandipur 33914, Nepal, Thumka, ",
-        "coordinates": [27.9690242, 84.3920364]
+        "address": "Naubise, Dhading, Province 3",
+        "coordinates": [27.7282, 85.0912]
       },
       "chargers": [
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": ["Restroom", "Parking"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Parking", "Food"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 17 per kWh",
       "photos": []
     },
     {
       "id": "cs013",
-      "name": "Baba Dham Traders Thee-Go",
+      "name": "Galchhi Riverside Charger",
       "location": {
-        "address": "Muktinath Pani Prashodhan, Prithvi Hwy, Darechok 44200, Nepal, Darechok, ",
-        "coordinates": [27.8702758, 84.5369453]
+        "address": "Galchhi, Dhading, Province 3",
+        "coordinates": [27.8150, 84.9770]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "CCS", "power": "50kW", "available": true}
       ],
-      "amenities": ["Restroom", "Parking"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Cafe"],
+      "operatingHours": "7:00 AM - 9:00 PM",
+      "pricing": "NPR 19 per kWh",
       "photos": []
     },
     {
       "id": "cs014",
-      "name": "Riverside Spring Resort",
+      "name": "Malekhu Highway Stop",
       "location": {
-        "address": "Riverside Spring Resort, Darechok, Nepal, Darechok, ",
-        "coordinates": [27.8751566, 84.6090905]
+        "address": "Malekhu, Dhading, Province 3",
+        "coordinates": [27.8700, 84.9000]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        },
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
+        {"type": "Type 2", "power": "11kW", "available": true}
       ],
-      "amenities": ["Restroom", "Parking", "Accomodation"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Food", "Parking"],
+      "operatingHours": "6:00 AM - 8:00 PM",
+      "pricing": "NPR 16 per kWh",
       "photos": []
     },
     {
       "id": "cs015",
-      "name": "Siddhartha Riverside Resort TATA",
+      "name": "Gajuri EV Point",
       "location": {
-        "address": "H04, Darechok, Darechok, ",
-        "coordinates": [27.795829, 84.9915063]
+        "address": "Gajuri, Dhading, Province 3",
+        "coordinates": [27.9000, 84.8000]
       },
       "chargers": [
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
+        {"type": "CCS", "power": "50kW", "available": true},
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": ["Restroom"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Cafe", "WiFi"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 20 per kWh",
       "photos": []
     },
     {
       "id": "cs016",
-      "name": "Hotel Royal Century MG ZS EV",
+      "name": "Benighat Fast Charge",
       "location": {
-        "address": "E - W Hwy, Bharatpur 44207, Nepal, Bharatpur, ",
-        "coordinates": [27.4310334, 85.0230911]
+        "address": "Benighat, Dhading, Province 3",
+        "coordinates": [27.9000, 84.7000]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": ["Restroom"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Parking"],
+      "operatingHours": "7:00 AM - 9:00 PM",
+      "pricing": "NPR 18 per kWh",
       "photos": []
     },
     {
       "id": "cs017",
-      "name": "Sajha Auto MG",
+      "name": "Mugling Junction Charger",
       "location": {
-        "address": "Bypass Rd, Bharatpur 44207, Nepal, Bharatpur, ",
-        "coordinates": [27.6905723, 84.4315436]
+        "address": "Mugling, Chitwan, Province 3",
+        "coordinates": [27.8500, 84.5500]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "CCS", "power": "75kW", "available": true},
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": ["Restroom"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Food", "Parking"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 22 per kWh",
       "photos": []
     },
     {
       "id": "cs018",
-      "name": "Pinnacle Trading Hyundai AC Charger",
+      "name": "Kurintar Resort EV",
       "location": {
-        "address": "Balmandir Rd 10, Bharatpur 44207, Nepal, Bharatpur, ",
-        "coordinates": [27.675547, 84.4309073]
+        "address": "Kurintar, Chitwan, Province 3",
+        "coordinates": [27.8333, 84.6333]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "Type 2", "power": "11kW", "available": true}
       ],
-      "amenities": ["Restroom"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Cafe", "WiFi"],
+      "operatingHours": "6:00 AM - 10:00 PM",
+      "pricing": "NPR 17 per kWh",
       "photos": []
     },
     {
       "id": "cs019",
-      "name": "Landmark Forest Park MG AC CHARGER",
+      "name": "Aanbukhaireni Highway Charger",
       "location": {
-        "address": "Baghmara Road 44200, Ratnanagar 00977, Nepal, Ratnanagar, ",
-        "coordinates": [27.5906715, 84.4791823]
+        "address": "Aanbukhaireni, Tanahun, Gandaki",
+        "coordinates": [27.9500, 84.4333]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "CCS", "power": "50kW", "available": true}
       ],
-      "amenities": ["Parking"],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Parking", "Food"],
+      "operatingHours": "7:00 AM - 8:00 PM",
+      "pricing": "NPR 19 per kWh",
       "photos": []
     },
     {
       "id": "cs020",
-      "name": "Hetauda Wheels Hyundai",
+      "name": "Damauli City EV Plaza",
       "location": {
-        "address": "E - W Hwy, Hetauda 44107, Nepal, Hetauda, ",
-        "coordinates": [27.4310334, 85.0230911]
+        "address": "Damauli, Tanahun, Gandaki",
+        "coordinates": [27.9833, 84.2500]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "Cafe", "Parking"],
+      "operatingHours": "6:00 AM - 9:00 PM",
+      "pricing": "NPR 18 per kWh",
       "photos": []
     },
     {
       "id": "cs021",
-      "name": "Hetauda Bus Park Charging Station (Coming Soon)",
+      "name": "Khairenitar EV Hub",
       "location": {
-        "address": "Bypass Road 10, Hetauda 44107, Nepal, Hetauda, ",
-        "coordinates": [27.4301604, 85.0266609]
+        "address": "Khairenitar, Tanahun, Gandaki",
+        "coordinates": [28.0333, 84.1167]
       },
       "chargers": [
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
+        {"type": "CCS", "power": "50kW", "available": true},
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
+      "amenities": ["Restroom", "WiFi", "Parking"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 20 per kWh",
       "photos": []
     },
     {
       "id": "cs022",
-      "name": "New MAMA'S CAFE (Coming Soon)",
+      "name": "Lekhnath Highway Charger",
       "location": {
-        "address": "Araniko Highway, Ugratara Janagal 45210, Nepal, Ugratara Janagal, ",
-        "coordinates": [27.677168, 85.3408604]
+        "address": "Lekhnath, Kaski, Gandaki",
+        "coordinates": [28.1833, 83.9833]
       },
       "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
+        {"type": "Type 2", "power": "22kW", "available": true}
       ],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs023",
-      "name": "Akshit Resort and Rafting MG ZS EV",
-      "location": {
-        "address": "Mulkot, Mulkot, ",
-        "coordinates": [27.4181784, 85.8586478]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs024",
-      "name": "Taj Riverside Resort TATA Motors",
-      "location": {
-        "address": "B.P Highway, Purano Jhangajholi, Purano Jhangajholi, ",
-        "coordinates": [27.4181784, 85.8586478]
-      },
-      "chargers": [
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
-      ],
-      "amenities": ["Parking", "Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs025",
-      "name": "Sindhuli Bus Park Charging Station (Coming Soon)",
-      "location": {
-        "address": "Sindhuli Bus Park, Kamalamai 45900, Nepal, Sindhuli Bus Park, ",
-        "coordinates": [27.2105753, 85.8417259]
-      },
-      "chargers": [
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
-      ],
-      "amenities": ["Parking", "Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs026",
-      "name": "Komal Hotel",
-      "location": {
-        "address": "E W, पूर्व पश्चिम राजमार्ग, मिथिला 45600, Nepal, Mithila, ",
-        "coordinates": [26.929392125865927, 85.95655890505292]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        },
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
-      ],
-      "amenities": ["Parking", "Restroom", "Accomodation", "Food"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs027",
-      "name": "Lahan Bus Park Charging Station (Coming Soon)",
-      "location": {
-        "address": "PF7C+F9P, Lahan 56500, Nepal, Lahan, ",
-        "coordinates": [26.7180708, 86.4075821]
-      },
-      "chargers": [
-        {
-          "type": "CCS-SAE",
-          "power": "",
-          "available": true
-        }
-      ],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs028",
-      "name": "Itahari -12 Khanar",
-      "location": {
-        "address": "Koshi Rajmarg 12, Itahari 56705, Nepal, Itahari, ",
-        "coordinates": [26.6281281, 87.2031978]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs029",
-      "name": "Kesharichand Bhanwarlal Kia (Coming Soon)",
-      "location": {
-        "address": "Near Radharaman Temple, Bargachhi, बिराटनगर 56613, Nepal, Bargachhi, Biratnagar, ",
-        "coordinates": [26.4452115, 87.2071775]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs030",
-      "name": "Makalu Television",
-      "location": {
-        "address": "F73G+2HM, H08, Biratnagar 56613, Nepal, Biratnagar, ",
-        "coordinates": [26.4503092, 87.2058372]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        },
-        {
-          "type": "Wall-BS1363",
-          "power": "",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs031",
-      "name": "Mahalaxmi International",
-      "location": {
-        "address": "E - W Hwy, Birtamode 57204, Nepal, Birtamode, ",
-        "coordinates": [26.64090973303655, 87.95532421730184]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Parking"],
-      "operatingHours": "9 am - 5 pm",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs032",
-      "name": "Thapathali EV Showroom",
-      "location": {
-        "address": "Thapathali EV Showroom, Kathmandu, Province 1",
-        "coordinates": [27.677497605840138, 85.31680342774558]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs033",
-      "name": "Labim Mall",
-      "location": {
-        "address": "Pulchowk Gabahal Rd, Lalitpur, Kathmandu, Province 3",
-        "coordinates": [27.677488106320034, 85.31666395202585]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs034",
-      "name": "Hyundai Sales Naxal",
-      "location": {
-        "address": "Naxal, Kathmandu, Kathmandu, Province 3",
-        "coordinates": [27.71556151510917, 85.33003106227773]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs035",
-      "name": "Trade Tower Thapathali",
-      "location": {
-        "address": "Thapathali, Kathmandu, Kathmandu, Province 3",
-        "coordinates": [27.69459375947994, 85.31994729057585]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs036",
-      "name": "Bauwa Hotel And Guest House",
-      "location": {
-        "address": "Bardibas, Bardibas, Province 2",
-        "coordinates": [26.980336417677353, 85.91898930493367]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs037",
-      "name": "BYD Park",
-      "location": {
-        "address": "Thirbam Road, BYD Park, Kathmandu, Kathmandu, Province 3",
-        "coordinates": [27.72036580899628, 85.33131856411678]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs038",
-      "name": "Sajha Yatayat",
-      "location": {
-        "address": "Pulchowk, Lalitpur, Lalitpur, Province 3",
-        "coordinates": [27.679479689424358, 85.31745039095695]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs039",
-      "name": "Hotel Landmark Pokhara",
-      "location": {
-        "address": "Lakeside, Pokhara, Pokhara, Gandaki",
-        "coordinates": [28.20810501308324, 83.95761433286081]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs040",
-      "name": "Hotel Gunja Bardibas",
-      "location": {
-        "address": "Bardibas, Pokhara, Province 2",
-        "coordinates": [26.999713853956326, 85.90329853345283]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs041",
-      "name": "Jagat Motors",
-      "location": {
-        "address": "Siddharthanagar, Bhairahawa, Bhairawaha, Lumbini",
-        "coordinates": [27.50386430021768, 83.4561846502268]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs042",
-      "name": "Laxmi Dinesh 4 Wheelers",
-      "location": {
-        "address": "Main Road, Dhangadhi, Dhangadhi, Sudurpaschim Province",
-        "coordinates": [28.704641761732702, 80.56778570363397]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs043",
-      "name": "Siddhartha Resort Chisapani",
-      "location": {
-        "address": "Chisapani Chisapani, Chisapani, Karnali",
-        "coordinates": [28.643017036827, 81.28250618044632]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs044",
-      "name": "Waterfront Resort",
-      "location": {
-        "address": "Pokhara, Pokhara, Gandaki",
-        "coordinates": [28.222093460066503, 83.95172023652376]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs045",
-      "name": "Avocado & Orchid Resort",
-      "location": {
-        "address": "Chaukitol -2, Hetauda Makawanpur Narayani Nepal, Tribhuvan Rajpath, Hetauda 44107, Hetauda, Bagmati",
-        "coordinates": [27.43525489831263, 85.03541692000935]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs046",
-      "name": "Hetauda Wheels Pvt Ltd",
-      "location": {
-        "address": "Hetauda-10, Hetauda 44107, Hetauda, Bagmati",
-        "coordinates": [27.42559215822066, 85.02998818755908]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs047",
-      "name": "Hotel The Kingsbury",
-      "location": {
-        "address": "E - W Hwy, Birtamode 57204, Birtamode, Province 1",
-        "coordinates": [26.639386515973417, 87.97778701782491]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs048",
-      "name": "Bodhi Redsun-Shinee Premiere",
-      "location": {
-        "address": "Basantapur 8, Siddharthanagar 32900, Bhairahawa, Lumbini",
-        "coordinates": [27.51315408771957, 83.476410364382978]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs049",
-      "name": "Hotel Da Flamingo",
-      "location": {
-        "address": "Butwal 32907, Butwal, Lumbini",
-        "coordinates": [27.669669310224027, 83.46251608871846]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs050",
-      "name": "Yatri Motorcycles Experience Center",
-      "location": {
-        "address": "Thirbam Sadak, Kathmandu 44600, Kathmandu, Bagmati",
-        "coordinates": [27.730905482675592, 85.330016348947]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs051",
-      "name": "Team Eleven EV World- BYD SHOWROOM",
-      "location": {
-        "address": "Team Eleven EV World, Nepalgunj, Nepalgunj, Lumbini",
-        "coordinates": [28.10955066224798, 81.65709268264737]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs052",
-      "name": "Metro Hospitality Dang",
-      "location": {
-        "address": "Tulsipur, Dang, Dang, Lumbini",
-        "coordinates": [28.13355155137408, 82.28707513285744]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs053",
-      "name": "Hyundai Sales/Service Dang",
-      "location": {
-        "address": "Hira Bhawan, Rabbe Tole, Ghorahi Lamahi - Tulsipur Road, 22415, Nepal, Dang, Lumbini",
-        "coordinates": [28.029439122261298, 82.49279660346103]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs054",
-      "name": "Ocean Auto AC Charger",
-      "location": {
-        "address": "MFPG+4WH, Butwal 32907, Nepal, Butwal, Lumbini",
-        "coordinates": [27.68587931026063, 83.47720419304807]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs055",
-      "name": "Hyundai Sales/Service Butwal",
-      "location": {
-        "address": "kalikanager, Butwal 32907, Nepal, Butwal, Lumbini",
-        "coordinates": [27.673458261688964, 83.46439075215936]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs056",
-      "name": "KOS Coffee & Restaurant",
-      "location": {
-        "address": "Thumka - Korikha - Bahunbhanjyan Rd, Bandipur 33914, Dumre, Gandaki",
-        "coordinates": [27.966907044627355, 84.40475111763509]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs057",
-      "name": "Gokarna Forest Resort",
-      "location": {
-        "address": "Nagpokhari Marg 390, Gokarneshwor 44600, Kathmandu, Gandaki",
-        "coordinates": [27.72962721027683, 85.39870581209675]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs058",
-      "name": "Taj Riverside Resort TATA Motors 25kW DC Fast Charger",
-      "location": {
-        "address": "Sunkoshi Rural Municipality Mulkot-5, B.P Highway, Mulkot, Province 2",
-        "coordinates": [27.405068909370048, 85.92027607898733]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs059",
-      "name": "Akshit Resort and Rafting MG ZS EV 7KW AC CHARGER",
-      "location": {
-        "address": "Mulkot Bazaar, Purano Jhangajholi 45400, Mulkot, Province 2",
-        "coordinates": [27.402325665640042, 85.92322642403303]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs060",
-      "name": "Hyundai Sales/Service Him Auto",
-      "location": {
-        "address": "Ratna Rajmarg, Near Nepalgunj Airport, Nepalgunj, Nepalgunj, Province 5",
-        "coordinates": [28.097939, 81.652359]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs061",
-      "name": "Siddhartha Hotel",
-      "location": {
-        "address": "Ratna Rajmarg, Nepalgunj, Nepalgunj, Province 5",
-        "coordinates": [28.085212, 81.645616]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs062",
-      "name": "Sipradi Trading Pokhara",
-      "location": {
-        "address": "Buddhachowk, Pokhara, Province 4",
-        "coordinates": [28.2063884735, 83.9941635132]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs063",
-      "name": "Quick20 Riverside Hotel",
-      "location": {
-        "address": "E - W Hwy, Amlekhganj 44400, Amlekhganj, Province 2",
-        "coordinates": [27.295827287773257, 84.98970838885263]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs064",
-      "name": "Sipradi Trading Pvt.Ltd,Basamadi Hetauda",
-      "location": {
-        "address": "Hetauda 44100, Hetauda, Bagmati",
-        "coordinates": [27.455518277977536, 84.9704420179544]
-      },
-      "chargers": [],
-      "amenities": [],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs065",
-      "name": "APF Kalika Fuel Station",
-      "location": {
-        "address": "Pokhara-Baglung Hwy, Pokhara 33700, Pokhara, Gandaki",
-        "coordinates": [28.21884, 83.977621]
-      },
-      "chargers": [],
-      "amenities": ["Petrol", "Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs066",
-      "name": "Club Denovo",
-      "location": {
-        "address": "Kalika Nagar 11, Butwal 32907, Butwal, Lumbini",
-        "coordinates": [27.683822466853208, 83.46122966332723]
-      },
-      "chargers": [],
-      "amenities": ["Wifi", "Parking", "Food", "Coffee", "Accomodation", "Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs067",
-      "name": "Akshit Resort & Rafting",
-      "location": {
-        "address": "Mulkot Bazaar, Purano Jhangajholi 45400, Mulkot, Bagmati",
-        "coordinates": [27.402356765881613, 85.92334010648774]
-      },
-      "chargers": [],
-      "amenities": ["Wifi", "Parking", "Food", "Coffee", "Accomodation", "Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs068",
-      "name": "Superior Motors Pvt. Ltd",
-      "location": {
-        "address": "H08 Airport Chowk, Biratnagar 56613, Biratnagar, Province 1",
-        "coordinates": [26.479376852855083, 87.2764390888327]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "40kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Wifi", "Parking", "Restroom"],
-      "operatingHours": "",
-      "pricing": "",
-      "photos": []
-    },
-    {
-      "id": "cs069",
-      "name": "Nepal Oil Corporation - Kathmandu Central",
-      "location": {
-        "address": "Teku, Kathmandu, Province 3",
-        "coordinates": [27.698629, 85.308258]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "50kW",
-          "available": true
-        },
-        {
-          "type": "CHAdeMO",
-          "power": "50kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Convenience Store"],
+      "amenities": ["Restroom", "Cafe", "Parking"],
       "operatingHours": "6:00 AM - 10:00 PM",
-      "pricing": "NPR 15 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs070",
-      "name": "Nepal Electricity Authority - Lalitpur",
-      "location": {
-        "address": "Pulchowk, Lalitpur, Province 3",
-        "coordinates": [27.677488, 85.316664]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "75kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "WiFi"],
-      "operatingHours": "7:00 AM - 9:00 PM",
-      "pricing": "NPR 12 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs071",
-      "name": "Bhaktapur Durbar Square Station",
-      "location": {
-        "address": "Durbar Square, Bhaktapur, Province 3",
-        "coordinates": [27.671955, 85.4278]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information", "Cafe"],
-      "operatingHours": "8:00 AM - 6:00 PM",
       "pricing": "NPR 18 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs072",
-      "name": "Nagarkot View Point Charger",
-      "location": {
-        "address": "Nagarkot View Point, Bhaktapur, Province 3",
-        "coordinates": [27.7167, 85.5167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "11kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Cafe", "Tourist Information"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 20 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs073",
-      "name": "Dhulikhel Highway Station",
-      "location": {
-        "address": "Dhulikhel, Kavrepalanchok, Province 3",
-        "coordinates": [27.6167, 85.5500]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "50kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Restaurant", "Parking"],
-      "operatingHours": "24/7",
-      "pricing": "NPR 16 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs074",
-      "name": "Banepa Town Center",
-      "location": {
-        "address": "Banepa Bazaar, Kavrepalanchok, Province 3",
-        "coordinates": [27.6333, 85.5167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Cafe", "Shopping"],
-      "operatingHours": "7:00 AM - 8:00 PM",
-      "pricing": "NPR 15 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs075",
-      "name": "Panauti Heritage Station",
-      "location": {
-        "address": "Panauti, Kavrepalanchok, Province 3",
-        "coordinates": [27.5833, 85.5167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "11kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information"],
-      "operatingHours": "8:00 AM - 6:00 PM",
-      "pricing": "NPR 17 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs076",
-      "name": "Nuwakot Fort Station",
-      "location": {
-        "address": "Nuwakot Durbar, Nuwakot, Province 3",
-        "coordinates": [27.9167, 85.1667]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information"],
-      "operatingHours": "7:00 AM - 7:00 PM",
-      "pricing": "NPR 18 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs077",
-      "name": "Trishuli River Resort",
-      "location": {
-        "address": "Trishuli River, Nuwakot, Province 3",
-        "coordinates": [27.8500, 85.2000]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation", "Restaurant"],
-      "operatingHours": "6:00 AM - 10:00 PM",
-      "pricing": "NPR 20 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs078",
-      "name": "Kakani View Point",
-      "location": {
-        "address": "Kakani, Nuwakot, Province 3",
-        "coordinates": [27.9167, 85.1500]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "11kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Cafe", "Tourist Information"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 22 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs079",
-      "name": "Chitwan National Park Station",
-      "location": {
-        "address": "Sauraha, Chitwan, Province 3",
-        "coordinates": [27.5667, 84.5000]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "50kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information", "Restaurant"],
-      "operatingHours": "6:00 AM - 9:00 PM",
-      "pricing": "NPR 20 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs080",
-      "name": "Lumbini Sacred Garden Station",
-      "location": {
-        "address": "Lumbini Sacred Garden, Rupandehi, Province 5",
-        "coordinates": [27.4833, 83.2833]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "75kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information", "Cafe"],
-      "operatingHours": "6:00 AM - 6:00 PM",
-      "pricing": "NPR 18 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs081",
-      "name": "Tansen Palace Station",
-      "location": {
-        "address": "Tansen Durbar, Palpa, Province 5",
-        "coordinates": [27.8667, 83.5500]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information"],
-      "operatingHours": "7:00 AM - 7:00 PM",
-      "pricing": "NPR 17 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs082",
-      "name": "Pokhara Airport Station",
-      "location": {
-        "address": "Pokhara Airport, Pokhara, Province 4",
-        "coordinates": [28.2000, 83.9833]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "100kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "WiFi", "Cafe"],
-      "operatingHours": "24/7",
-      "pricing": "NPR 25 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs083",
-      "name": "Ghandruk Village Station",
-      "location": {
-        "address": "Ghandruk Village, Kaski, Province 4",
-        "coordinates": [28.4000, 83.7167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "11kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 30 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs084",
-      "name": "Jomsom Airport Station",
-      "location": {
-        "address": "Jomsom Airport, Mustang, Province 4",
-        "coordinates": [28.7833, 83.7333]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Cafe"],
-      "operatingHours": "7:00 AM - 7:00 PM",
-      "pricing": "NPR 35 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs085",
-      "name": "Muktinath Temple Station",
-      "location": {
-        "address": "Muktinath Temple, Mustang, Province 4",
-        "coordinates": [28.8167, 83.8667]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "11kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information"],
-      "operatingHours": "6:00 AM - 6:00 PM",
-      "pricing": "NPR 40 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs086",
-      "name": "Manang Valley Station",
-      "location": {
-        "address": "Manang Village, Manang, Province 4",
-        "coordinates": [28.6667, 84.0167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 45 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs087",
-      "name": "Thorong La Pass Station",
-      "location": {
-        "address": "Thorong La Pass, Manang, Province 4",
-        "coordinates": [28.8000, 83.9000]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom"],
-      "operatingHours": "6:00 AM - 6:00 PM",
-      "pricing": "NPR 50 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs088",
-      "name": "Dhaulagiri Base Camp Station",
-      "location": {
-        "address": "Dhaulagiri Base Camp, Myagdi, Province 4",
-        "coordinates": [28.7000, 83.5000]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 45 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs089",
-      "name": "Ilam Tea Garden Station",
-      "location": {
-        "address": "Ilam Tea Garden, Ilam, Province 1",
-        "coordinates": [26.9000, 87.9167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Cafe", "Tourist Information"],
-      "operatingHours": "7:00 AM - 7:00 PM",
-      "pricing": "NPR 20 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs090",
-      "name": "Biratnagar Industrial Park",
-      "location": {
-        "address": "Biratnagar Industrial Park, Morang, Province 1",
-        "coordinates": [26.4500, 87.2833]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "75kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "WiFi", "Cafe"],
-      "operatingHours": "8:00 AM - 8:00 PM",
-      "pricing": "NPR 18 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs091",
-      "name": "Dharan City Center",
-      "location": {
-        "address": "Dharan City Center, Sunsari, Province 1",
-        "coordinates": [26.8167, 87.2833]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "50kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Shopping", "Cafe"],
-      "operatingHours": "7:00 AM - 9:00 PM",
-      "pricing": "NPR 16 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs092",
-      "name": "Koshi Tappu Wildlife Station",
-      "location": {
-        "address": "Koshi Tappu Wildlife Reserve, Sunsari, Province 1",
-        "coordinates": [26.6500, 87.0000]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information"],
-      "operatingHours": "6:00 AM - 6:00 PM",
-      "pricing": "NPR 25 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs093",
-      "name": "Sagarmatha Base Camp Station",
-      "location": {
-        "address": "Sagarmatha Base Camp, Solukhumbu, Province 1",
-        "coordinates": [28.0000, 86.8500]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 60 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs094",
-      "name": "Namche Bazaar Station",
-      "location": {
-        "address": "Namche Bazaar, Solukhumbu, Province 1",
-        "coordinates": [27.8000, 86.7167]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "11kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation", "Cafe"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 50 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs095",
-      "name": "Lukla Airport Station",
-      "location": {
-        "address": "Lukla Airport, Solukhumbu, Province 1",
-        "coordinates": [27.6833, 86.7333]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Cafe"],
-      "operatingHours": "7:00 AM - 7:00 PM",
-      "pricing": "NPR 45 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs096",
-      "name": "Tengboche Monastery Station",
-      "location": {
-        "address": "Tengboche Monastery, Solukhumbu, Province 1",
-        "coordinates": [27.8500, 86.7667]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "7.2kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 55 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs097",
-      "name": "Dhangadhi Airport Station",
-      "location": {
-        "address": "Dhangadhi Airport, Kailali, Province 7",
-        "coordinates": [28.7500, 80.5833]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "50kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "WiFi", "Cafe"],
-      "operatingHours": "24/7",
-      "pricing": "NPR 20 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs098",
-      "name": "Bardiya National Park Station",
-      "location": {
-        "address": "Bardiya National Park, Bardiya, Province 5",
-        "coordinates": [28.3833, 81.1500]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Tourist Information", "Restaurant"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 25 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs099",
-      "name": "Surkhet Airport Station",
-      "location": {
-        "address": "Surkhet Airport, Surkhet, Province 6",
-        "coordinates": [28.6000, 81.6333]
-      },
-      "chargers": [
-        {
-          "type": "CCS",
-          "power": "50kW",
-          "available": true
-        },
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "WiFi", "Cafe"],
-      "operatingHours": "24/7",
-      "pricing": "NPR 22 per kWh",
-      "photos": []
-    },
-    {
-      "id": "cs100",
-      "name": "Jumla Valley Station",
-      "location": {
-        "address": "Jumla Valley, Jumla, Province 6",
-        "coordinates": [29.2833, 82.1833]
-      },
-      "chargers": [
-        {
-          "type": "Type 2",
-          "power": "22kW",
-          "available": true
-        }
-      ],
-      "amenities": ["Restroom", "Accommodation"],
-      "operatingHours": "6:00 AM - 8:00 PM",
-      "pricing": "NPR 30 per kWh",
       "photos": []
     }
   ]
