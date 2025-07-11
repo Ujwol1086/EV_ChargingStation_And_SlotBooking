@@ -146,12 +146,27 @@ const Recommendations = () => {
     loadUserBookings();
   };
 
+  // Helper function to get station coordinates
+  const getStationCoordinates = (station) => {
+    if (!station.location) return null;
+    
+    if (Array.isArray(station.location)) {
+      return station.location;
+    } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+      return station.location.coordinates;
+    }
+    return null;
+  };
+
   const handleStationSelect = (station) => {
     setSelectedStation(station);
     // Focus map on selected station
     if (mapRef.current) {
       const map = mapRef.current;
-      map.setView(station.location, 15);
+      const stationCoords = getStationCoordinates(station);
+      if (stationCoords) {
+        map.setView(stationCoords, 15);
+      }
     }
   };
 
@@ -165,9 +180,16 @@ const Recommendations = () => {
     setError(null);
 
     try {
+      const stationCoords = getStationCoordinates(station);
+      if (!stationCoords) {
+        setError('Invalid station location format');
+        setLoadingRoute(false);
+        return;
+      }
+
       const response = await axios.post('/recommendations/route-to-station', {
         user_location: userLocation,
-        station_location: station.location,
+        station_location: stationCoords,
         booking_id: findBookingForStation(station.id)?.booking_id
       });
 
@@ -409,7 +431,7 @@ const Recommendations = () => {
                     return (
                       <Marker
                         key={station.id}
-                        position={station.location}
+                        position={getStationCoordinates(station) || [0, 0]}
                         icon={icon}
                       >
                         <Popup>
@@ -422,7 +444,10 @@ const Recommendations = () => {
                             </div>
                             
                             <div className="space-y-1 text-sm">
-                              <div>📍 {station.location?.address || 'Location data unavailable'}</div>
+                              <div>📍 {station.location?.address || (() => {
+                  const coords = getStationCoordinates(station);
+                  return coords ? `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}` : 'Location data unavailable';
+                })()}</div>
                               <div>🚗 {rec.distance} km away</div>
                               <div>⭐ Score: {rec.score}</div>
                               <div>🔌 {station.availability || 0}/{station.total_slots || 0} available</div>
