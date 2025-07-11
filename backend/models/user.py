@@ -11,7 +11,7 @@ class User:
     """User model for MongoDB"""
     
     @staticmethod
-    def create_user(username, email, password):
+    def create_user(username, email, password, role="user"):
         """Create a new user"""
         try:
             logger.info(f"Attempting to create user with email: {email}")
@@ -31,11 +31,12 @@ class User:
             user = {
                 "username": username,
                 "email": email,
-                "password": generate_password_hash(password)
+                "password": generate_password_hash(password),
+                "role": role
             }
             
             # Insert user into database
-            logger.info(f"Inserting new user: {username}, {email}")
+            logger.info(f"Inserting new user: {username}, {email}, role: {role}")
             user_id = mongo.db.users.insert_one(user).inserted_id
             logger.info(f"User created with ID: {user_id}")
             
