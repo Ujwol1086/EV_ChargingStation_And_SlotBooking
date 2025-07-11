@@ -277,11 +277,30 @@ const RouteMap = () => {
   const updateETA = () => {
     if (!userLocation || !station || !route) return;
     
-    // Calculate remaining distance to station
-    const remainingDistance = calculateStraightLineDistance(
-      userLocation[0], userLocation[1],
-      station.location[0], station.location[1]
-    );
+      // Helper function to get station coordinates
+  const getStationCoordinates = (station) => {
+    if (!station.location) return null;
+    
+    if (Array.isArray(station.location)) {
+      return station.location;
+    } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+      return station.location.coordinates;
+    }
+    return null;
+  };
+
+  // Get station coordinates
+  const stationCoords = getStationCoordinates(station);
+  if (!stationCoords) {
+    console.error('Invalid station location format:', station.location);
+    return;
+  }
+
+  // Calculate remaining distance to station
+  const remainingDistance = calculateStraightLineDistance(
+    userLocation[0], userLocation[1],
+    stationCoords[0], stationCoords[1]
+  );
     
     // Use current speed if available, otherwise use driving mode speed
     const drivingModeSpeeds = {
@@ -358,10 +377,10 @@ const RouteMap = () => {
 
         // Recalculate route with new position
         if (station) {
-          const stationLocation = station.location.coordinates 
-            ? station.location.coordinates 
-            : [station.location[0], station.location[1]];
-          calculateRoute(newLocation, stationLocation);
+          const stationLocation = getStationCoordinates(station);
+          if (stationLocation) {
+            calculateRoute(newLocation, stationLocation);
+          }
         }
 
         // Update ETA information
@@ -389,14 +408,14 @@ const RouteMap = () => {
     // Reset map orientation
     if (mapRef.current) {
       const map = mapRef.current;
-      // Return to overview of both user and station
-      if (userLocation && station) {
-        const stationLocation = station.location.coordinates 
-          ? station.location.coordinates 
-          : [station.location[0], station.location[1]];
-        const bounds = L.latLngBounds([userLocation, stationLocation]);
-        map.fitBounds(bounds, { padding: [50, 50] });
-      }
+              // Return to overview of both user and station
+        if (userLocation && station) {
+          const stationLocation = getStationCoordinates(station);
+          if (stationLocation) {
+            const bounds = L.latLngBounds([userLocation, stationLocation]);
+            map.fitBounds(bounds, { padding: [50, 50] });
+          }
+        }
     }
   };
 
@@ -458,10 +477,11 @@ const RouteMap = () => {
     );
   }
 
-  const mapCenter = [
-    (userLocation[0] + (station.location.coordinates ? station.location.coordinates[0] : station.location[0])) / 2,
-    (userLocation[1] + (station.location.coordinates ? station.location.coordinates[1] : station.location[1])) / 2
-  ];
+  const stationCoords = getStationCoordinates(station);
+  const mapCenter = stationCoords ? [
+    (userLocation[0] + stationCoords[0]) / 2,
+    (userLocation[1] + stationCoords[1]) / 2
+  ] : userLocation;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -755,7 +775,7 @@ const RouteMap = () => {
             </Marker>
             
             {/* Station marker */}
-            <Marker position={station.location.coordinates || station.location} icon={stationIcon}>
+                            <Marker position={getStationCoordinates(station) || [0, 0]} icon={stationIcon}>
               <Popup>
                 <div>
                   <h3 className="font-bold">{station.name}</h3>
