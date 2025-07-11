@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
+import Notification from '../../components/Notification';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -8,6 +9,7 @@ const AdminBookings = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     fetchBookings();
@@ -22,69 +24,8 @@ const AdminBookings = () => {
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      // Mock data for development
-      setBookings([
-        {
-          _id: 'booking1',
-          booking_id: 'BK001',
-          user_details: {
-            username: 'john_doe',
-            email: 'john@example.com'
-          },
-          station_details: {
-            name: 'Kathmandu Central Station',
-            address: 'Thamel, Kathmandu'
-          },
-          status: 'confirmed',
-          charger_type: 'Type 2',
-          booking_date: '2024-01-25',
-          booking_time: '14:00',
-          booking_duration: 60,
-          total_cost: 500,
-          created_at: '2024-01-20T10:30:00Z',
-          auto_booked: false
-        },
-        {
-          _id: 'booking2',
-          booking_id: 'BK002',
-          user_details: {
-            username: 'sarah_ev',
-            email: 'sarah@example.com'
-          },
-          station_details: {
-            name: 'Pokhara Lakeside Station',
-            address: 'Lakeside, Pokhara'
-          },
-          status: 'completed',
-          charger_type: 'CCS',
-          booking_date: '2024-01-24',
-          booking_time: '16:00',
-          booking_duration: 90,
-          total_cost: 750,
-          created_at: '2024-01-19T14:15:00Z',
-          auto_booked: true
-        },
-        {
-          _id: 'booking3',
-          booking_id: 'BK003',
-          user_details: {
-            username: 'admin_user',
-            email: 'admin@evconnect.com'
-          },
-          station_details: {
-            name: 'Thankot Highway Station',
-            address: 'Thankot, Kathmandu'
-          },
-          status: 'cancelled',
-          charger_type: 'Type 2',
-          booking_date: '2024-01-26',
-          booking_time: '10:00',
-          booking_duration: 60,
-          total_cost: 400,
-          created_at: '2024-01-20T09:45:00Z',
-          auto_booked: false
-        }
-      ]);
+      // Show empty state instead of dummy data
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -94,22 +35,68 @@ const AdminBookings = () => {
     try {
       const response = await axios.put(`/admin/bookings/${bookingId}/status`, { status: newStatus });
       if (response.data.success) {
+        // Update the local state immediately for better UX
+        setBookings(prevBookings => 
+          prevBookings.map(booking => 
+            booking._id === bookingId 
+              ? { ...booking, status: newStatus }
+              : booking
+          )
+        );
+        setNotification({
+          message: 'Booking status updated successfully!',
+          type: 'success'
+        });
+      } else {
+        console.error('Failed to update booking status:', response.data.error);
+        setNotification({
+          message: 'Failed to update booking status. Please try again.',
+          type: 'error'
+        });
+        // Refresh to get the latest data
         fetchBookings();
       }
     } catch (error) {
       console.error('Error updating booking status:', error);
+      setNotification({
+        message: 'Failed to update booking status. Please try again.',
+        type: 'error'
+      });
+      // Refresh to get the latest data
+      fetchBookings();
     }
   };
 
   const handleDeleteBooking = async (bookingId) => {
-    if (window.confirm('Are you sure you want to delete this booking?')) {
+    if (window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
       try {
         const response = await axios.delete(`/admin/bookings/${bookingId}`);
         if (response.data.success) {
+          // Update the local state immediately for better UX
+          setBookings(prevBookings => 
+            prevBookings.filter(booking => booking._id !== bookingId)
+          );
+          setNotification({
+            message: 'Booking deleted successfully!',
+            type: 'success'
+          });
+        } else {
+          console.error('Failed to delete booking:', response.data.error);
+          setNotification({
+            message: 'Failed to delete booking. Please try again.',
+            type: 'error'
+          });
+          // Refresh to get the latest data
           fetchBookings();
         }
       } catch (error) {
         console.error('Error deleting booking:', error);
+        setNotification({
+          message: 'Failed to delete booking. Please try again.',
+          type: 'error'
+        });
+        // Refresh to get the latest data
+        fetchBookings();
       }
     }
   };
@@ -409,6 +396,15 @@ const AdminBookings = () => {
             setShowBookingModal(false);
             setSelectedBooking(null);
           }}
+        />
+      )}
+
+      {/* Notification */}
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
         />
       )}
     </div>

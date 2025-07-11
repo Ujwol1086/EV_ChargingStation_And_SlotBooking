@@ -10,6 +10,10 @@ def require_admin(f):
     """Decorator to require admin authentication for admin routes"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Allow OPTIONS requests to pass through for CORS preflight
+        if request.method == 'OPTIONS':
+            return f(*args, **kwargs)
+            
         try:
             # Get authorization header
             auth_header = request.headers.get('Authorization')

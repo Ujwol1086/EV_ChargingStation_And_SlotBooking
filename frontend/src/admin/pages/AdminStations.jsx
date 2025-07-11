@@ -23,37 +23,8 @@ const AdminStations = () => {
       }
     } catch (error) {
       console.error('Error fetching stations:', error);
-      // Mock data for development
-      setStations([
-        {
-          id: 'cs001',
-          name: 'Kathmandu Central Station',
-          location: [27.7172, 85.3240],
-          address: 'Thamel, Kathmandu',
-          available_slots: 3,
-          total_slots: 5,
-          pricing_per_kwh: 25,
-          rating: 4.5,
-          status: 'active',
-          connector_types: ['Type 2', 'CCS'],
-          features: ['Cafe', 'Restroom', 'WiFi'],
-          operating_hours: '24/7'
-        },
-        {
-          id: 'cs002',
-          name: 'Pokhara Lakeside Station',
-          location: [28.2096, 83.9856],
-          address: 'Lakeside, Pokhara',
-          available_slots: 2,
-          total_slots: 4,
-          pricing_per_kwh: 20,
-          rating: 4.2,
-          status: 'active',
-          connector_types: ['Type 2', 'CHAdeMO'],
-          features: ['Parking', 'Restroom'],
-          operating_hours: '6:00 AM - 10:00 PM'
-        }
-      ]);
+      // Show empty state instead of dummy data
+      setStations([]);
     } finally {
       setLoading(false);
     }
