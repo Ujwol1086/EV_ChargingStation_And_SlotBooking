@@ -197,13 +197,33 @@ const Map = () => {
     if (userPosition && stations.length > 0) {
       // Calculate distance for each station
       const stationsWithDistance = stations.map((station) => {
-        const distance = calculateDistance(
-          userPosition[0],
-          userPosition[1],
-          station.location.coordinates[0],
-          station.location.coordinates[1]
-        );
-        return { ...station, distance };
+        // Handle different location formats
+        let stationLat, stationLon;
+        
+        if (station.location) {
+          if (Array.isArray(station.location)) {
+            // Direct array format: [lat, lon]
+            stationLat = station.location[0];
+            stationLon = station.location[1];
+          } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+            // Nested coordinates format: {coordinates: [lat, lon]}
+            stationLat = station.location.coordinates[0];
+            stationLon = station.location.coordinates[1];
+          }
+        }
+        
+        if (stationLat && stationLon) {
+          const distance = calculateDistance(
+            userPosition[0],
+            userPosition[1],
+            stationLat,
+            stationLon
+          );
+          return { ...station, distance };
+        } else {
+          console.warn('Invalid location for station:', station.id, station.location);
+          return { ...station, distance: null };
+        }
       });
 
       // Filter by max distance and sort by proximity
@@ -225,9 +245,15 @@ const Map = () => {
         const station = response.data.station;
         if (mapRef.current && station.location) {
           const map = mapRef.current;
-          const position = station.location.coordinates 
-            ? [station.location.coordinates[0], station.location.coordinates[1]]
-            : station.location;
+          
+          // Handle different location formats
+          let position = null;
+          if (Array.isArray(station.location)) {
+            position = station.location;
+          } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+            position = station.location.coordinates;
+          }
+          
           if (position && position.length === 2) {
             map.setView(position, 15);
           }
@@ -256,7 +282,18 @@ const Map = () => {
     // Focus map on selected station
     if (mapRef.current && station.location) {
       const map = mapRef.current;
-      map.setView(station.location, 15);
+      
+      // Handle different location formats
+      let position = null;
+      if (Array.isArray(station.location)) {
+        position = station.location;
+      } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+        position = station.location.coordinates;
+      }
+      
+      if (position && position.length === 2) {
+        map.setView(position, 15);
+      }
     }
   };
 
@@ -601,11 +638,23 @@ const Map = () => {
                   
                   {/* Station Markers */}
                   {getDisplayStations().map((station, index) => {
-                    const position = station.location?.coordinates 
-                      ? [station.location.coordinates[0], station.location.coordinates[1]]
-                      : station.location;
+                    // Handle different location formats from API
+                    let position = null;
                     
-                    if (!position || position.length !== 2) return null;
+                    if (station.location) {
+                      if (Array.isArray(station.location)) {
+                        // Direct array format: [lat, lon]
+                        position = station.location;
+                      } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+                        // Nested coordinates format: {coordinates: [lat, lon]}
+                        position = station.location.coordinates;
+                      }
+                    }
+                    
+                    if (!position || position.length !== 2) {
+                      console.warn('Invalid position for station:', station.id, station.location);
+                      return null;
+                    }
                     
                     return (
                       <Marker

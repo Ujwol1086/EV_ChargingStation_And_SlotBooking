@@ -251,7 +251,14 @@ const BookingPage = () => {
                   <span className="text-gray-500">📍</span>
                   <div>
                     <p className="text-sm text-gray-600">Location</p>
-                    <p className="font-medium">{station.location?.address || `${station.location?.coordinates?.[0]?.toFixed(4)}, ${station.location?.coordinates?.[1]?.toFixed(4)}`}</p>
+                    <p className="font-medium">{station.location?.address || (() => {
+                      if (Array.isArray(station.location)) {
+                        return `${station.location[0].toFixed(4)}, ${station.location[1].toFixed(4)}`;
+                      } else if (station.location?.coordinates && Array.isArray(station.location.coordinates)) {
+                        return `${station.location.coordinates[0].toFixed(4)}, ${station.location.coordinates[1].toFixed(4)}`;
+                      }
+                      return 'Location data unavailable';
+                    })()}</p>
                   </div>
                 </div>
                 
