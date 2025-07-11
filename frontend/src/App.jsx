@@ -1,7 +1,14 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
 import Navbar from "./components/Navbar";
+import AdminLayout from "./admin/AdminLayout";
+import AdminDashboard from "./admin/pages/AdminDashboard";
+import AdminStations from "./admin/pages/AdminStations";
+import AdminUsers from "./admin/pages/AdminUsers";
+import AdminBookings from "./admin/pages/AdminBookings";
+import AdminAnalytics from "./admin/pages/AdminAnalytics";
 
 // Pages
 import Home from "./pages/Home";
@@ -50,6 +57,31 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/admin" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminDashboard /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin/stations" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminStations /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin/users" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminUsers /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin/bookings" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminBookings /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin/analytics" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminAnalytics /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
             </Routes>
           </main>
         </div>

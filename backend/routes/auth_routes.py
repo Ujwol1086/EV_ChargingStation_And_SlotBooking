@@ -49,17 +49,21 @@ def login():
     if not user or not User.check_password(user, data.get('password')):
         return jsonify({"error": "Invalid email or password"}), 401
     
-    # Generate token
+    # Generate token with user role information
     token = generate_token(str(user["_id"]))
     
     # Remove password from response
     user.pop("password", None)
     user["_id"] = str(user["_id"])  # Convert ObjectId to string
     
+    # Check if user is admin
+    is_admin = user.get('role') == 'admin'
+    
     return jsonify({
         "message": "Login successful",
         "token": token,
-        "user": user
+        "user": user,
+        "is_admin": is_admin
     }), 200
 
 @auth_bp.route('/me', methods=['GET'])
