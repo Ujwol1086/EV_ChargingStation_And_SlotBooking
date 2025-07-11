@@ -28,7 +28,12 @@ export default function Login() {
       const result = await login(formData);
 
       if (result.success) {
-        navigate("/dashboard");
+        // Redirect based on user role
+        if (result.is_admin) {
+          navigate("/admin");
+        } else {
+          navigate("/dashboard");
+        }
       } else {
         setError(result.message);
       }
