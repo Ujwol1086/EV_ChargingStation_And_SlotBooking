@@ -456,7 +456,14 @@ const RecommendationResults = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">📍</span>
-                    <span className="text-sm text-gray-700">{station.location?.address || `${station.location?.[0]?.toFixed(4)}, ${station.location?.[1]?.toFixed(4)}`}</span>
+                    <span className="text-sm text-gray-700">{station.location?.address || (() => {
+                      if (Array.isArray(station.location)) {
+                        return `${station.location[0].toFixed(4)}, ${station.location[1].toFixed(4)}`;
+                      } else if (station.location?.coordinates && Array.isArray(station.location.coordinates)) {
+                        return `${station.location.coordinates[0].toFixed(4)}, ${station.location.coordinates[1].toFixed(4)}`;
+                      }
+                      return 'Location data unavailable';
+                    })()}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">💰</span>

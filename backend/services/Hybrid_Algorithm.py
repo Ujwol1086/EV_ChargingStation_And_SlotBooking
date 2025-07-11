@@ -18,7 +18,8 @@ class HybridAlgorithm:
     
     def __init__(self):
         # Enhanced weights for scoring algorithm with new context factors
-        self.weights = {
+        # Dynamic weights that adapt based on user context
+        self.base_weights = {
             'distance': 0.25,
             'availability': 0.20,
             'energy_efficiency': 0.15,  # New: considers AC, passengers, terrain
@@ -26,6 +27,46 @@ class HybridAlgorithm:
             'price': 0.10,
             'plug_compatibility': 0.10,
             'rating': 0.05
+        }
+        
+        # Context-specific weight adjustments
+        self.context_weight_adjustments = {
+            'emergency': {
+                'distance': 0.40,      # Much higher weight for distance in emergency
+                'availability': 0.30,   # Higher weight for availability
+                'energy_efficiency': 0.20,  # Critical for low battery
+                'urgency': 0.10,
+                'price': 0.00,         # Ignore price in emergency
+                'plug_compatibility': 0.00,  # Ignore plug type in emergency
+                'rating': 0.00
+            },
+            'high': {
+                'distance': 0.35,
+                'availability': 0.25,
+                'energy_efficiency': 0.20,
+                'urgency': 0.15,
+                'price': 0.05,
+                'plug_compatibility': 0.00,
+                'rating': 0.00
+            },
+            'medium': {
+                'distance': 0.25,
+                'availability': 0.20,
+                'energy_efficiency': 0.15,
+                'urgency': 0.15,
+                'price': 0.10,
+                'plug_compatibility': 0.10,
+                'rating': 0.05
+            },
+            'low': {
+                'distance': 0.20,
+                'availability': 0.15,
+                'energy_efficiency': 0.10,
+                'urgency': 0.05,
+                'price': 0.20,         # Higher weight for price in low urgency
+                'plug_compatibility': 0.15,
+                'rating': 0.15
+            }
         }
         
         # Price mapping for different charging stations
@@ -341,6 +382,15 @@ class HybridAlgorithm:
         # 2. Availability score
         availability = station.get('availability', 0)
         total_slots = station.get('total_slots', 1)
+        
+        # Ensure both are integers
+        try:
+            availability = int(availability) if availability is not None else 0
+            total_slots = int(total_slots) if total_slots is not None else 1
+        except (ValueError, TypeError):
+            availability = 0
+            total_slots = 1
+        
         availability_score = availability / total_slots if total_slots > 0 else 0
         
         # 3. Enhanced Energy Efficiency Score
@@ -349,9 +399,24 @@ class HybridAlgorithm:
         )
         energy_efficiency_score = energy_analysis['energy_efficiency_score']
         
-        # Penalty if station is not reachable
-        if not energy_analysis['is_reachable']:
-            energy_efficiency_score = 0
+        # Enhanced energy efficiency scoring based on battery level
+        if battery_percentage <= 20:
+            # Critical battery - heavily penalize stations that are not reachable
+            if not energy_analysis['is_reachable']:
+                energy_efficiency_score = 0
+            else:
+                # Boost score for stations that are easily reachable
+                energy_efficiency_score = min(1.0, energy_efficiency_score * 1.5)
+        elif battery_percentage <= 40:
+            # Low battery - moderate penalty for unreachable stations
+            if not energy_analysis['is_reachable']:
+                energy_efficiency_score = energy_efficiency_score * 0.3
+            else:
+                energy_efficiency_score = min(1.0, energy_efficiency_score * 1.2)
+        else:
+            # Normal battery - standard scoring
+            if not energy_analysis['is_reachable']:
+                energy_efficiency_score = 0
         
         # 4. ETA Calculation
         driving_mode = user_context.get('driving_mode', 'random')
@@ -363,18 +428,38 @@ class HybridAlgorithm:
             terrain, weather
         )
         
-        # 4. Urgency score
+        # 4. Enhanced Urgency score
         urgency_multipliers = {
-            'low': 0.5,
-            'medium': 1.0,
-            'high': 1.5,
-            'emergency': 2.0
+            'low': 0.3,
+            'medium': 0.6,
+            'high': 0.8,
+            'emergency': 1.0
         }
-        urgency_multiplier = urgency_multipliers.get(urgency.lower(), 1.0)
-        urgency_score = min(1.0, urgency_multiplier * 0.5)
+        urgency_multiplier = urgency_multipliers.get(urgency.lower(), 0.6)
+        urgency_score = urgency_multiplier
+        
+        # Additional urgency bonuses based on context
+        if urgency.lower() == 'emergency':
+            # Emergency gets maximum score
+            urgency_score = 1.0
+        elif urgency.lower() == 'high':
+            # High urgency gets bonus for nearby stations
+            if distance <= 10:
+                urgency_score = min(1.0, urgency_score + 0.2)
+        elif urgency.lower() == 'low':
+            # Low urgency gets bonus for better amenities/rating
+            if station.get('rating', 0) >= 4.0:
+                urgency_score = min(1.0, urgency_score + 0.1)
         
         # 5. Pricing score (lower price is better)
         pricing = station.get('pricing', 20)  # Default to 20 NPR/kWh
+        
+        # Ensure pricing is a number
+        try:
+            pricing = float(pricing) if pricing is not None else 20.0
+        except (ValueError, TypeError):
+            pricing = 20.0
+        
         max_price = 35
         min_price = 10
         price_score = max(0, 1 - ((pricing - min_price) / (max_price - min_price)))
@@ -385,6 +470,13 @@ class HybridAlgorithm:
         
         # 7. Rating score
         rating = station.get('rating', 4.0)
+        
+        # Ensure rating is a number
+        try:
+            rating = float(rating) if rating is not None else 4.0
+        except (ValueError, TypeError):
+            rating = 4.0
+        
         rating_score = rating / 5.0
         
         # 8. ETA score (shorter travel time is better)
@@ -392,15 +484,22 @@ class HybridAlgorithm:
         max_expected_time = 120  # 2 hours max expected travel time
         eta_score = max(0, 1 - (eta_analysis['travel_time_minutes'] / max_expected_time))
         
-        # Calculate composite score with enhanced weights
+        # Get dynamic weights based on urgency level
+        urgency_level = urgency.lower()
+        if urgency_level in self.context_weight_adjustments:
+            weights = self.context_weight_adjustments[urgency_level]
+        else:
+            weights = self.base_weights
+        
+        # Calculate composite score with dynamic weights
         composite_score = (
-            self.weights['distance'] * distance_score +
-            self.weights['availability'] * availability_score +
-            self.weights['energy_efficiency'] * energy_efficiency_score +
-            self.weights['urgency'] * urgency_score +
-            self.weights['price'] * price_score +
-            self.weights['plug_compatibility'] * plug_compatibility_score +
-            self.weights['rating'] * rating_score +
+            weights['distance'] * distance_score +
+            weights['availability'] * availability_score +
+            weights['energy_efficiency'] * energy_efficiency_score +
+            weights['urgency'] * urgency_score +
+            weights['price'] * price_score +
+            weights['plug_compatibility'] * plug_compatibility_score +
+            weights['rating'] * rating_score +
             eta_score * 0.10  # Add ETA as 10% weight
         )
         
@@ -892,8 +991,9 @@ class HybridAlgorithm:
 
     def calculate_availability_score(self, station):
         """Calculate availability score based on available chargers"""
-        total_chargers = len(station['chargers'])
-        available_chargers = sum(1 for charger in station['chargers'] if charger['available'])
+        chargers = station.get('chargers', [])
+        total_chargers = len(chargers)
+        available_chargers = sum(1 for charger in chargers if charger.get('available', False))
         
         if total_chargers == 0:
             return 0.0
@@ -905,15 +1005,20 @@ class HybridAlgorithm:
         Calculate load score (inverted - lower load is better)
         Simulated based on charger power and availability
         """
-        total_power = sum(
-            float(charger['power'].replace('kW', '')) 
-            for charger in station['chargers']
-        )
-        available_power = sum(
-            float(charger['power'].replace('kW', '')) 
-            for charger in station['chargers'] 
-            if charger['available']
-        )
+        total_power = 0
+        available_power = 0
+        
+        for charger in station.get('chargers', []):
+            power_str = charger.get('power', '')
+            if power_str and power_str.strip():  # Check if power is not empty
+                try:
+                    power_value = float(power_str.replace('kW', ''))
+                    total_power += power_value
+                    if charger.get('available', False):
+                        available_power += power_value
+                except (ValueError, TypeError):
+                    # Skip invalid power values
+                    continue
         
         if total_power == 0:
             return 0.0
@@ -1032,7 +1137,15 @@ class HybridAlgorithm:
     def calculate_estimated_charging_time(self, charger):
         """Estimate charging time based on charger power"""
         power_str = charger.get('power', '22kW')
-        power_value = float(power_str.replace('kW', ''))
+        
+        # Handle empty or invalid power values
+        if not power_str or not power_str.strip():
+            power_str = '22kW'  # Default fallback
+        
+        try:
+            power_value = float(power_str.replace('kW', ''))
+        except (ValueError, TypeError):
+            power_value = 22.0  # Default fallback
         
         # Simplified estimation (assumes charging from 20% to 80%)
         # Average EV battery capacity: 60kWh, charging 60% = 36kWh
