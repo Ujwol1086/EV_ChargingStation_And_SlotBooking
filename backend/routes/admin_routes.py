@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, make_response
 from models.user import User
 from models.booking import Booking
 from models.charging_station import ChargingStation
@@ -10,6 +10,10 @@ from middleware.admin_middleware import require_admin
 
 logger = logging.getLogger(__name__)
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
+
+# Remove custom CORS handling - let Flask-CORS handle it
+
+# Flask-CORS will handle CORS preflight requests automatically
 
 @admin_bp.route('/stats', methods=['GET'])
 @require_admin
@@ -109,14 +113,27 @@ def get_admin_users():
             })
             total_spent = sum(booking.get('total_cost', 0) for booking in completed_bookings)
             
+            # Handle datetime fields safely
+            created_at = user.get('created_at')
+            if created_at and hasattr(created_at, 'isoformat'):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = datetime.utcnow().isoformat()
+            
+            last_login = user.get('last_login')
+            if last_login and hasattr(last_login, 'isoformat'):
+                last_login_str = last_login.isoformat()
+            else:
+                last_login_str = datetime.utcnow().isoformat()
+            
             formatted_user = {
                 '_id': user_id,
                 'username': user.get('username', ''),
                 'email': user.get('email', ''),
                 'role': user.get('role', 'user'),
                 'status': user.get('status', 'active'),
-                'created_at': user.get('created_at', datetime.utcnow()).isoformat(),
-                'last_login': user.get('last_login', datetime.utcnow()).isoformat(),
+                'created_at': created_at_str,
+                'last_login': last_login_str,
                 'total_bookings': total_bookings,
                 'total_spent': total_spent
             }
@@ -154,6 +171,13 @@ def get_admin_bookings():
                 'address': station.get('address', 'Unknown Address') if station else 'Unknown Address'
             }
             
+            # Handle datetime fields safely
+            created_at = booking.get('created_at')
+            if created_at and hasattr(created_at, 'isoformat'):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = datetime.utcnow().isoformat()
+            
             formatted_booking = {
                 '_id': str(booking['_id']),
                 'booking_id': booking.get('booking_id', ''),
@@ -165,7 +189,7 @@ def get_admin_bookings():
                 'booking_time': booking.get('booking_time', ''),
                 'booking_duration': booking.get('estimated_duration', 60),
                 'total_cost': booking.get('total_cost', 0),
-                'created_at': booking.get('created_at', datetime.utcnow()).isoformat(),
+                'created_at': created_at_str,
                 'auto_booked': booking.get('auto_booked', False)
             }
             formatted_bookings.append(formatted_booking)
@@ -176,6 +200,89 @@ def get_admin_bookings():
         })
     except Exception as e:
         logger.error(f"Error getting admin bookings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/recent-bookings', methods=['GET'])
+@require_admin
+def get_recent_bookings():
+    """Get recent bookings for admin dashboard"""
+    try:
+        # Get the 5 most recent bookings
+        recent_bookings = list(mongo.db.bookings.find().sort("created_at", -1).limit(5))
+        
+        # Format bookings for admin view
+        formatted_bookings = []
+        for booking in recent_bookings:
+            # Get user details
+            user = mongo.db.users.find_one({"_id": ObjectId(booking.get('user_id'))})
+            user_details = {
+                'username': user.get('username', 'Unknown') if user else 'Unknown',
+                'email': user.get('email', 'Unknown') if user else 'Unknown'
+            }
+            
+            # Get station details
+            station = ChargingStation.get_by_id(booking.get('station_id'))
+            station_details = {
+                'name': station.get('name', 'Unknown Station') if station else 'Unknown Station',
+                'address': station.get('address', 'Unknown Address') if station else 'Unknown Address'
+            }
+            
+            # Handle datetime fields safely
+            created_at = booking.get('created_at')
+            if created_at and hasattr(created_at, 'isoformat'):
+                created_at_str = created_at.isoformat()
+            else:
+                created_at_str = datetime.utcnow().isoformat()
+            
+            formatted_booking = {
+                '_id': str(booking['_id']),
+                'booking_id': booking.get('booking_id', ''),
+                'user_details': user_details,
+                'station_details': station_details,
+                'status': booking.get('status', 'confirmed'),
+                'total_cost': booking.get('total_cost', 0),
+                'created_at': created_at_str
+            }
+            formatted_bookings.append(formatted_booking)
+        
+        return jsonify({
+            'success': True,
+            'bookings': formatted_bookings
+        })
+    except Exception as e:
+        logger.error(f"Error getting recent bookings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/recent-stations', methods=['GET'])
+@require_admin
+def get_recent_stations():
+    """Get recent stations for admin dashboard"""
+    try:
+        # Get all stations and sort by creation date (if available) or limit to 5
+        stations = ChargingStation.get_all()
+        
+        # For now, just take the first 5 stations
+        recent_stations = stations[:5]
+        
+        # Format stations for admin view
+        formatted_stations = []
+        for station in recent_stations:
+            formatted_station = {
+                'id': station.get('id'),
+                'name': station.get('name'),
+                'available_slots': station.get('available_slots', 0),
+                'total_slots': station.get('total_slots', 0),
+                'pricing_per_kwh': station.get('pricing_per_kwh', 0),
+                'rating': station.get('rating', 0)
+            }
+            formatted_stations.append(formatted_station)
+        
+        return jsonify({
+            'success': True,
+            'stations': formatted_stations
+        })
+    except Exception as e:
+        logger.error(f"Error getting recent stations: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @admin_bp.route('/analytics', methods=['GET'])
@@ -388,7 +495,19 @@ def update_booking_status(booking_id):
         if not new_status:
             return jsonify({'success': False, 'error': 'Status is required'}), 400
         
+        # Try to update by booking_id first
         result = Booking.update_booking_status(booking_id, new_status)
+        
+        if not result:
+            # If that fails, try to update by _id (MongoDB ObjectId)
+            try:
+                result = mongo.db.bookings.update_one(
+                    {"_id": ObjectId(booking_id)},
+                    {"$set": {"status": new_status, "updated_at": datetime.utcnow()}}
+                )
+                result = result.modified_count > 0
+            except:
+                result = False
         
         if result:
             return jsonify({'success': True, 'message': 'Booking status updated successfully'})
@@ -403,7 +522,15 @@ def update_booking_status(booking_id):
 def delete_booking(booking_id):
     """Delete a booking"""
     try:
+        # Try to delete by booking_id first
         result = mongo.db.bookings.delete_one({"booking_id": booking_id})
+        
+        if result.deleted_count == 0:
+            # If that fails, try to delete by _id (MongoDB ObjectId)
+            try:
+                result = mongo.db.bookings.delete_one({"_id": ObjectId(booking_id)})
+            except:
+                result = mongo.db.bookings.delete_one({"booking_id": booking_id})
         
         if result.deleted_count > 0:
             return jsonify({'success': True, 'message': 'Booking deleted successfully'})

@@ -31,7 +31,9 @@ def create_app():
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "expose_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True,
+        "max_age": 86400  # Cache preflight for 24 hours
     }})
     
     # Initialize database

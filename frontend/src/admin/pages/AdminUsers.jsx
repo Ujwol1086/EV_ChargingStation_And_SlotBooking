@@ -19,45 +19,17 @@ const AdminUsers = () => {
       const response = await axios.get('/admin/users');
       if (response.data.success) {
         setUsers(response.data.users);
+      } else {
+        console.error('Failed to fetch users:', response.data.error);
+        // Show error message to user
+        alert('Failed to fetch users. Please try again.');
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      // Mock data for development
-      setUsers([
-        {
-          _id: 'user1',
-          username: 'john_doe',
-          email: 'john@example.com',
-          role: 'user',
-          status: 'active',
-          created_at: '2024-01-15T10:30:00Z',
-          last_login: '2024-01-20T14:45:00Z',
-          total_bookings: 12,
-          total_spent: 2500
-        },
-        {
-          _id: 'user2',
-          username: 'admin_user',
-          email: 'admin@evconnect.com',
-          role: 'admin',
-          status: 'active',
-          created_at: '2024-01-01T09:00:00Z',
-          last_login: '2024-01-20T16:20:00Z',
-          total_bookings: 0,
-          total_spent: 0
-        },
-        {
-          _id: 'user3',
-          username: 'sarah_ev',
-          email: 'sarah@example.com',
-          role: 'user',
-          status: 'inactive',
-          created_at: '2024-01-10T11:15:00Z',
-          last_login: '2024-01-18T13:30:00Z',
-          total_bookings: 8,
-          total_spent: 1800
-        }
-      ]);
+      // Show error message to user
+      alert('Failed to fetch users. Please check your connection and try again.');
+      // Show empty state instead of dummy data
+      setUsers([]);
     } finally {
       setLoading(false);
     }
