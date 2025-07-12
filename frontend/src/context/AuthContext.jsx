@@ -5,6 +5,7 @@ import { AuthContext } from "./context";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
           const response = await api.get("/auth/me");
           setUser(response.data.user);
           setIsAuthenticated(true);
+          setIsAdmin(response.data.user?.role === 'admin');
         } catch (error) {
           console.error("Auth error:", error);
           localStorage.removeItem("token");
@@ -52,7 +54,8 @@ export function AuthProvider({ children }) {
       localStorage.setItem("token", response.data.token);
       setUser(response.data.user);
       setIsAuthenticated(true);
-      return { success: true };
+      setIsAdmin(response.data.is_admin || false);
+      return { success: true, is_admin: response.data.is_admin };
     } catch (error) {
       return {
         success: false,
@@ -66,6 +69,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("token");
     setUser(null);
     setIsAuthenticated(false);
+    setIsAdmin(false);
   };
 
   return (
@@ -73,6 +77,7 @@ export function AuthProvider({ children }) {
       value={{
         user,
         isAuthenticated,
+        isAdmin,
         isLoading,
         register,
         login,
