@@ -348,7 +348,7 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 border border-gray-200/50">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-bold text-gray-800">Quick Actions</h3>
@@ -387,7 +387,7 @@ const AdminDashboard = () => {
             <span className="font-bold text-purple-700 ml-4">Settings</span>
           </button>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };
