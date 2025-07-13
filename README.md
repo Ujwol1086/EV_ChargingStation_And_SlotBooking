@@ -106,9 +106,10 @@ EVConnectNepal/
 ## Features
 
 - **User Authentication**: Register, login, and user profile management
-- **EV Station Discovery**: Locate charging stations on a map (coming soon)
-- **Slot Booking**: Reserve charging slots in advance (coming soon)
+- **EV Station Discovery**: Locate charging stations on a map
+- **Slot Booking**: Reserve charging slots in advance
 - **Dashboard**: Track and manage your bookings (coming soon)
+- **Khalti Payemnt**: Pay for your Booking instantly (coming soon)
 
 ## API Endpoints
 
