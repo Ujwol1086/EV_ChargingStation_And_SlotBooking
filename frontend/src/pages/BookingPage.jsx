@@ -133,11 +133,24 @@ const BookingPage = () => {
       const response = await axios.post('/recommendations/book-slot', bookingData);
 
       if (response.data.success) {
-        setSuccess(true);
-        // Redirect to dashboard after 3 seconds
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 3000);
+        const booking = response.data.booking;
+        
+        // Check if payment is required
+        if (booking.requires_payment && booking.status === 'pending_payment') {
+          // Redirect to payment page
+          navigate('/payment', {
+            state: {
+              booking: booking,
+              station: station
+            }
+          });
+        } else {
+          // Booking confirmed without payment
+          setSuccess(true);
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 3000);
+        }
       } else {
         setError(response.data.error || 'Booking failed');
       }
@@ -189,10 +202,11 @@ const BookingPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Booking Confirmed! 🎉</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Booking Created! 🎉</h1>
           <p className="text-gray-600 mb-6">
-            Your charging slot has been successfully booked at <strong>{station.name}</strong> for{' '}
+            Your charging slot has been created at <strong>{station.name}</strong> for{' '}
             <strong>{formData.booking_date}</strong> at <strong>{formData.booking_time}</strong>.
+            Redirecting to payment...
           </p>
           <div className="space-y-3">
             <button

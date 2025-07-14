@@ -6,6 +6,7 @@ from routes.db_test_routes import db_test_bp
 from routes.stations_routes import stations_bp
 from routes.recommendation_routes import recommendation_bp
 from routes.admin_routes import admin_bp
+from routes.payment_routes import payment_bp
 import logging
 import threading
 import time
@@ -60,6 +61,7 @@ def create_app():
     app.register_blueprint(stations_bp, url_prefix='/api/stations')
     app.register_blueprint(recommendation_bp, url_prefix='/api/recommendations')
     app.register_blueprint(admin_bp)
+    app.register_blueprint(payment_bp, url_prefix='/api/payments')
     
     # Test route
     @app.route("/")
