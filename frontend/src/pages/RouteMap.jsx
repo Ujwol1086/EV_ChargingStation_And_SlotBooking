@@ -135,9 +135,16 @@ const RouteMap = () => {
           setStation(stationData);
 
           // Handle location coordinates correctly based on backend format
-          const stationLocation = stationData.location.coordinates 
-            ? stationData.location.coordinates 
-            : [stationData.location[0], stationData.location[1]];
+          let stationLocation;
+          if (stationData.location && stationData.location.coordinates) {
+            stationLocation = stationData.location.coordinates;
+          } else if (Array.isArray(stationData.location)) {
+            stationLocation = stationData.location;
+          } else {
+            console.error('Invalid station location format:', stationData.location);
+            setError("Invalid station location format");
+            return;
+          }
 
           // Calculate route using OSRM
           await calculateRoute(userLocation, stationLocation);
@@ -273,35 +280,35 @@ const RouteMap = () => {
     }
   };
 
-  // Update ETA information during live tracking
-  const updateETA = () => {
-    if (!userLocation || !station || !route) return;
-    
-      // Helper function to get station coordinates
+  // Helper function to get station coordinates
   const getStationCoordinates = (station) => {
-    if (!station.location) return null;
+    if (!station || !station.location) return null;
     
-    if (Array.isArray(station.location)) {
-      return station.location;
-    } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+    if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
       return station.location.coordinates;
+    } else if (Array.isArray(station.location)) {
+      return station.location;
     }
     return null;
   };
 
-  // Get station coordinates
-  const stationCoords = getStationCoordinates(station);
-  if (!stationCoords) {
-    console.error('Invalid station location format:', station.location);
-    return;
-  }
+  // Update ETA information during live tracking
+  const updateETA = () => {
+    if (!userLocation || !station || !route) return;
 
-  // Calculate remaining distance to station
-  const remainingDistance = calculateStraightLineDistance(
-    userLocation[0], userLocation[1],
-    stationCoords[0], stationCoords[1]
-  );
-    
+    // Get station coordinates
+    const stationCoords = getStationCoordinates(station);
+    if (!stationCoords) {
+      console.error('Invalid station location format:', station.location);
+      return;
+    }
+
+    // Calculate remaining distance to station
+    const remainingDistance = calculateStraightLineDistance(
+      userLocation[0], userLocation[1],
+      stationCoords[0], stationCoords[1]
+    );
+      
     // Use current speed if available, otherwise use driving mode speed
     const drivingModeSpeeds = {
       'economy': 30,
