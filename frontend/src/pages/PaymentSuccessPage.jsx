@@ -25,19 +25,26 @@ const PaymentSuccessPage = () => {
     // If we don't have booking data from location state, try to get it from URL params
     if (!booking && token && status === 'success') {
       fetchBookingFromPayment(token, amount);
+    } else if (booking && !station) {
+      // If we have booking but no station, fetch station details
+      fetchStationDetails(booking.station_id);
     }
-  }, [token, status, booking]);
+  }, [token, status, booking, station]);
 
   const fetchBookingFromPayment = async (paymentToken, paymentAmount) => {
     try {
       setLoading(true);
       setError('');
 
+      console.log('Verifying payment with token:', paymentToken, 'amount:', paymentAmount);
+
       // Verify payment and get booking details
       const response = await axios.post('/payments/verify-payment', {
         token: paymentToken,
         amount: parseInt(paymentAmount)
       });
+
+      console.log('Payment verification response:', response.data);
 
       if (response.data.success) {
         const bookingId = response.data.booking_id;
@@ -63,12 +70,7 @@ const PaymentSuccessPage = () => {
             setStation(mockStation);
           } else {
             // Fetch station details for real payments
-            const stationResponse = await axios.get(`/stations/${response.data.booking.station_id}`);
-            if (stationResponse.data.success) {
-              setStation(stationResponse.data.station);
-            } else {
-              setError('Failed to fetch station details');
-            }
+            await fetchStationDetails(response.data.booking.station_id);
           }
         } else {
           setError('No booking data received from payment verification');
@@ -77,9 +79,26 @@ const PaymentSuccessPage = () => {
         setError(response.data.error || 'Payment verification failed');
       }
     } catch (err) {
+      console.error('Payment verification error:', err);
       setError(err.response?.data?.error || 'Failed to verify payment');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStationDetails = async (stationId) => {
+    try {
+      console.log('Fetching station details for:', stationId);
+      const stationResponse = await axios.get(`/stations/${stationId}`);
+      if (stationResponse.data.success) {
+        setStation(stationResponse.data.station);
+      } else {
+        console.error('Failed to fetch station details:', stationResponse.data);
+        setError('Failed to fetch station details');
+      }
+    } catch (err) {
+      console.error('Station fetch error:', err);
+      setError('Failed to fetch station details');
     }
   };
 
@@ -132,7 +151,7 @@ const PaymentSuccessPage = () => {
   }
 
   // Show invalid state if no booking data
-  if (!booking || !station) {
+  if (!booking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
@@ -159,6 +178,7 @@ const PaymentSuccessPage = () => {
     );
   }
 
+  // Show success state even if station data is missing
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white rounded-lg shadow-md p-8 max-w-lg w-full mx-4">
@@ -203,15 +223,21 @@ const PaymentSuccessPage = () => {
             <div className="space-y-3 text-left">
               <div className="flex justify-between">
                 <span className="text-gray-600">Station:</span>
-                <span className="font-medium text-gray-800">{station.name}</span>
+                <span className="font-medium text-gray-800">
+                  {station ? station.name : `Station ${booking.station_id}`}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Address:</span>
                 <span className="font-medium text-gray-800">
-                  {station.location?.address || 
-                   (station.location?.coordinates ? 
-                    `${station.location.coordinates[0].toFixed(4)}, ${station.location.coordinates[1].toFixed(4)}` : 
-                    'Address not available')}
+                  {station ? (
+                    station.location?.address || 
+                    (station.location?.coordinates ? 
+                     `${station.location.coordinates[0].toFixed(4)}, ${station.location.coordinates[1].toFixed(4)}` : 
+                     'Address not available')
+                  ) : (
+                    'Station details loading...'
+                  )}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -280,7 +306,7 @@ const PaymentSuccessPage = () => {
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Need Help?</h2>
             <div className="space-y-2 text-left text-sm">
               <p className="text-gray-700">
-                <span className="font-medium">Station Contact:</span> {station.telephone || 'N/A'}
+                <span className="font-medium">Station Contact:</span> {station?.telephone || 'N/A'}
               </p>
               <p className="text-gray-700">
                 <span className="font-medium">Support Email:</span> support@evconnectnepal.com

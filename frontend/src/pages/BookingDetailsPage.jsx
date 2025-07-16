@@ -8,6 +8,7 @@ const BookingDetailsPage = () => {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [payLaterLoading, setPayLaterLoading] = useState(false);
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -86,6 +87,31 @@ const BookingDetailsPage = () => {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to cancel booking');
+    }
+  };
+
+  const handlePayLater = async () => {
+    if (!booking) return;
+
+    try {
+      setPayLaterLoading(true);
+      setError('');
+
+      const response = await axios.post(`/payments/pay-later/${booking.booking_id}`);
+      
+      if (response.data.success) {
+        navigate('/dashboard', { 
+          state: { 
+            message: 'Booking confirmed! You can pay ₹' + booking.amount_npr + ' at the station.' 
+          } 
+        });
+      } else {
+        setError(response.data.error || 'Failed to confirm booking for payment later');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to confirm booking for payment later');
+    } finally {
+      setPayLaterLoading(false);
     }
   };
 
@@ -265,12 +291,29 @@ const BookingDetailsPage = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {booking.status === 'pending_payment' && (
-              <button
-                onClick={handleProceedToPayment}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
-              >
-                Proceed to Payment - ₹{booking.amount_npr}
-              </button>
+              <>
+                <button
+                  onClick={handleProceedToPayment}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
+                >
+                  Pay Now - ₹{booking.amount_npr}
+                </button>
+                
+                <button
+                  onClick={handlePayLater}
+                  disabled={payLaterLoading}
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {payLaterLoading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    'Pay Later at Station'
+                  )}
+                </button>
+              </>
             )}
             
             <button
@@ -297,7 +340,8 @@ const BookingDetailsPage = () => {
           <ul className="space-y-2 text-sm text-gray-700">
             <li>• Please arrive 5 minutes before your scheduled time</li>
             <li>• Bring your own charging cable if required</li>
-            <li>• Payment is required to confirm your booking</li>
+            <li>• You can pay now online or pay later at the station</li>
+            <li>• If paying later, show your booking confirmation to station staff</li>
             <li>• Cancellation is free up to 1 hour before the booking time</li>
             <li>• Contact station staff if you need assistance</li>
           </ul>

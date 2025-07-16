@@ -115,7 +115,28 @@ const AdminBookings = () => {
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-gray-100 text-gray-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'pending_payment': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusColor = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'deferred': return 'bg-blue-100 text-blue-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusText = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'Paid';
+      case 'pending': return 'Payment Pending';
+      case 'deferred': return 'Pay at Station';
+      case 'failed': return 'Payment Failed';
+      default: return 'Unknown';
     }
   };
 
@@ -335,12 +356,19 @@ const AdminBookings = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.status)}`}>
-                      {booking.status}
-                    </span>
-                    {booking.auto_booked && (
-                      <div className="text-xs text-blue-600 mt-1">Auto-booked</div>
-                    )}
+                    <div className="space-y-1">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                        {booking.status.replace('_', ' ')}
+                      </span>
+                      {booking.payment_status && (
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(booking.payment_status)}`}>
+                          {getPaymentStatusText(booking.payment_status)}
+                        </span>
+                      )}
+                      {booking.auto_booked && (
+                        <div className="text-xs text-blue-600">Auto-booked</div>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
@@ -444,7 +472,28 @@ const BookingDetailsModal = ({ booking, onClose }) => {
       case 'in_progress': return 'bg-blue-100 text-blue-800';
       case 'completed': return 'bg-gray-100 text-gray-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'pending_payment': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusColor = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'deferred': return 'bg-blue-100 text-blue-800';
+      case 'failed': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusText = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'Paid';
+      case 'pending': return 'Payment Pending';
+      case 'deferred': return 'Pay at Station';
+      case 'failed': return 'Payment Failed';
+      default: return 'Unknown';
     }
   };
 
@@ -473,12 +522,19 @@ const BookingDetailsModal = ({ booking, onClose }) => {
                   <p className="text-gray-600">Created on {formatDateTime(booking.created_at)}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(booking.status)}`}>
-                    {booking.status}
-                  </span>
-                  {booking.auto_booked && (
-                    <div className="text-xs text-blue-600 mt-1">Auto-booked</div>
-                  )}
+                  <div className="space-y-1">
+                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                      {booking.status.replace('_', ' ')}
+                    </span>
+                    {booking.payment_status && (
+                      <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getPaymentStatusColor(booking.payment_status)}`}>
+                        {getPaymentStatusText(booking.payment_status)}
+                      </span>
+                    )}
+                    {booking.auto_booked && (
+                      <div className="text-xs text-blue-600">Auto-booked</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -548,6 +604,47 @@ const BookingDetailsModal = ({ booking, onClose }) => {
                 </div>
               </div>
             </div>
+
+            {/* Payment Information */}
+            {booking.payment_status && (
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-800 mb-3">Payment Information</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Payment Status:</span>
+                      <span className={`font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
+                        {getPaymentStatusText(booking.payment_status)}
+                      </span>
+                    </div>
+                    {booking.amount_npr && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount:</span>
+                        <span className="font-medium">{formatCurrency(booking.amount_npr)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {booking.payment_data && (
+                      <>
+                        {booking.payment_data.khalti_idx && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Transaction ID:</span>
+                            <span className="font-medium">{booking.payment_data.khalti_idx}</span>
+                          </div>
+                        )}
+                        {booking.payment_data.verified_at && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Verified At:</span>
+                            <span className="font-medium">{formatDateTime(new Date(booking.payment_data.verified_at * 1000))}</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end pt-6">

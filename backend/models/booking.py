@@ -555,6 +555,9 @@ class Booking:
             # If payment is successful, update booking status to confirmed
             if payment_status == 'paid':
                 update_data['status'] = 'confirmed'
+            # If payment is deferred (pay later), update booking status to confirmed but keep payment pending
+            elif payment_status == 'deferred':
+                update_data['status'] = 'confirmed'
             
             # Add payment data if provided
             if payment_data:
@@ -689,4 +692,37 @@ class Booking:
             
         except Exception as e:
             logger.error(f"Error cleaning up expired bookings: {e}")
-            return 0 
+            return 0
+    
+    @staticmethod
+    def update_booking_to_pay_later(booking_id):
+        """
+        Update booking status to pay later (confirmed but payment pending)
+        
+        Args:
+            booking_id: The booking ID
+        """
+        try:
+            logger.info(f"Updating booking {booking_id} to pay later status")
+            
+            update_data = {
+                "status": "confirmed",
+                "payment_status": "deferred",
+                "updated_at": datetime.datetime.utcnow()
+            }
+            
+            result = mongo.db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Booking {booking_id} updated to pay later status successfully")
+                return True
+            else:
+                logger.warning(f"No booking found with booking_id: {booking_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating booking to pay later: {e}")
+            return False 

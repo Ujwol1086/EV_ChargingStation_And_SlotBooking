@@ -87,7 +87,28 @@ export default function Dashboard() {
       case 'in_progress': return 'text-blue-600 bg-blue-100';
       case 'completed': return 'text-gray-600 bg-gray-100';
       case 'cancelled': return 'text-red-600 bg-red-100';
+      case 'pending_payment': return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getPaymentStatusColor = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'text-green-600 bg-green-100';
+      case 'pending': return 'text-yellow-600 bg-yellow-100';
+      case 'deferred': return 'text-blue-600 bg-blue-100';
+      case 'failed': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getPaymentStatusText = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'Paid';
+      case 'pending': return 'Payment Pending';
+      case 'deferred': return 'Pay at Station';
+      case 'failed': return 'Payment Failed';
+      default: return 'Unknown';
     }
   };
 
@@ -230,22 +251,36 @@ export default function Dashboard() {
                             {booking.station_details?.name || `Station ${booking.station_id}`}
                           </h4>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                            {booking.status}
+                            {booking.status.replace('_', ' ')}
                           </span>
+                          {booking.payment_status && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
+                              {getPaymentStatusText(booking.payment_status)}
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-gray-600">
                           <p>🔌 {booking.charger_type} • 📅 {formatDate(booking.created_at)}</p>
+                          {booking.amount_npr && <p className="text-green-600">💰 ₹{booking.amount_npr}</p>}
                           {booking.auto_booked && <p className="text-green-600">🤖 Auto-booked</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {booking.status === 'confirmed' && (
+                        {booking.status === 'confirmed' && booking.payment_status !== 'deferred' && (
                           <button
                             onClick={() => handleCancelBooking(booking.booking_id)}
                             className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
                           >
                             Cancel
                           </button>
+                        )}
+                        {booking.status === 'pending_payment' && (
+                          <Link
+                            to={`/booking-details/${booking.booking_id}`}
+                            className="px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
+                          >
+                            Pay Now
+                          </Link>
                         )}
                         <Link
                           to={`/route/${booking.station_id}`}
