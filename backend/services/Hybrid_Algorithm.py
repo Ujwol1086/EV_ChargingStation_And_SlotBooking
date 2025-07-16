@@ -382,8 +382,21 @@ class HybridAlgorithm:
         plug_type = user_context.get('plug_type', '')
         urgency = user_context.get('urgency', 'medium')
         
-        # Ensure battery percentage is within valid range
-        battery_percentage = max(1, min(100, battery_percentage))  # Clamp between 1% and 100%
+        # Ensure battery_percentage is a number and within valid range
+        try:
+            battery_percentage = float(battery_percentage) if battery_percentage is not None else 100.0
+            battery_percentage = max(1, min(100, battery_percentage))  # Clamp between 1% and 100%
+        except (ValueError, TypeError):
+            battery_percentage = 100.0
+            logger.warning(f"Invalid battery_percentage value in calculate_enhanced_score: {user_context.get('battery_percentage')}, using default 100%")
+        
+        # Ensure passengers is a number
+        try:
+            passengers = int(passengers) if passengers is not None else 1
+            passengers = max(1, min(8, passengers))  # Clamp between 1 and 8
+        except (ValueError, TypeError):
+            passengers = 1
+            logger.warning(f"Invalid passengers value in calculate_enhanced_score: {user_context.get('passengers')}, using default 1")
         
         # 1. Distance score (closer is better, max distance considered is 50km)
         max_distance = 50
@@ -629,6 +642,13 @@ class HybridAlgorithm:
             
             # Extract key parameters for dynamic filtering
             battery_percentage = user_context.get('battery_percentage', 100)
+            # Ensure battery_percentage is a number
+            try:
+                battery_percentage = float(battery_percentage) if battery_percentage is not None else 100.0
+            except (ValueError, TypeError):
+                battery_percentage = 100.0
+                logger.warning(f"Invalid battery_percentage value: {user_context.get('battery_percentage')}, using default 100%")
+            
             urgency = user_context.get('urgency', 'medium')
             
             # Determine if we should filter unreachable stations based on context
