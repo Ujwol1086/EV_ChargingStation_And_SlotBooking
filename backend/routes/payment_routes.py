@@ -292,8 +292,11 @@ def verify_payment():
         }
         
         try:
-            # Check if this is a test environment
-            if KHALTI_SECRET_KEY == 'test_secret_key_12345' or KHALTI_PUBLIC_KEY == 'test_public_key_12345':
+            # Check if this is a test environment or if credentials are not set
+            if (not KHALTI_SECRET_KEY or not KHALTI_PUBLIC_KEY or 
+                KHALTI_SECRET_KEY == 'test_secret_key_12345' or 
+                KHALTI_PUBLIC_KEY == 'test_public_key_12345'):
+                
                 logger.warning("Using test Khalti credentials - providing mock verification response")
                 
                 # For test mode, we'll use the token as booking_id (since it's passed from frontend)
@@ -309,7 +312,7 @@ def verify_payment():
                     'estimated_duration': 60,
                     'status': 'confirmed',
                     'payment_status': 'paid',
-                    'station_id': 'test_station',
+                    'station_id': 'cs001',  # Use a real station ID
                     'user_id': 'test_user',
                     'created_at': time.time(),
                     'booking_time': time.time()
@@ -519,6 +522,61 @@ def get_payment_status(booking_id):
         
     except Exception as e:
         logger.error(f"Error in get_payment_status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/pay-later/<booking_id>', methods=['POST'])
+@require_auth
+def pay_later(booking_id):
+    """
+    Mark a booking for payment later (defer payment)
+    """
+    try:
+        # Get booking details
+        booking = Booking.find_by_booking_id(booking_id)
+        if not booking:
+            return jsonify({
+                'success': False,
+                'error': 'Booking not found'
+            }), 404
+        
+        # Verify booking belongs to current user
+        current_user_id = get_current_user_id()
+        if booking.get('user_id') != current_user_id:
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized access to booking'
+            }), 403
+        
+        # Check if booking is in pending payment status
+        if booking.get('status') != 'pending_payment':
+            return jsonify({
+                'success': False,
+                'error': 'Booking is not in pending payment status'
+            }), 400
+        
+        # Update booking to pay later status
+        success = Booking.update_booking_to_pay_later(booking_id)
+        
+        if success:
+            logger.info(f"Booking {booking_id} marked for payment later")
+            return jsonify({
+                'success': True,
+                'message': 'Booking confirmed for payment later',
+                'booking_id': booking_id,
+                'status': 'confirmed',
+                'payment_status': 'deferred'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update booking status'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error in pay_later: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Internal server error'
