@@ -7,6 +7,7 @@ import RecommendationForm from "../components/RecommendationForm";
 import RecommendationResults from "../components/RecommendationResults";
 import { useAuth } from "../context/useAuth";
 import axios from "../api/axios";
+import { userLocationIcon, recommendedStationIcon, topRecommendationIcon } from "../utils/mapIcons";
 
 // Fix for the default marker icon issue in react-leaflet
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -17,34 +18,6 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon,
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
-});
-
-// Create custom icons
-const userLocationIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const recommendedStationIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const topRecommendationIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [30, 49],
-  iconAnchor: [15, 49],
-  popupAnchor: [1, -40],
-  shadowSize: [49, 49],
 });
 
 // Component to handle map view updates
@@ -85,6 +58,7 @@ const Recommendations = () => {
   const [routeData, setRouteData] = useState(null);
   const [showRoute, setShowRoute] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState(null);
   const mapRef = useRef(null);
 
@@ -136,14 +110,43 @@ const Recommendations = () => {
     }
   };
 
-  const handleRecommendations = (data) => {
-    console.log('Setting recommendations:', data);
-    setRecommendations(data);
-    setSelectedStation(null);
-    setRouteData(null);
-    setShowRoute(false);
-    // Reload bookings to get any new auto-bookings
-    loadUserBookings();
+  const handleRecommendations = async (formData) => {
+    console.log('Form data received:', formData);
+    
+    setLoadingRecommendations(true);
+    setError(null);
+    
+    try {
+      // Choose the appropriate endpoint based on whether destination is set
+      const endpoint = formData.destination_city 
+        ? '/recommendations/route-to-city'
+        : '/recommendations/enhanced';
+      
+      console.log('Sending request to:', endpoint);
+      console.log('Request data:', formData);
+      
+      const response = await axios.post(endpoint, formData);
+      
+      console.log('Response received:', response.data);
+      
+      if (response.data && response.data.success !== false) {
+        setRecommendations(response.data);
+        setSelectedStation(null);
+        setRouteData(null);
+        setShowRoute(false);
+        setError(null);
+        // Reload bookings to get any new auto-bookings
+        loadUserBookings();
+      } else {
+        console.error('Recommendation error:', response.data);
+        setError(response.data.error || 'Failed to get recommendations');
+      }
+    } catch (error) {
+      console.error('Error getting recommendations:', error);
+      setError('Failed to get recommendations. Please try again.');
+    } finally {
+      setLoadingRecommendations(false);
+    }
   };
 
   // Helper function to get station coordinates
@@ -271,8 +274,8 @@ const Recommendations = () => {
           <div className="space-y-6">
             {/* Recommendation Form */}
             <RecommendationForm 
-              onRecommendations={handleRecommendations}
-              userLocation={userLocation}
+              onSubmit={handleRecommendations}
+              loading={loadingRecommendations}
             />
 
             {/* User Bookings */}
@@ -322,7 +325,7 @@ const Recommendations = () => {
             {/* Recommendation Results */}
             {recommendations && (
               <RecommendationResults 
-                recommendations={recommendations.recommendations || recommendations}
+                recommendations={Array.isArray(recommendations.recommendations) ? recommendations.recommendations : (Array.isArray(recommendations) ? recommendations : [])}
                 onStationSelect={handleStationSelect}
                 onShowRoute={handleShowRoute}
                 userBookings={userBookings}
