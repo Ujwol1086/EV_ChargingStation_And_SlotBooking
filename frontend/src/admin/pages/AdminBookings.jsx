@@ -357,17 +357,17 @@ const AdminBookings = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="space-y-1">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.status)}`}>
                         {booking.status.replace('_', ' ')}
                       </span>
                       {booking.payment_status && (
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(booking.payment_status)}`}>
                           {getPaymentStatusText(booking.payment_status)}
-                        </span>
+                    </span>
                       )}
-                      {booking.auto_booked && (
+                    {booking.auto_booked && (
                         <div className="text-xs text-blue-600">Auto-booked</div>
-                      )}
+                    )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -523,17 +523,17 @@ const BookingDetailsModal = ({ booking, onClose }) => {
                 </div>
                 <div className="text-right">
                   <div className="space-y-1">
-                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(booking.status)}`}>
+                  <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(booking.status)}`}>
                       {booking.status.replace('_', ' ')}
                     </span>
                     {booking.payment_status && (
                       <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getPaymentStatusColor(booking.payment_status)}`}>
                         {getPaymentStatusText(booking.payment_status)}
-                      </span>
+                  </span>
                     )}
-                    {booking.auto_booked && (
+                  {booking.auto_booked && (
                       <div className="text-xs text-blue-600">Auto-booked</div>
-                    )}
+                  )}
                   </div>
                 </div>
               </div>

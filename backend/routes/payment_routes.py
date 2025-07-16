@@ -261,76 +261,52 @@ def initiate_payment():
 def verify_payment():
     """
     Verify Khalti payment using token
-    
-    Expected JSON payload:
-    {
-        "token": str,
-        "amount": int
-    }
     """
     try:
+        logger.info('--- /verify-payment called ---')
         if not request.json:
+            logger.error('No JSON data provided')
             return jsonify({
                 'success': False,
                 'error': 'No JSON data provided'
             }), 400
-        
         data = request.json
         token = data.get('token')
         amount = data.get('amount')
-        
+        logger.info(f'Received token: {token}, amount: {amount}')
         if not token or not amount:
+            logger.error('Token and amount are required')
             return jsonify({
                 'success': False,
                 'error': 'Token and amount are required'
             }), 400
-        
         # Verify payment with Khalti
         verification_payload = {
             "token": token,
             "amount": amount
         }
-        
         try:
             # Check if this is a test environment or if credentials are not set
-            if (not KHALTI_SECRET_KEY or not KHALTI_PUBLIC_KEY or 
-                KHALTI_SECRET_KEY == 'test_secret_key_12345' or 
+            logger.info(f'KHALTI_SECRET_KEY: {KHALTI_SECRET_KEY}, KHALTI_PUBLIC_KEY: {KHALTI_PUBLIC_KEY}')
+            if (not KHALTI_SECRET_KEY or not KHALTI_PUBLIC_KEY or \
+                KHALTI_SECRET_KEY == 'test_secret_key_12345' or \
                 KHALTI_PUBLIC_KEY == 'test_public_key_12345'):
-                
                 logger.warning("Using test Khalti credentials - providing mock verification response")
-                
-                # For test mode, we'll use the token as booking_id (since it's passed from frontend)
-                # In a real scenario, you'd get the booking_id from the Khalti response
-                test_booking_id = f"test_booking_{token[-8:]}"  # Use last 8 chars of token
-                
-                # Create mock booking details for test mode
+                test_booking_id = f"test_booking_{token[-8:]}"
                 mock_booking = {
                     'booking_id': test_booking_id,
-                    'amount_npr': amount / 100,  # Convert paisa to NPR
+                    'amount_npr': amount / 100,
                     'amount_paisa': amount,
                     'charger_type': 'Type 2',
                     'estimated_duration': 60,
                     'status': 'confirmed',
                     'payment_status': 'paid',
-                    'station_id': 'cs001',  # Use a real station ID
+                    'station_id': 'cs001',
                     'user_id': 'test_user',
                     'created_at': time.time(),
                     'booking_time': time.time()
                 }
-                
-                # Update booking status for test
-                booking_updated = Booking.update_payment_status(
-                    booking_id=test_booking_id,
-                    payment_status='paid',
-                    payment_data={
-                        'khalti_idx': token,
-                        'amount': amount,
-                        'verified_at': time.time(),
-                        'transaction_id': token,
-                        'test_mode': True
-                    }
-                )
-                
+                logger.info(f"Returning mock booking: {mock_booking}")
                 return jsonify({
                     'success': True,
                     'message': 'Payment verified successfully (test mode)',
@@ -339,7 +315,6 @@ def verify_payment():
                     'test_mode': True,
                     'booking': mock_booking
                 })
-            
             # Real Khalti verification
             response = requests.post(
                 f"{KHALTI_BASE_URL}/epayment/lookup/",

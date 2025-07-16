@@ -292,10 +292,10 @@ const BookingDetailsPage = () => {
           <div className="flex flex-col sm:flex-row gap-4">
             {booking.status === 'pending_payment' && (
               <>
-                <button
-                  onClick={handleProceedToPayment}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
-                >
+              <button
+                onClick={handleProceedToPayment}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
+              >
                   Pay Now - ₹{booking.amount_npr}
                 </button>
                 
@@ -312,7 +312,7 @@ const BookingDetailsPage = () => {
                   ) : (
                     'Pay Later at Station'
                   )}
-                </button>
+              </button>
               </>
             )}
             
