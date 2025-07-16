@@ -27,7 +27,9 @@ const PaymentSuccessPage = () => {
       fetchBookingFromPayment(token, amount);
     } else if (booking && !station) {
       // If we have booking but no station, fetch station details
-      fetchStationDetails(booking.station_id);
+      if (booking.station_id) {
+        fetchStationDetails(booking.station_id);
+      }
     }
   }, [token, status, booking, station]);
 
@@ -157,7 +159,11 @@ const PaymentSuccessPage = () => {
         <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-gray-800 mb-4">Invalid Success Page</h2>
-            <p className="text-gray-600 mb-6">No booking information found.</p>
+            <p className="text-gray-600 mb-6">
+              No booking information found. 
+              {token && <span className="block text-sm mt-2">Token: {token}</span>}
+              {amount && <span className="block text-sm">Amount: {amount}</span>}
+            </p>
             <div className="space-y-2">
               <button
                 onClick={() => navigate('/dashboard')}
