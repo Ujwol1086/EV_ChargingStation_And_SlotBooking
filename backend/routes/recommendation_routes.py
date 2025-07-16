@@ -205,36 +205,56 @@ def get_recommendations():
         
         # Get enhanced recommendations using hybrid algorithm
         try:
-            # Check if we should use enhanced recommendations
-            use_enhanced = any(key in user_context for key in ['ac_status', 'passengers', 'terrain', 'battery_percentage', 'destination_city'])
+            # Always use enhanced recommendations for better parameter sensitivity
+            logger.info(f"Using enhanced recommendations with context: {user_context}")
+            logger.info(f"Battery percentage: {user_context.get('battery_percentage')}")
+            logger.info(f"Urgency level: {user_context.get('urgency')}")
+            logger.info(f"Number of stations to process: {len(station_data)}")
             
-            if use_enhanced:
-                result = hybrid_algorithm.get_enhanced_recommendations(
-                    user_location=user_location,
-                    stations=station_data,
-                    user_context=user_context,
-                    max_recommendations=5
-                )
-                # Extract recommendations from the result dictionary
-                if isinstance(result, dict) and 'recommendations' in result:
-                    recommendations = result['recommendations']
-                else:
-                    recommendations = result
-                logger.info(f"Generated {len(recommendations)} enhanced recommendations")
+            result = hybrid_algorithm.get_enhanced_recommendations(
+                user_location=user_location,
+                stations=station_data,
+                user_context=user_context,
+                max_recommendations=5
+            )
+            
+            # Extract recommendations from the result dictionary
+            if isinstance(result, dict) and 'recommendations' in result:
+                recommendations = result['recommendations']
+                algorithm_info = result.get('algorithm_info', {})
             else:
-                # Fall back to simple recommendations for backward compatibility
-                recommendations = hybrid_algorithm.get_recommendations(
-                    user_location=user_location,
-                    stations=station_data,
-                    user_preferences=user_context,
-                    max_recommendations=5
-                )
-                logger.info(f"Generated {len(recommendations)} simple recommendations")
+                recommendations = result
+                algorithm_info = {}
+            
+            logger.info(f"Generated {len(recommendations)} enhanced recommendations")
+            logger.info(f"Algorithm info: {algorithm_info}")
+            
+            # Log detailed information about filtering and scoring
+            if algorithm_info.get('filtering_applied'):
+                filtering = algorithm_info['filtering_applied']
+                logger.info(f"Filtering applied: unreachable={filtering.get('filter_unreachable')}, "
+                           f"route={filtering.get('route_filtering')}, "
+                           f"battery={filtering.get('battery_percentage')}%, "
+                           f"urgency={filtering.get('urgency_level')}")
+            
+            if algorithm_info.get('reachable_stations') is not None:
+                logger.info(f"Reachable stations: {algorithm_info['reachable_stations']}/{len(recommendations)}")
+            
+            # Log each recommendation for debugging
+            for i, rec in enumerate(recommendations):
+                logger.info(f"Recommendation {i+1}: {rec.get('name', 'Unknown')} - "
+                           f"Score: {rec.get('score', 0):.3f}, "
+                           f"Reachable: {rec.get('is_reachable', False)}, "
+                           f"Distance: {rec.get('distance', 0)}km")
                 
         except Exception as algo_error:
             logger.error(f"Error generating recommendations: {algo_error}")
+            logger.error(f"Error details: {type(algo_error).__name__}: {str(algo_error)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return jsonify({
-                'error': 'Failed to generate recommendations'
+                'error': 'Failed to generate recommendations',
+                'details': str(algo_error)
             }), 500
         
         # Ensure recommendations is a list
@@ -253,85 +273,111 @@ def get_recommendations():
                 # Add real-time availability info to each recommendation
                 station_id = rec.get('id')
                 if station_id:
-                    # Get availability for specific charger types if plug_type is specified
-                    if plug_type:
-                        availability_info = Booking.get_station_real_time_availability(station_id, plug_type)
-                        rec['charger_availability'] = {
-                            plug_type: {
-                                'available_slots': availability_info.get('available_slots', 0),
-                                'total_slots': availability_info.get('total_slots', 0),
-                                'active_bookings': availability_info.get('active_bookings', 0)
+                    try:
+                        # Get availability for specific charger types if plug_type is specified
+                        if plug_type:
+                            availability_info = Booking.get_station_real_time_availability(station_id, plug_type)
+                            rec['charger_availability'] = {
+                                plug_type: {
+                                    'available_slots': availability_info.get('available_slots', 0),
+                                    'total_slots': availability_info.get('total_slots', 0),
+                                    'active_bookings': availability_info.get('active_bookings', 0)
+                                }
                             }
-                        }
-                    else:
-                        # Get availability for all charger types
+                        else:
+                            # Get availability for all charger types
+                            rec['charger_availability'] = {}
+                            for charger_type in rec.get('connector_types', []):
+                                availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
+                                rec['charger_availability'][charger_type] = {
+                                    'available_slots': availability_info.get('available_slots', 0),
+                                    'total_slots': availability_info.get('total_slots', 0),
+                                    'active_bookings': availability_info.get('active_bookings', 0)
+                                }
+                    except Exception as availability_error:
+                        logger.warning(f"Error getting availability for station {station_id}: {availability_error}")
                         rec['charger_availability'] = {}
-                        for charger_type in rec.get('connector_types', []):
-                            availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
-                            rec['charger_availability'][charger_type] = {
-                                'available_slots': availability_info.get('available_slots', 0),
-                                'total_slots': availability_info.get('total_slots', 0),
-                                'active_bookings': availability_info.get('active_bookings', 0)
+                
+                # Add route information if station has location
+                station_location = rec.get('location')
+                if station_location and len(station_location) == 2:
+                    try:
+                        route_info = route_service.get_route_to_station(user_location, station_location)
+                        
+                        if route_info and route_info.get('success'):
+                            rec['route'] = {
+                                'waypoints': route_info.get('waypoints', []),
+                                'distance_km': route_info.get('metrics', {}).get('total_distance', rec['distance']),
+                                'estimated_time': route_info.get('metrics', {}).get('estimated_time', 'Unknown'),
+                                'instructions': route_info.get('instructions', []),
+                                'algorithm_used': route_info.get('algorithm_used', 'unknown')
                             }
-                
-                station_location = rec['location']
-                route_info = route_service.get_route_to_station(user_location, station_location)
-                
-                if route_info['success']:
-                    rec['route'] = {
-                        'waypoints': route_info['waypoints'],
-                        'distance_km': route_info['metrics']['total_distance'],
-                        'estimated_time': route_info['metrics']['estimated_time'],
-                        'instructions': route_info['instructions'],
-                        'algorithm_used': route_info.get('algorithm_used', 'unknown')
-                    }
+                        else:
+                            rec['route'] = {
+                                'error': 'Route calculation failed',
+                                'distance_km': rec['distance'],
+                                'estimated_time': 'Unknown'
+                            }
+                    except Exception as route_error:
+                        logger.warning(f"Route calculation error for station {rec.get('id', 'unknown')}: {route_error}")
+                        rec['route'] = {
+                            'error': 'Route calculation error',
+                            'distance_km': rec['distance'],
+                            'estimated_time': 'Unknown'
+                        }
                 else:
+                    # No valid location, use basic route info
                     rec['route'] = {
-                        'error': 'Route calculation failed',
+                        'error': 'Invalid station location',
                         'distance_km': rec['distance'],
                         'estimated_time': 'Unknown'
                     }
                     
-            except Exception as route_error:
-                logger.error(f"Route calculation error for station {rec['id']}: {route_error}")
-                rec['route'] = {
-                    'error': 'Route calculation error',
-                    'distance_km': rec['distance'],
-                    'estimated_time': 'Unknown'
-                }
+            except Exception as rec_error:
+                logger.error(f"Error processing recommendation {rec.get('id', 'unknown')}: {rec_error}")
+                # Continue with other recommendations instead of failing completely
+                continue
             
             enhanced_recommendations.append(rec)
         
         # Add remaining recommendations without detailed routes but with availability
         remaining_recommendations = recommendations[3:] if len(recommendations) > 3 else []
         for rec in remaining_recommendations:
-            # Add availability info for remaining recommendations too
-            station_id = rec.get('id')
-            if station_id:
-                if plug_type:
-                    availability_info = Booking.get_station_real_time_availability(station_id, plug_type)
-                    rec['charger_availability'] = {
-                        plug_type: {
-                            'available_slots': availability_info.get('available_slots', 0),
-                            'total_slots': availability_info.get('total_slots', 0),
-                            'active_bookings': availability_info.get('active_bookings', 0)
-                        }
-                    }
-                else:
-                    rec['charger_availability'] = {}
-                    for charger_type in rec.get('connector_types', []):
-                        availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
-                        rec['charger_availability'][charger_type] = {
-                            'available_slots': availability_info.get('available_slots', 0),
-                            'total_slots': availability_info.get('total_slots', 0),
-                            'active_bookings': availability_info.get('active_bookings', 0)
-                        }
-            
-            rec['route'] = {
-                'distance_km': rec['distance'],
-                'estimated_time': 'Estimate unavailable'
-            }
-            enhanced_recommendations.append(rec)
+            try:
+                # Add availability info for remaining recommendations too
+                station_id = rec.get('id')
+                if station_id:
+                    try:
+                        if plug_type:
+                            availability_info = Booking.get_station_real_time_availability(station_id, plug_type)
+                            rec['charger_availability'] = {
+                                plug_type: {
+                                    'available_slots': availability_info.get('available_slots', 0),
+                                    'total_slots': availability_info.get('total_slots', 0),
+                                    'active_bookings': availability_info.get('active_bookings', 0)
+                                }
+                            }
+                        else:
+                            rec['charger_availability'] = {}
+                            for charger_type in rec.get('connector_types', []):
+                                availability_info = Booking.get_station_real_time_availability(station_id, charger_type)
+                                rec['charger_availability'][charger_type] = {
+                                    'available_slots': availability_info.get('available_slots', 0),
+                                    'total_slots': availability_info.get('total_slots', 0),
+                                    'active_bookings': availability_info.get('active_bookings', 0)
+                                }
+                    except Exception as availability_error:
+                        logger.warning(f"Error getting availability for station {station_id}: {availability_error}")
+                        rec['charger_availability'] = {}
+                
+                rec['route'] = {
+                    'distance_km': rec['distance'],
+                    'estimated_time': 'Estimate unavailable'
+                }
+                enhanced_recommendations.append(rec)
+            except Exception as rec_error:
+                logger.error(f"Error processing remaining recommendation {rec.get('id', 'unknown')}: {rec_error}")
+                continue
         
         logger.info(f"Generated {len(enhanced_recommendations)} final recommendations for user {user_id or 'anonymous'}")
         
@@ -342,7 +388,7 @@ def get_recommendations():
             'user_found': user is not None,
             'recommendations': enhanced_recommendations,
             'algorithm_info': {
-                'type': 'enhanced_hybrid' if use_enhanced else 'simple_hybrid',
+                'type': 'enhanced_hybrid',
                 'factors_considered': list(user_context.keys()),
                 'total_stations_analyzed': len(station_data),
                 'recommendations_returned': len(enhanced_recommendations)
@@ -461,7 +507,17 @@ def book_charging_slot():
                     )
                     booking_data['distance_to_station'] = round(distance_to_station, 2)
             
-            # Create timed booking
+            # Calculate payment amount (15 NPR per hour)
+            duration_hours = booking_data['booking_duration'] / 60
+            amount_npr = round(duration_hours * 15, 2)
+            amount_paisa = int(amount_npr * 100)
+            
+            # Add payment info to booking data
+            booking_data['amount_npr'] = amount_npr
+            booking_data['amount_paisa'] = amount_paisa
+            booking_data['requires_payment'] = True
+            
+            # Create timed booking with pending payment status
             result = Booking.create_timed_booking(
                 user_id=user_id,
                 station_id=data['station_id'],
@@ -485,9 +541,12 @@ def book_charging_slot():
                     'charger_type': data['charger_type'],
                     'booking_date': preferred_date,
                     'booking_time': preferred_time,
-                    'status': 'confirmed',
+                    'status': 'pending_payment',
                     'estimated_duration': booking_data['booking_duration'],
                     'distance_to_station': booking_data['distance_to_station'],
+                    'amount_npr': amount_npr,
+                    'amount_paisa': amount_paisa,
+                    'requires_payment': True,
                     'user_id': user_id
                 }
             }
@@ -508,6 +567,13 @@ def book_charging_slot():
                         station_coords[0], station_coords[1]
                     )
             
+            # Calculate payment amount
+            payment_calculation = Booking.calculate_payment_amount({
+                'booking_duration': data.get('booking_duration', 60),
+                'distance_to_station': round(distance_to_station, 2),
+                'urgency_level': data.get('urgency_level', 'medium')
+            })
+            
             # Prepare booking data
             booking_data = {
                 'booking_id': booking_id,
@@ -519,7 +585,12 @@ def book_charging_slot():
                 'user_location': data.get('user_location', []),
                 'distance_to_station': round(distance_to_station, 2),
                 'urgency_level': data.get('urgency_level', 'medium'),
-                'plug_type': data.get('plug_type', data['charger_type'])
+                'plug_type': data.get('plug_type', data['charger_type']),
+                'amount_npr': payment_calculation['amount_npr'],
+                'amount_paisa': payment_calculation['amount_paisa'],
+                'requires_payment': True,
+                'status': 'pending_payment',
+                'payment_status': 'pending'
             }
             
             # Store booking in database using original method
@@ -543,12 +614,17 @@ def book_charging_slot():
                     'database_id': booking['_id'],
                     'station_id': data['station_id'],
                     'charger_type': data['charger_type'],
-                    'status': 'confirmed',
+                    'status': 'pending_payment',
+                    'payment_status': 'pending',
                     'booking_time': booking['booking_time'].isoformat() if 'booking_time' in booking else None,
                     'estimated_duration': booking_data['booking_duration'],
                     'distance_to_station': booking_data['distance_to_station'],
+                    'amount_npr': payment_calculation['amount_npr'],
+                    'amount_paisa': payment_calculation['amount_paisa'],
                     'user_id': user_id
-                }
+                },
+                'payment_required': True,
+                'payment_amount': payment_calculation
             }
             
             logger.info(f"Manual booking created for user {user_id}: {booking_id}")
@@ -857,11 +933,8 @@ def get_route_recommendations():
                 'error': 'Failed to load charging stations data'
             }), 500
         
-        # Check if enhanced recommendations should be used
-        context_params = ['ac_status', 'passengers', 'terrain', 'battery_percentage']
-        if destination_city:
-            context_params.append('destination_city')
-        use_enhanced = any(key in user_context for key in context_params)
+        # Always use enhanced recommendations for better parameter sensitivity
+        logger.info(f"Using enhanced route recommendations with context: {user_context}")
         
         # Get enhanced recommendations with route filtering
         try:
@@ -880,7 +953,19 @@ def get_route_recommendations():
                 algorithm_info = {}
                 
             logger.info(f"Generated {len(recommendations)} route-based recommendations")
+            logger.info(f"Algorithm info: {algorithm_info}")
             
+            # Log detailed information about filtering and scoring
+            if algorithm_info.get('filtering_applied'):
+                filtering = algorithm_info['filtering_applied']
+                logger.info(f"Route filtering applied: unreachable={filtering.get('filter_unreachable')}, "
+                           f"route={filtering.get('route_filtering')}, "
+                           f"battery={filtering.get('battery_percentage')}%, "
+                           f"urgency={filtering.get('urgency_level')}")
+            
+            if algorithm_info.get('reachable_stations') is not None:
+                logger.info(f"Reachable stations: {algorithm_info['reachable_stations']}/{len(recommendations)}")
+                
         except Exception as algo_error:
             logger.error(f"Error generating route recommendations: {algo_error}")
             return jsonify({
