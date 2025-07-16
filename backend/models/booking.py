@@ -36,13 +36,17 @@ class Booking:
                 "power": booking_data.get('power'),
                 "estimated_time": booking_data.get('estimated_time'),
                 "auto_booked": booking_data.get('auto_booked', False),
-                "status": "confirmed",
+                "status": booking_data.get('status', 'pending_payment'),
+                "payment_status": booking_data.get('payment_status', 'pending'),
                 "created_at": datetime.datetime.utcnow(),
                 "booking_time": datetime.datetime.utcnow(),
                 "estimated_duration": booking_data.get('booking_duration', 60),
                 "station_details": booking_data.get('station_details', {}),
                 "user_location": booking_data.get('user_location', []),
-                "distance_to_station": booking_data.get('distance_to_station', 0)
+                "distance_to_station": booking_data.get('distance_to_station', 0),
+                "amount_npr": booking_data.get('amount_npr', 0),
+                "amount_paisa": booking_data.get('amount_paisa', 0),
+                "requires_payment": booking_data.get('requires_payment', True)
             }
             
             # Insert booking into database
@@ -382,14 +386,18 @@ class Booking:
                 "power": booking_data.get('power'),
                 "estimated_time": booking_data.get('estimated_time'),
                 "auto_booked": booking_data.get('auto_booked', False),
-                "status": "confirmed",
+                "status": booking_data.get('status', 'pending_payment'),
+                "payment_status": "pending",
                 "created_at": datetime.utcnow(),
                 "estimated_duration": booking_data.get('booking_duration', 60),
                 "station_details": booking_data.get('station_details', {}),
                 "user_location": booking_data.get('user_location', []),
                 "distance_to_station": booking_data.get('distance_to_station', 0),
                 "urgency_level": booking_data.get('urgency_level', 'medium'),
-                "plug_type": booking_data.get('plug_type', charger_type)
+                "plug_type": booking_data.get('plug_type', charger_type),
+                "amount_npr": booking_data.get('amount_npr', 0),
+                "amount_paisa": booking_data.get('amount_paisa', 0),
+                "requires_payment": booking_data.get('requires_payment', True)
             }
             
             # Insert booking into database
@@ -481,6 +489,166 @@ class Booking:
             return {
                 'success': False,
                 'error': str(e)
+            }
+    
+    @staticmethod
+    def update_payment_info(booking_id, payment_data):
+        """
+        Update payment information for a booking
+        
+        Args:
+            booking_id: The booking ID
+            payment_data: Dictionary containing payment information
+        """
+        try:
+            logger.info(f"Updating payment info for booking {booking_id}: {payment_data}")
+            
+            update_data = {
+                "payment_data": payment_data,
+                "updated_at": datetime.datetime.utcnow()
+            }
+            
+            # Add individual payment fields for easier querying
+            if 'khalti_idx' in payment_data:
+                update_data['khalti_idx'] = payment_data['khalti_idx']
+            if 'amount' in payment_data:
+                update_data['amount'] = payment_data['amount']
+            if 'payment_url' in payment_data:
+                update_data['payment_url'] = payment_data['payment_url']
+            if 'status' in payment_data:
+                update_data['payment_status'] = payment_data['status']
+            
+            result = mongo.db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Payment info updated successfully for booking {booking_id}")
+                return True
+            else:
+                logger.warning(f"No booking found with booking_id: {booking_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating payment info: {e}")
+            return False
+    
+    @staticmethod
+    def update_payment_status(booking_id, payment_status, payment_data=None):
+        """
+        Update payment status for a booking
+        
+        Args:
+            booking_id: The booking ID
+            payment_status: The new payment status
+            payment_data: Additional payment data (optional)
+        """
+        try:
+            logger.info(f"Updating payment status for booking {booking_id} to {payment_status}")
+            
+            update_data = {
+                "payment_status": payment_status,
+                "updated_at": datetime.datetime.utcnow()
+            }
+            
+            # If payment is successful, update booking status to confirmed
+            if payment_status == 'paid':
+                update_data['status'] = 'confirmed'
+            
+            # Add payment data if provided
+            if payment_data:
+                update_data['payment_data'] = payment_data
+                # Add individual fields for easier querying
+                for key, value in payment_data.items():
+                    update_data[f'payment_{key}'] = value
+            
+            result = mongo.db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Payment status updated successfully for booking {booking_id}")
+                return True
+            else:
+                logger.warning(f"No booking found with booking_id: {booking_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error updating payment status: {e}")
+            return False
+    
+    @staticmethod
+    def calculate_payment_amount(booking_data):
+        """
+        Calculate payment amount for a booking
+        
+        Args:
+            booking_data: Dictionary containing booking information
+        """
+        try:
+            import os
+            
+            # Get rates from environment variables
+            base_rate_per_hour = float(os.getenv('BASE_CHARGING_RATE', 50))  # NPR
+            distance_threshold = float(os.getenv('DISTANCE_SURCHARGE_THRESHOLD', 10))
+            distance_rate = float(os.getenv('DISTANCE_SURCHARGE_RATE', 2))
+            max_distance_surcharge = float(os.getenv('MAX_DISTANCE_SURCHARGE', 100))
+            high_urgency_surcharge = float(os.getenv('HIGH_URGENCY_SURCHARGE', 25))
+            low_urgency_discount = float(os.getenv('LOW_URGENCY_DISCOUNT', 10))
+            min_payment_amount = float(os.getenv('MIN_PAYMENT_AMOUNT', 25))
+            
+            # Get estimated duration in hours
+            duration_hours = booking_data.get('booking_duration', 60) / 60.0
+            
+            # Calculate base amount
+            base_amount = base_rate_per_hour * duration_hours
+            
+            # Add distance surcharge (if applicable)
+            distance = booking_data.get('distance_to_station', 0)
+            if distance > distance_threshold:
+                distance_surcharge = min(distance * distance_rate, max_distance_surcharge)
+                base_amount += distance_surcharge
+            else:
+                distance_surcharge = 0
+            
+            # Add urgency surcharge
+            urgency_level = booking_data.get('urgency_level', 'medium')
+            if urgency_level == 'high':
+                urgency_surcharge = high_urgency_surcharge
+                base_amount += urgency_surcharge
+            elif urgency_level == 'low':
+                urgency_surcharge = -low_urgency_discount
+                base_amount += urgency_surcharge
+            else:
+                urgency_surcharge = 0
+            
+            # Ensure minimum amount
+            final_amount = max(base_amount, min_payment_amount)
+            
+            # Convert to paisa (Khalti uses paisa)
+            amount_paisa = int(final_amount * 100)
+            
+            return {
+                'amount_npr': round(final_amount, 2),
+                'amount_paisa': amount_paisa,
+                'base_rate': base_rate_per_hour,
+                'duration_hours': duration_hours,
+                'distance_surcharge': distance_surcharge,
+                'urgency_surcharge': urgency_surcharge
+            }
+            
+        except Exception as e:
+            logger.error(f"Error calculating payment amount: {e}")
+            # Return default amount
+            return {
+                'amount_npr': 50.0,
+                'amount_paisa': 5000,
+                'base_rate': 50,
+                'duration_hours': 1.0,
+                'distance_surcharge': 0,
+                'urgency_surcharge': 0
             }
     
     @staticmethod

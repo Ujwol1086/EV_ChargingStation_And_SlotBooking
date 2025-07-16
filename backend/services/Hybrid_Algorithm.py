@@ -181,6 +181,13 @@ class HybridAlgorithm:
         # Keep 20% buffer for safety
         usable_energy = available_energy * 0.8
         
+        # Calculate energy efficiency score safely
+        if usable_energy > 0:
+            energy_efficiency_score = max(0, 1 - (total_consumption / usable_energy))
+        else:
+            # If no usable energy, efficiency score is 0
+            energy_efficiency_score = 0
+        
         return {
             'base_consumption_kwh': round(base_consumption, 2),
             'ac_penalty_kwh': round(ac_penalty, 2),
@@ -190,7 +197,7 @@ class HybridAlgorithm:
             'available_energy_kwh': round(available_energy, 2),
             'usable_energy_kwh': round(usable_energy, 2),
             'is_reachable': total_consumption <= usable_energy,
-            'energy_efficiency_score': max(0, 1 - (total_consumption / usable_energy)) if usable_energy > 0 else 0
+            'energy_efficiency_score': energy_efficiency_score
         }
 
     def calculate_eta(self, distance_km, driving_mode='random', traffic_condition='light', 
@@ -375,6 +382,22 @@ class HybridAlgorithm:
         plug_type = user_context.get('plug_type', '')
         urgency = user_context.get('urgency', 'medium')
         
+        # Ensure battery_percentage is a number and within valid range
+        try:
+            battery_percentage = float(battery_percentage) if battery_percentage is not None else 100.0
+            battery_percentage = max(1, min(100, battery_percentage))  # Clamp between 1% and 100%
+        except (ValueError, TypeError):
+            battery_percentage = 100.0
+            logger.warning(f"Invalid battery_percentage value in calculate_enhanced_score: {user_context.get('battery_percentage')}, using default 100%")
+        
+        # Ensure passengers is a number
+        try:
+            passengers = int(passengers) if passengers is not None else 1
+            passengers = max(1, min(8, passengers))  # Clamp between 1 and 8
+        except (ValueError, TypeError):
+            passengers = 1
+            logger.warning(f"Invalid passengers value in calculate_enhanced_score: {user_context.get('passengers')}, using default 1")
+        
         # 1. Distance score (closer is better, max distance considered is 50km)
         max_distance = 50
         distance_score = max(0, 1 - (distance / max_distance))
@@ -399,22 +422,28 @@ class HybridAlgorithm:
         )
         energy_efficiency_score = energy_analysis['energy_efficiency_score']
         
-        # Enhanced energy efficiency scoring based on battery level
+        # Enhanced energy efficiency scoring based on battery level and urgency
         if battery_percentage <= 20:
             # Critical battery - heavily penalize stations that are not reachable
             if not energy_analysis['is_reachable']:
                 energy_efficiency_score = 0
             else:
                 # Boost score for stations that are easily reachable
-                energy_efficiency_score = min(1.0, energy_efficiency_score * 1.5)
+                energy_efficiency_score = min(1.0, energy_efficiency_score * 2.0)  # Double boost for critical battery
         elif battery_percentage <= 40:
             # Low battery - moderate penalty for unreachable stations
             if not energy_analysis['is_reachable']:
-                energy_efficiency_score = energy_efficiency_score * 0.3
+                energy_efficiency_score = energy_efficiency_score * 0.2  # 80% penalty
             else:
-                energy_efficiency_score = min(1.0, energy_efficiency_score * 1.2)
+                energy_efficiency_score = min(1.0, energy_efficiency_score * 1.5)  # 50% boost
+        elif battery_percentage <= 60:
+            # Medium battery - standard scoring with slight boost for reachable
+            if not energy_analysis['is_reachable']:
+                energy_efficiency_score = energy_efficiency_score * 0.5  # 50% penalty
+            else:
+                energy_efficiency_score = min(1.0, energy_efficiency_score * 1.2)  # 20% boost
         else:
-            # Normal battery - standard scoring
+            # High battery - standard scoring
             if not energy_analysis['is_reachable']:
                 energy_efficiency_score = 0
         
@@ -428,7 +457,7 @@ class HybridAlgorithm:
             terrain, weather
         )
         
-        # 4. Enhanced Urgency score
+        # 5. Enhanced Urgency score with dynamic multipliers
         urgency_multipliers = {
             'low': 0.3,
             'medium': 0.6,
@@ -438,20 +467,27 @@ class HybridAlgorithm:
         urgency_multiplier = urgency_multipliers.get(urgency.lower(), 0.6)
         urgency_score = urgency_multiplier
         
-        # Additional urgency bonuses based on context
+        # Additional urgency bonuses based on context and battery level
         if urgency.lower() == 'emergency':
             # Emergency gets maximum score
             urgency_score = 1.0
+            # Additional bonus for nearby stations in emergency
+            if distance <= 5:
+                urgency_score = min(1.0, urgency_score + 0.3)  # 30% bonus for very close stations
+            elif distance <= 15:
+                urgency_score = min(1.0, urgency_score + 0.2)  # 20% bonus for close stations
         elif urgency.lower() == 'high':
             # High urgency gets bonus for nearby stations
             if distance <= 10:
                 urgency_score = min(1.0, urgency_score + 0.2)
+            elif distance <= 25:
+                urgency_score = min(1.0, urgency_score + 0.1)
         elif urgency.lower() == 'low':
             # Low urgency gets bonus for better amenities/rating
             if station.get('rating', 0) >= 4.0:
                 urgency_score = min(1.0, urgency_score + 0.1)
         
-        # 5. Pricing score (lower price is better)
+        # 6. Pricing score (lower price is better)
         pricing = station.get('pricing', 20)  # Default to 20 NPR/kWh
         
         # Ensure pricing is a number
@@ -464,11 +500,11 @@ class HybridAlgorithm:
         min_price = 10
         price_score = max(0, 1 - ((pricing - min_price) / (max_price - min_price)))
         
-        # 6. Plug compatibility score
+        # 7. Plug compatibility score
         station_plugs = station.get('connector_types', [])
         plug_compatibility_score = 1.0 if plug_type in station_plugs or not plug_type else 0.3
         
-        # 7. Rating score
+        # 8. Rating score
         rating = station.get('rating', 4.0)
         
         # Ensure rating is a number
@@ -479,17 +515,51 @@ class HybridAlgorithm:
         
         rating_score = rating / 5.0
         
-        # 8. ETA score (shorter travel time is better)
+        # 9. ETA score (shorter travel time is better)
         # Convert travel time to a score (0-1, where 1 is best)
         max_expected_time = 120  # 2 hours max expected travel time
         eta_score = max(0, 1 - (eta_analysis['travel_time_minutes'] / max_expected_time))
         
-        # Get dynamic weights based on urgency level
+        # Get dynamic weights based on urgency level and battery percentage
         urgency_level = urgency.lower()
         if urgency_level in self.context_weight_adjustments:
-            weights = self.context_weight_adjustments[urgency_level]
+            weights = self.context_weight_adjustments[urgency_level].copy()
         else:
-            weights = self.base_weights
+            weights = self.base_weights.copy()
+        
+        # Adjust weights based on battery level for better parameter sensitivity
+        # Use safer weight adjustments that don't break the algorithm
+        if battery_percentage <= 20:
+            # Critical battery - prioritize energy efficiency and distance
+            weights['energy_efficiency'] = min(0.35, weights.get('energy_efficiency', 0.15) * 1.5)
+            weights['distance'] = min(0.35, weights.get('distance', 0.25) * 1.3)
+            weights['price'] = max(0.05, weights.get('price', 0.10) * 0.5)  # Reduce price importance
+            weights['rating'] = max(0.02, weights.get('rating', 0.05) * 0.5)  # Reduce rating importance
+        elif battery_percentage <= 40:
+            # Low battery - moderate adjustments
+            weights['energy_efficiency'] = min(0.30, weights.get('energy_efficiency', 0.15) * 1.3)
+            weights['distance'] = min(0.30, weights.get('distance', 0.25) * 1.2)
+            weights['price'] = max(0.05, weights.get('price', 0.10) * 0.7)
+        elif battery_percentage >= 80:
+            # High battery - prioritize other factors
+            weights['price'] = min(0.15, weights.get('price', 0.10) * 1.3)
+            weights['rating'] = min(0.08, weights.get('rating', 0.05) * 1.5)
+            weights['energy_efficiency'] = max(0.08, weights.get('energy_efficiency', 0.15) * 0.8)
+        
+        # Ensure all required weights exist
+        required_weights = ['distance', 'availability', 'energy_efficiency', 'urgency', 'price', 'plug_compatibility', 'rating']
+        for weight_key in required_weights:
+            if weight_key not in weights:
+                weights[weight_key] = self.base_weights.get(weight_key, 0.1)
+        
+        # Normalize weights to ensure they sum to 1.0
+        total_weight = sum(weights.values())
+        if total_weight > 0:
+            weights = {k: v / total_weight for k, v in weights.items()}
+        else:
+            # Fallback to base weights if normalization fails
+            weights = self.base_weights.copy()
+            logger.warning(f"Weight normalization failed for battery {battery_percentage}%, using base weights")
         
         # Calculate composite score with dynamic weights
         composite_score = (
@@ -517,7 +587,8 @@ class HybridAlgorithm:
             },
             'energy_analysis': energy_analysis,
             'eta_analysis': eta_analysis,
-            'is_reachable': energy_analysis['is_reachable']
+            'is_reachable': energy_analysis['is_reachable'],
+            'weights_used': weights
         }
 
     def get_enhanced_recommendations(self, user_location, stations, user_context=None, max_recommendations=5):
@@ -567,6 +638,28 @@ class HybridAlgorithm:
             # Calculate enhanced scores for all stations
             scored_stations = []
             route_filtered_count = 0
+            unreachable_filtered_count = 0
+            
+            # Extract key parameters for dynamic filtering
+            battery_percentage = user_context.get('battery_percentage', 100)
+            # Ensure battery_percentage is a number
+            try:
+                battery_percentage = float(battery_percentage) if battery_percentage is not None else 100.0
+            except (ValueError, TypeError):
+                battery_percentage = 100.0
+                logger.warning(f"Invalid battery_percentage value: {user_context.get('battery_percentage')}, using default 100%")
+            
+            urgency = user_context.get('urgency', 'medium')
+            
+            # Determine if we should filter unreachable stations based on context
+            # Always filter unreachable for low battery or emergency situations
+            should_filter_unreachable = (
+                battery_percentage <= 30 or 
+                urgency.lower() in ['high', 'emergency'] or
+                user_context.get('filter_unreachable', False)
+            )
+            
+            logger.info(f"Battery: {battery_percentage}%, Urgency: {urgency}, Filter unreachable: {should_filter_unreachable}")
             
             for station in stations:
                 try:
@@ -592,7 +685,6 @@ class HybridAlgorithm:
                     if route_filtering_enabled and destination_coords:
                         # Adjust max detour based on urgency level
                         base_max_detour = user_context.get('max_detour_km', 20)
-                        urgency = user_context.get('urgency', 'medium')
                         
                         # For high urgency, be more lenient with route filtering
                         urgency_detour_multipliers = {
@@ -637,7 +729,34 @@ class HybridAlgorithm:
                     normalized_station = self._normalize_station_data(station)
                     
                     # Calculate enhanced composite score
-                    score_analysis = self.calculate_enhanced_score(normalized_station, distance, user_context)
+                    try:
+                        score_analysis = self.calculate_enhanced_score(normalized_station, distance, user_context)
+                    except Exception as score_error:
+                        logger.error(f"Error calculating score for station {station.get('id', 'unknown')}: {score_error}")
+                        # Use a basic score calculation as fallback
+                        basic_score = max(0, 1 - (distance / 50))  # Simple distance-based score
+                        score_analysis = {
+                            'total_score': basic_score,
+                            'breakdown': {
+                                'distance_score': basic_score,
+                                'availability_score': 0.5,
+                                'energy_efficiency_score': 0.5,
+                                'urgency_score': 0.5,
+                                'price_score': 0.5,
+                                'plug_compatibility_score': 0.5,
+                                'rating_score': 0.5,
+                                'eta_score': 0.5
+                            },
+                            'energy_analysis': {
+                                'total_consumption_kwh': distance * 0.2,
+                                'usable_energy_kwh': (battery_percentage / 100) * 60 * 0.8,
+                                'is_reachable': True
+                            },
+                            'eta_analysis': {
+                                'travel_time_minutes': distance * 1.5
+                            },
+                            'is_reachable': True
+                        }
                     
                     # Boost score for stations along route to destination
                     if route_analysis and route_analysis['is_along_route']:
@@ -646,8 +765,10 @@ class HybridAlgorithm:
                         score_analysis['total_score'] = min(1.0, score_analysis['total_score'] + route_efficiency_bonus)
                         score_analysis['breakdown']['route_efficiency_bonus'] = round(route_efficiency_bonus, 3)
                     
-                    # Skip stations that are not reachable with current battery if filtering is enabled
-                    if not score_analysis['is_reachable'] and user_context.get('filter_unreachable', False):
+                    # Apply dynamic filtering based on reachability
+                    if should_filter_unreachable and not score_analysis['is_reachable']:
+                        unreachable_filtered_count += 1
+                        logger.debug(f"Station {station.get('id', 'unknown')} filtered out: unreachable (needs {score_analysis['energy_analysis']['total_consumption_kwh']} kWh, has {score_analysis['energy_analysis']['usable_energy_kwh']} kWh)")
                         continue
                     
                     # Create enhanced recommendation entry
@@ -698,6 +819,61 @@ class HybridAlgorithm:
             # Sort by score (descending)
             scored_stations.sort(key=lambda x: x['score'], reverse=True)
             
+            # Apply fallback logic if no reachable stations found
+            reachable_stations = [s for s in scored_stations if s['is_reachable']]
+            if should_filter_unreachable and not reachable_stations and scored_stations:
+                logger.warning("No reachable stations found, providing fallback recommendations with reduced scores")
+                # Include unreachable stations but with heavily reduced scores
+                for station in scored_stations:
+                    if not station['is_reachable']:
+                        # Reduce score by 50% for unreachable stations in fallback mode
+                        station['score'] = station['score'] * 0.5
+                        station['fallback_recommendation'] = True
+                        station['fallback_reason'] = f"Station requires {station['energy_analysis']['total_consumption_kwh']} kWh but only {station['energy_analysis']['usable_energy_kwh']} kWh available"
+                
+                # Re-sort with reduced scores
+                scored_stations.sort(key=lambda x: x['score'], reverse=True)
+            
+            # Ensure we always return at least some recommendations if stations exist
+            if not scored_stations and stations:
+                logger.warning("No scored stations found, creating basic recommendations")
+                # Create basic recommendations as fallback
+                for i, station in enumerate(stations[:max_recommendations]):
+                    try:
+                        station_location = None
+                        if 'latitude' in station and 'longitude' in station:
+                            station_location = [station['latitude'], station['longitude']]
+                        elif 'location' in station:
+                            if isinstance(station['location'], dict) and 'coordinates' in station['location']:
+                                station_location = station['location']['coordinates']
+                            elif isinstance(station['location'], list) and len(station['location']) == 2:
+                                station_location = station['location']
+                        
+                        if station_location:
+                            distance = self.haversine_distance(
+                                user_location[0], user_location[1],
+                                station_location[0], station_location[1]
+                            )
+                            
+                            basic_recommendation = {
+                                'id': station.get('id', f'fallback_{i}'),
+                                'name': station.get('name', f'Station {i+1}'),
+                                'location': station_location,
+                                'distance': round(distance, 2),
+                                'score': max(0.1, 1 - (distance / 50)),  # Basic distance-based score
+                                'is_reachable': True,
+                                'energy_analysis': {
+                                    'total_consumption_kwh': distance * 0.2,
+                                    'usable_energy_kwh': (battery_percentage / 100) * 60 * 0.8
+                                },
+                                'fallback_recommendation': True,
+                                'fallback_reason': 'Basic fallback recommendation due to scoring issues'
+                            }
+                            scored_stations.append(basic_recommendation)
+                    except Exception as e:
+                        logger.error(f"Error creating fallback recommendation: {e}")
+                        continue
+            
             # Return top recommendations
             recommendations = scored_stations[:max_recommendations]
             
@@ -708,8 +884,11 @@ class HybridAlgorithm:
                 algorithm_used += f' (Route to {destination_city})'
             
             logger.info(f"Generated {len(recommendations)} enhanced recommendations from {len(stations)} stations")
+            logger.info(f"Reachable stations: {len(reachable_stations)}/{len(scored_stations)}")
             if route_filtering_enabled:
                 logger.info(f"Route filtering: {route_filtered_count} stations filtered out")
+            if should_filter_unreachable:
+                logger.info(f"Unreachable filtering: {unreachable_filtered_count} stations filtered out")
             
             return {
                 'recommendations': recommendations,
@@ -719,19 +898,24 @@ class HybridAlgorithm:
                     'total_stations_processed': len(stations),
                     'stations_filtered': len(stations) - len(scored_stations),
                     'route_filtered': route_filtered_count if route_filtering_enabled else 0,
+                    'unreachable_filtered': unreachable_filtered_count if should_filter_unreachable else 0,
+                    'reachable_stations': len(reachable_stations),
                     'context_aware': bool(user_context),
-                    'destination_filtering': route_filtering_enabled,
-                    'destination_city': destination_city,
-                    'destination_coords': destination_coords
+                    'filtering_applied': {
+                        'filter_unreachable': should_filter_unreachable,
+                        'route_filtering': route_filtering_enabled,
+                        'battery_percentage': battery_percentage,
+                        'urgency_level': urgency
+                    }
                 }
             }
             
         except Exception as e:
-            logger.error(f"Error generating enhanced recommendations: {e}")
+            logger.error(f"Error in get_enhanced_recommendations: {e}")
             return {
                 'recommendations': [],
                 'algorithm_info': {
-                    'algorithm_used': 'Enhanced Hybrid Algorithm',
+                    'algorithm_used': 'Enhanced Hybrid Algorithm (Error)',
                     'processing_time_ms': 0,
                     'total_stations_processed': 0,
                     'error': str(e)
