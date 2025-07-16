@@ -19,6 +19,9 @@ import Map from "./pages/Map";
 import Recommendations from "./pages/Recommendations";
 import RouteMap from "./pages/RouteMap";
 import BookingPage from "./pages/BookingPage";
+import PaymentPage from "./pages/PaymentPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import BookingDetailsPage from "./pages/BookingDetailsPage";
 
 const App = () => {
   return (
@@ -54,6 +57,30 @@ const App = () => {
                 element={
                   <ProtectedRoute>
                     <BookingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment"
+                element={
+                  <ProtectedRoute>
+                    <PaymentPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payment-success"
+                element={
+                  <ProtectedRoute>
+                    <PaymentSuccessPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/booking-details/:bookingId"
+                element={
+                  <ProtectedRoute>
+                    <BookingDetailsPage />
                   </ProtectedRoute>
                 }
               />
