@@ -135,22 +135,11 @@ const BookingPage = () => {
       if (response.data.success) {
         const booking = response.data.booking;
         
-        // Check if payment is required
-        if (booking.requires_payment && booking.status === 'pending_payment') {
-          // Redirect to payment page
-          navigate('/payment', {
-            state: {
-              booking: booking,
-              station: station
-            }
-          });
-        } else {
-          // Booking confirmed without payment
-          setSuccess(true);
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 3000);
-        }
+        // Booking confirmed - no upfront payment required
+        setSuccess(true);
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 3000);
       } else {
         setError(response.data.error || 'Booking failed');
       }
@@ -202,12 +191,17 @@ const BookingPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Booking Created! 🎉</h1>
-          <p className="text-gray-600 mb-6">
-            Your charging slot has been created at <strong>{station.name}</strong> for{' '}
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Booking Confirmed! 🎉</h1>
+          <p className="text-gray-600 mb-4">
+            Your charging slot has been confirmed at <strong>{station.name}</strong> for{' '}
             <strong>{formData.booking_date}</strong> at <strong>{formData.booking_time}</strong>.
-            Redirecting to payment...
           </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-blue-800 text-sm">
+              💡 <strong>Pay at Station:</strong> You'll pay based on actual usage after charging. 
+              The admin will set the amount based on your charging time and energy consumed.
+            </p>
+          </div>
           <div className="space-y-3">
             <button
               onClick={() => navigate('/dashboard')}
@@ -258,6 +252,19 @@ const BookingPage = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-2xl shadow-lg p-6 sticky top-8">
               <h2 className="text-xl font-bold text-gray-800 mb-4">{station.name}</h2>
+              
+              {/* Show warning for unavailable stations */}
+              {station.status === 'unavailable' && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center">
+                    <span className="text-red-500 mr-2">⚠️</span>
+                    <div>
+                      <p className="text-red-800 font-medium">Station Unavailable</p>
+                      <p className="text-red-600 text-sm">{station.note}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Station Details */}
               <div className="space-y-4">
@@ -473,7 +480,7 @@ const BookingPage = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={bookingLoading || !formData.booking_date || !formData.booking_time || availableSlots === 0}
+                    disabled={bookingLoading || !formData.booking_date || !formData.booking_time || availableSlots === 0 || station.status === 'unavailable'}
                     className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                   >
                     {bookingLoading ? (
@@ -481,12 +488,27 @@ const BookingPage = () => {
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                         Booking...
                       </div>
+                    ) : station.status === 'unavailable' ? (
+                      'Station Unavailable'
                     ) : (
                       '📅 Confirm Booking'
                     )}
                   </button>
                 </div>
               </form>
+
+              {/* Show message for unavailable stations */}
+              {station.status === 'unavailable' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <div className="flex items-center">
+                    <span className="text-yellow-500 mr-2">ℹ️</span>
+                    <div>
+                      <p className="text-yellow-800 font-medium">Booking Not Available</p>
+                      <p className="text-yellow-600 text-sm">This station is currently unavailable for booking. Please try another station.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
