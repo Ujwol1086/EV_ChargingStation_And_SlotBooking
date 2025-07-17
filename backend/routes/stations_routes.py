@@ -77,7 +77,7 @@ def normalize_station_data(station, index):
         logger.error(f"Error normalizing station data: {e}")
         return None
 
-@stations_bp.route('/list', methods=['GET'])
+@stations_bp.route('/', methods=['GET'])
 def get_charging_stations():
     """Get all charging stations"""
     try:
@@ -120,6 +120,11 @@ def get_charging_stations():
             'success': False,
             'error': str(e)
         }), 500
+
+@stations_bp.route('/list', methods=['GET'])
+def get_charging_stations_list():
+    """Get all charging stations (list route)"""
+    return get_charging_stations()
 
 @stations_bp.route('/<station_id>', methods=['GET'])
 def get_charging_station(station_id):
@@ -188,4 +193,4 @@ def get_charging_station(station_id):
         return jsonify({
             'success': False,
             'error': str(e)
-        }), 500
+        }), 500 

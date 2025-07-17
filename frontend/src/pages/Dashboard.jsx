@@ -1,5 +1,5 @@
 import { useAuth } from "../context/useAuth";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import axios from "../api/axios";
 
@@ -7,18 +7,66 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [activeBookings, setActiveBookings] = useState([]);
+  const [pendingPayments, setPendingPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     activeBookings: 0,
     completedBookings: 0,
     totalBookings: 0,
     totalSpent: 0,
-    totalCost: 0
+    totalCost: 0,
+    pendingPayments: 0
   });
+  
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchBookingData();
-  }, []);
+    
+    // Check for payment completion flag
+    const checkPaymentCompletion = () => {
+      const paymentCompleted = localStorage.getItem('payment_completed');
+      const paymentTimestamp = localStorage.getItem('payment_timestamp');
+      const forceRefresh = localStorage.getItem('force_immediate_refresh');
+      
+      // Also check navigation state for immediate payment completion
+      const navigationPaymentCompleted = location.state?.paymentCompleted;
+      
+      if ((paymentCompleted === 'true' && paymentTimestamp) || navigationPaymentCompleted || forceRefresh === 'true') {
+        const timestamp = paymentTimestamp ? parseInt(paymentTimestamp) : Date.now();
+        const now = Date.now();
+        
+        // If payment was completed within the last 5 minutes, refresh data
+        if (now - timestamp < 5 * 60 * 1000 || navigationPaymentCompleted || forceRefresh === 'true') {
+          console.log('Payment recently completed, refreshing dashboard data...', {
+            fromLocalStorage: paymentCompleted === 'true',
+            fromNavigation: navigationPaymentCompleted,
+            forceRefresh: forceRefresh === 'true',
+            bookingId: location.state?.bookingId,
+            transactionId: location.state?.transactionId
+          });
+          
+          // Force refresh with a small delay to ensure backend has updated
+          setTimeout(() => {
+            fetchBookingData();
+          }, forceRefresh === 'true' ? 500 : 1000); // Shorter delay for force refresh
+          
+          // Clear the flags after refresh
+          localStorage.removeItem('payment_completed');
+          localStorage.removeItem('payment_timestamp');
+          localStorage.removeItem('force_immediate_refresh');
+          
+          // Clear navigation state
+          if (navigationPaymentCompleted) {
+            navigate('/dashboard', { replace: true, state: {} });
+          }
+        }
+      }
+    };
+    
+    checkPaymentCompletion();
+  }, []); // Initial load only
 
   const fetchBookingData = async () => {
     try {
@@ -27,6 +75,7 @@ export default function Dashboard() {
       // Fetch all bookings
       const allBookingsResponse = await axios.get('/recommendations/my-bookings');
       const activeBookingsResponse = await axios.get('/recommendations/active-bookings');
+      const pendingPaymentsResponse = await axios.get('/bookings/pending-payments');
 
       if (allBookingsResponse.data.success) {
         const allBookings = allBookingsResponse.data.bookings;
@@ -40,12 +89,18 @@ export default function Dashboard() {
           return sum + (booking.amount_npr || 0);
         }, 0);
 
+        // Set pending payments
+        if (pendingPaymentsResponse.data.success) {
+          setPendingPayments(pendingPaymentsResponse.data.pending_payments);
+        }
+
         setStats({
           activeBookings: activeBookingsResponse.data.success ? activeBookingsResponse.data.bookings.length : 0,
           completedBookings: completed,
           totalBookings: allBookings.length,
           totalSpent: totalCost, // Keep for backward compatibility
-          totalCost: totalCost
+          totalCost: totalCost,
+          pendingPayments: pendingPaymentsResponse.data.success ? pendingPaymentsResponse.data.count : 0
         });
       }
 
@@ -102,7 +157,8 @@ export default function Dashboard() {
       case 'pending': return 'text-yellow-600 bg-yellow-100';
       case 'deferred': return 'text-blue-600 bg-blue-100';
       case 'failed': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'none': return 'text-blue-600 bg-blue-100';
+      default: return 'text-blue-600 bg-blue-100';
     }
   };
 
@@ -112,13 +168,100 @@ export default function Dashboard() {
       case 'pending': return 'Payment Pending';
       case 'deferred': return 'Pay at Station';
       case 'failed': return 'Payment Failed';
-      default: return 'Unknown';
+      case 'none': return 'Completed';
+      default: return 'Completed';
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="container mx-auto px-6 py-8">
+        {/* Payment Success Notification */}
+        {location.state?.paymentCompleted && (
+          <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold">🎉 Payment Successful!</h3>
+                <p className="text-green-100">
+                  Your payment has been confirmed and processed successfully.
+                  <br />
+                  <span className="text-sm">
+                    Booking ID: {location.state?.bookingId} • Transaction ID: {location.state?.transactionId}
+                  </span>
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending Payments Notification */}
+        {pendingPayments.length > 0 && (
+          <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                                     <h3 className="text-lg font-bold">💰 Payment Required!</h3>
+                   <p className="text-orange-100">
+                     You have {pendingPayments.length} completed charging session{pendingPayments.length > 1 ? 's' : ''} ready for payment.
+                     <br />
+                     <span className="text-sm">Amounts set by admin based on actual usage.</span>
+                   </p>
+                </div>
+              </div>
+              {/* <Link
+                to="/payment-center"
+                className="bg-white text-orange-600 px-4 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-colors"
+              >
+                Pay with Khalti
+              </Link> */}
+            </div>
+            
+            {/* Show pending payment details */}
+            <div className="mt-4 space-y-2">
+              {pendingPayments.slice(0, 3).map((payment) => (
+                                 <div key={payment.booking_id} className="bg-white/10 rounded-lg p-3 flex justify-between items-center">
+                   <div className="flex-1">
+                     <p className="font-medium">{payment.station_details?.name || `Station ${payment.station_id}`}</p>
+                     <p className="text-sm text-orange-100">
+                       {payment.booking_id} • Completed: {new Date(payment.admin_set_amount_at).toLocaleDateString()}
+                     </p>
+                     {payment.actual_charging_duration && (
+                       <p className="text-xs text-orange-200">
+                         Charging time: {payment.actual_charging_duration} minutes
+                       </p>
+                     )}
+                   </div>
+                   <div className="text-right">
+                     <p className="font-bold text-lg">₹{payment.amount_npr}</p>
+                     <p className="text-xs text-orange-200 mb-2">Amount set by admin</p>
+                     <button
+                       onClick={() => window.location.href = `/payment?booking_id=${payment.booking_id}`}
+                       className="text-sm bg-white text-orange-600 px-3 py-2 rounded font-semibold hover:bg-orange-50 transition-colors"
+                     >
+                       Pay with Khalti
+                     </button>
+                   </div>
+                 </div>
+              ))}
+              {pendingPayments.length > 3 && (
+                <p className="text-center text-orange-100 text-sm">
+                  +{pendingPayments.length - 3} more pending payment{pendingPayments.length - 3 > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Welcome Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 mb-8 text-white relative overflow-hidden">
           <div className="absolute inset-0 bg-black/10"></div>
@@ -131,7 +274,20 @@ export default function Dashboard() {
                 Manage your EV charging experience from your personal dashboard
               </p>
             </div>
-            <div className="hidden md:block">
+            <div className="hidden md:flex items-center space-x-4">
+              <button
+                onClick={() => {
+                  console.log('Manual refresh triggered');
+                  fetchBookingData();
+                }}
+                className="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
+                disabled={loading}
+              >
+                <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
               <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                 <div className="w-12 h-12 bg-green-400 rounded-full flex items-center justify-center">
                   <span className="text-xl font-bold text-green-900">
@@ -202,6 +358,35 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Pending Payments Stats */}
+        {stats.pendingPayments > 0 && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 p-6 rounded-xl shadow-lg text-white">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div className="ml-4 flex-1">
+                  <p className="text-2xl font-bold">
+                    {loading ? '...' : stats.pendingPayments} Payment{stats.pendingPayments > 1 ? 's' : ''} Pending
+                  </p>
+                  <p className="text-orange-100">
+                    Rs. {pendingPayments.reduce((sum, p) => sum + (p.amount_npr || 0), 0)} total due
+                  </p>
+                </div>
+                <button
+                  onClick={() => window.location.href = '/payment?booking_id=' + pendingPayments[0]?.booking_id}
+                  className="bg-white text-orange-600 px-4 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-colors"
+                >
+                  Pay with Khalti
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recent Bookings */}
@@ -254,14 +439,22 @@ export default function Dashboard() {
                           <h4 className="font-medium text-gray-800">
                             {booking.station_details?.name || `Station ${booking.station_id}`}
                           </h4>
-                          {/* Show payment status if it's different from booking status or if booking status is pending_payment */}
-                          {booking.payment_status && (booking.status === 'pending_payment' || booking.payment_status !== 'pending') ? (
+                          {/* Show appropriate status based on booking state */}
+                          {booking.status === 'completed' && booking.admin_amount_set && booking.requires_payment ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor('pending')}`}>
+                              Payment Pending
+                            </span>
+                          ) : booking.status === 'completed' && !booking.admin_amount_set ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor('completed')}`}>
+                              Charging Completed
+                            </span>
+                          ) : booking.payment_status && booking.payment_status !== 'none' ? (
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
                               {getPaymentStatusText(booking.payment_status)}
                             </span>
                           ) : (
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                              {booking.status.replace('_', ' ')}
+                              {booking.status === 'confirmed' ? 'Active' : booking.status === 'completed' ? 'Completed' : booking.status.replace('_', ' ')}
                             </span>
                           )}
                         </div>
@@ -285,7 +478,7 @@ export default function Dashboard() {
                             to={`/booking-details/${booking.booking_id}`}
                             className="px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
                           >
-                            Pay Now
+                            Pay with Khalti
                           </Link>
                         )}
                         <Link

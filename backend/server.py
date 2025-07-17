@@ -22,20 +22,13 @@ def create_app():
     """Create and configure Flask application"""
     app = Flask(__name__)
     
-    # Initialize CORS with more specific settings
-    CORS(app, resources={r"/*": {
-        "origins": [
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:3000",  # Common React dev port
-            "http://192.168.1.67:5173"  # Your local network IP for mobile
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "expose_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True,
-        "max_age": 86400  # Cache preflight for 24 hours
-    }})
+    # Initialize CORS with more permissive settings for development
+    CORS(app, 
+         origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://192.168.1.67:5173"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+         supports_credentials=True,
+         max_age=86400)
     
     # Initialize database
     try:
@@ -67,6 +60,11 @@ def create_app():
     @app.route("/")
     def index():
         return {"message": "Welcome to EVConnectNepal API"}
+    
+    # Handle CORS preflight requests
+    @app.route("/api/<path:path>", methods=["OPTIONS"])
+    def handle_options(path):
+        return "", 204
     
     return app
 

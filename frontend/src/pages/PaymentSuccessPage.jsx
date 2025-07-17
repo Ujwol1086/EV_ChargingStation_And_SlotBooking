@@ -20,18 +20,114 @@ const PaymentSuccessPage = () => {
   const token = searchParams.get('token');
   const amount = searchParams.get('amount');
   const status = searchParams.get('status');
+  
+  // Also check for alternative parameter names that Khalti might use
+  const pidx = searchParams.get('pidx');
+  const purchase_order_id = searchParams.get('purchase_order_id');
+  const txn_id = searchParams.get('txn_id');
+
+  // Add detailed logging
+  console.log('PaymentSuccessPage URL params:', {
+    token,
+    amount,
+    status,
+    pidx,
+    purchase_order_id,
+    txn_id,
+    allParams: Object.fromEntries(searchParams.entries()),
+    locationState: location.state,
+    currentBooking: booking,
+    currentStation: station
+  });
 
   useEffect(() => {
+    console.log('PaymentSuccessPage useEffect triggered:', {
+      hasBooking: !!booking,
+      hasStation: !!station,
+      token,
+      pidx,
+      txn_id,
+      status,
+      amount
+    });
+
     // If we don't have booking data from location state, try to get it from URL params
-    if (!booking && token && status === 'success') {
-      fetchBookingFromPayment(token, amount);
+    if (!booking) {
+      // Try different combinations of parameters
+      const paymentToken = token || pidx || txn_id;
+      const paymentAmount = amount;
+      
+      if (paymentToken && paymentAmount && (status === 'success' || status === 'completed')) {
+        console.log('Attempting to fetch booking from payment verification...');
+        fetchBookingFromPayment(paymentToken, paymentAmount);
+      } else if (purchase_order_id && paymentAmount) {
+        // If we have booking ID and amount, try to fetch booking directly
+        console.log('Attempting to fetch booking by booking ID...');
+        fetchBookingById(purchase_order_id);
+      } else {
+        console.log('Insufficient parameters for payment verification:', {
+          paymentToken,
+          paymentAmount,
+          status,
+          purchase_order_id
+        });
+      }
     } else if (booking && !station) {
       // If we have booking but no station, fetch station details
       if (booking.station_id) {
+        console.log('Fetching station details for existing booking...');
         fetchStationDetails(booking.station_id);
       }
+    } else {
+      console.log('No action needed in useEffect:', {
+        reason: 'already have booking and station'
+      });
     }
-  }, [token, status, booking, station]);
+  }, [token, pidx, txn_id, status, amount, purchase_order_id, booking, station]);
+
+  const fetchBookingById = async (bookingId) => {
+    try {
+      setLoading(true);
+      setError('');
+
+      console.log('Fetching booking by ID:', bookingId);
+
+      // Get booking details directly
+      const response = await axios.get(`/bookings/${bookingId}`);
+
+      console.log('Booking fetch response:', response.data);
+
+      if (response.data.success) {
+        const bookingData = response.data.booking;
+        console.log('Setting booking data from direct fetch:', bookingData);
+        setBooking(bookingData);
+        
+        // Fetch station details if available
+        if (bookingData.station_id) {
+          console.log('Fetching station details for station_id:', bookingData.station_id);
+          await fetchStationDetails(bookingData.station_id);
+        }
+      } else {
+        console.error('Booking fetch failed:', response.data);
+        setError(response.data.error || 'Failed to fetch booking details');
+      }
+    } catch (err) {
+      console.error('Booking fetch error:', err);
+      console.error('Error response:', err.response?.data);
+      setError(err.response?.data?.error || 'Failed to fetch booking details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerDashboardRefresh = () => {
+    // Store a flag in localStorage to trigger dashboard refresh
+    localStorage.setItem('payment_completed', 'true');
+    localStorage.setItem('payment_timestamp', Date.now().toString());
+    
+    // Also trigger a more immediate refresh using a different flag
+    localStorage.setItem('force_immediate_refresh', 'true');
+  };
 
   const fetchBookingFromPayment = async (paymentToken, paymentAmount) => {
     try {
@@ -52,8 +148,17 @@ const PaymentSuccessPage = () => {
         const bookingId = response.data.booking_id;
         setTransactionId(response.data.transaction_id);
 
+        console.log('Payment verification successful:', {
+          bookingId,
+          transactionId: response.data.transaction_id,
+          hasBookingData: !!response.data.booking,
+          bookingData: response.data.booking,
+          testMode: response.data.test_mode
+        });
+
         // Use booking data from verification response
         if (response.data.booking) {
+          console.log('Setting booking data:', response.data.booking);
           setBooking(response.data.booking);
           
           // Check if this is test mode
@@ -69,19 +174,26 @@ const PaymentSuccessPage = () => {
               telephone: '+977-1-4XXXXXX',
               pricing: '₹50/hour'
             };
+            console.log('Setting mock station for test mode:', mockStation);
             setStation(mockStation);
           } else {
             // Fetch station details for real payments
+            console.log('Fetching station details for station_id:', response.data.booking.station_id);
             await fetchStationDetails(response.data.booking.station_id);
           }
         } else {
+          console.error('No booking data in verification response');
           setError('No booking data received from payment verification');
         }
+
+        triggerDashboardRefresh();
       } else {
+        console.error('Payment verification failed:', response.data);
         setError(response.data.error || 'Payment verification failed');
       }
     } catch (err) {
       console.error('Payment verification error:', err);
+      console.error('Error response:', err.response?.data);
       setError(err.response?.data?.error || 'Failed to verify payment');
     } finally {
       setLoading(false);
@@ -158,26 +270,53 @@ const PaymentSuccessPage = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Invalid Success Page</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Loading Payment Information...</h2>
             <p className="text-gray-600 mb-6">
-              No booking information found. 
-              {token && <span className="block text-sm mt-2">Token: {token}</span>}
-              {amount && <span className="block text-sm">Amount: {amount}</span>}
+              {loading ? (
+                "Please wait while we verify your payment..."
+              ) : (
+                <>
+                  Payment completed but booking details are being retrieved.
+                  {token && <span className="block text-sm mt-2">Token: {token}</span>}
+                  {pidx && <span className="block text-sm">Payment ID: {pidx}</span>}
+                  {amount && <span className="block text-sm">Amount: {amount}</span>}
+                  {purchase_order_id && <span className="block text-sm">Booking ID: {purchase_order_id}</span>}
+                </>
+              )}
             </p>
-            <div className="space-y-2">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Go to Dashboard
-              </button>
-              <button
-                onClick={() => navigate('/recommendations')}
-                className="w-full px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                Book Again
-              </button>
-            </div>
+            {!loading && (
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    // Try to refetch with available data
+                    const paymentToken = token || pidx || txn_id;
+                    if (paymentToken && amount) {
+                      console.log('Retrying payment verification...');
+                      fetchBookingFromPayment(paymentToken, amount);
+                    } else if (purchase_order_id) {
+                      console.log('Retrying booking fetch...');
+                      fetchBookingById(purchase_order_id);
+                    }
+                  }}
+                  className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mb-2"
+                  disabled={!token && !pidx && !txn_id && !purchase_order_id}
+                >
+                  Retry Loading Payment Details
+                </button>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Go to Dashboard
+                </button>
+                <button
+                  onClick={() => navigate('/recommendations')}
+                  className="w-full px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  Book Again
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -326,24 +465,31 @@ const PaymentSuccessPage = () => {
           {/* Action Buttons */}
           <div className="space-y-3">
             <button
-              onClick={() => navigate('/dashboard')}
-              className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              onClick={() => {
+                triggerDashboardRefresh();
+                navigate('/dashboard', { 
+                  state: { 
+                    paymentCompleted: true, 
+                    bookingId: booking.booking_id,
+                    transactionId: transaction_id 
+                  } 
+                });
+              }}
+              className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transform hover:-translate-y-0.5 transition-all duration-300 shadow-lg hover:shadow-xl"
             >
+              <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 00-2 2m-6 9l2 2 4-4" />
+              </svg>
               Go to Dashboard
             </button>
-            
             <button
-              onClick={() => navigate('/map')}
-              className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              onClick={() => {
+                triggerDashboardRefresh();
+                navigate('/recommendations');
+              }}
+              className="w-full px-6 py-3 border border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
             >
-              View All Stations
-            </button>
-            
-            <button
-              onClick={() => window.print()}
-              className="w-full px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              Print Receipt
+              Book Another Station
             </button>
           </div>
 

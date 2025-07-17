@@ -9,6 +9,7 @@ import AdminStations from "./admin/pages/AdminStations";
 import AdminUsers from "./admin/pages/AdminUsers";
 import AdminBookings from "./admin/pages/AdminBookings";
 import AdminAnalytics from "./admin/pages/AdminAnalytics";
+import AdminChargingManagement from "./admin/pages/AdminChargingManagement";
 
 // Pages
 import Home from "./pages/Home";
@@ -16,6 +17,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Map from "./pages/Map";
+import StationsList from "./pages/StationsList";
 import Recommendations from "./pages/Recommendations";
 import RouteMap from "./pages/RouteMap";
 import BookingPage from "./pages/BookingPage";
@@ -35,6 +37,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/map" element={<Map />} />
+              <Route path="/stations" element={<StationsList />} />
               <Route path="/recommendations" element={<Recommendations />} />
               <Route
                 path="/dashboard"
@@ -107,6 +110,11 @@ const App = () => {
               <Route path="/admin/analytics" element={
                 <ProtectedAdminRoute>
                   <AdminLayout><AdminAnalytics /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin/charging" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminChargingManagement /></AdminLayout>
                 </ProtectedAdminRoute>
               } />
             </Routes>

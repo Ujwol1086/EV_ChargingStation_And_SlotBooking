@@ -109,6 +109,20 @@ def initiate_payment():
                 'error': 'Unauthorized access to booking'
             }), 403
         
+        # Check if admin has set the amount
+        if not booking.get('admin_amount_set'):
+            return jsonify({
+                'success': False,
+                'error': 'Payment amount not set by admin yet'
+            }), 400
+        
+        # Check if booking requires payment
+        if not booking.get('requires_payment'):
+            return jsonify({
+                'success': False,
+                'error': 'This booking does not require payment'
+            }), 400
+        
         # Prepare Khalti payment payload
         name = data.get('name') or booking.get('user_name', 'EV User')
         email = data.get('email') or booking.get('user_email', 'user@example.com')
@@ -351,14 +365,24 @@ def verify_payment():
                             )
                             
                             if booking_updated:
+                                # Fetch fresh booking data after update
+                                updated_booking = Booking.find_by_booking_id(booking_id)
+                                
+                                logger.info(f"Payment verified and booking updated successfully for {booking_id}")
+                                logger.info(f"Updated booking data: status={updated_booking.get('status')}, payment_status={updated_booking.get('payment_status')}, requires_payment={updated_booking.get('requires_payment')}")
+                                
                                 return jsonify({
                                     'success': True,
                                     'message': 'Payment verified successfully',
                                     'booking_id': booking_id,
                                     'transaction_id': verification_response.get('idx'),
-                                    'booking': booking_details
+                                    'booking': updated_booking if updated_booking else booking_details,
+                                    'payment_confirmed': True,
+                                    'payment_timestamp': time.time(),
+                                    'database_updated': True
                                 })
                             else:
+                                logger.error(f"Failed to update booking status for {booking_id}")
                                 return jsonify({
                                     'success': False,
                                     'error': 'Failed to update booking status'

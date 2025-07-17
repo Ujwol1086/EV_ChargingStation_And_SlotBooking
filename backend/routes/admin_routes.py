@@ -538,4 +538,94 @@ def delete_booking(booking_id):
             return jsonify({'success': False, 'error': 'Booking not found'}), 404
     except Exception as e:
         logger.error(f"Error deleting booking: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/bookings/completed', methods=['GET'])
+@require_admin
+def get_completed_bookings():
+    """Get all completed bookings that need admin review for amount setting"""
+    try:
+        bookings = Booking.get_completed_bookings_for_admin()
+        
+        return jsonify({
+            'success': True,
+            'bookings': bookings,
+            'count': len(bookings)
+        })
+    except Exception as e:
+        logger.error(f"Error fetching completed bookings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/bookings/<booking_id>/set-amount', methods=['POST'])
+@require_admin
+def set_charging_amount(booking_id):
+    """Admin sets the charging amount for a completed booking"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        amount_npr = data.get('amount_npr')
+        charging_duration_minutes = data.get('charging_duration_minutes')
+        notes = data.get('notes', '')
+        
+        if not amount_npr or amount_npr <= 0:
+            return jsonify({'success': False, 'error': 'Valid amount is required'}), 400
+        
+        # Get admin user ID from current session
+        from middleware.auth_middleware import get_current_user_id
+        admin_user_id = get_current_user_id()
+        
+        success = Booking.admin_set_charging_amount(
+            booking_id=booking_id,
+            amount_npr=float(amount_npr),
+            admin_user_id=admin_user_id,
+            charging_duration_minutes=charging_duration_minutes,
+            notes=notes
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'Charging amount of Rs. {amount_npr} set successfully',
+                'booking_id': booking_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to set charging amount'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error setting charging amount: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/bookings/<booking_id>/mark-completed', methods=['POST'])
+@require_admin
+def mark_charging_completed(booking_id):
+    """Admin marks a booking as charging completed (ready for amount setting)"""
+    try:
+        from middleware.auth_middleware import get_current_user_id
+        admin_user_id = get_current_user_id()
+        
+        result = mongo.db.bookings.update_one(
+            {"booking_id": booking_id},
+            {"$set": {
+                "status": "completed",  # Update status to completed
+                "charging_completed": True,
+                "charging_completed_at": datetime.utcnow(),
+                "charging_completed_by": admin_user_id,
+                "updated_at": datetime.utcnow()
+            }}
+        )
+        
+        if result.modified_count > 0:
+            return jsonify({
+                'success': True,
+                'message': 'Booking marked as completed and ready for amount setting',
+                'booking_id': booking_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Booking not found'}), 404
+            
+    except Exception as e:
+        logger.error(f"Error marking charging completed: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500 

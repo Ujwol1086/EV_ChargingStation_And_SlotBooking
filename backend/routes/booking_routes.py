@@ -151,4 +151,28 @@ def update_booking_status(booking_id):
         return jsonify({
             'success': False,
             'error': 'Internal server error'
+        }), 500
+
+@booking_bp.route('/pending-payments', methods=['GET'])
+@require_auth
+def get_pending_payments():
+    """
+    Get all bookings that require payment for the current user
+    """
+    try:
+        user_id = get_current_user_id()
+        
+        bookings = Booking.get_pending_payment_bookings_for_user(user_id)
+        
+        return jsonify({
+            'success': True,
+            'pending_payments': bookings,
+            'count': len(bookings)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting pending payments: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
         }), 500 

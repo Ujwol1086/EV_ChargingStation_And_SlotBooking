@@ -507,17 +507,15 @@ def book_charging_slot():
                     )
                     booking_data['distance_to_station'] = round(distance_to_station, 2)
             
-            # Calculate payment amount (15 NPR per hour)
-            duration_hours = booking_data['booking_duration'] / 60
-            amount_npr = round(duration_hours * 15, 2)
-            amount_paisa = int(amount_npr * 100)
-            
+            # Remove automatic payment calculation - admin will set amount after charging
             # Add payment info to booking data
-            booking_data['amount_npr'] = amount_npr
-            booking_data['amount_paisa'] = amount_paisa
-            booking_data['requires_payment'] = True
+            booking_data['amount_npr'] = 0  # Will be set by admin after charging
+            booking_data['amount_paisa'] = 0  # Will be set by admin after charging
+            booking_data['requires_payment'] = False  # Will be true when admin sets amount
+            booking_data['admin_amount_set'] = False
+            booking_data['charging_completed'] = False
             
-            # Create timed booking with pending payment status
+            # Create timed booking with confirmed status (no upfront payment)
             result = Booking.create_timed_booking(
                 user_id=user_id,
                 station_id=data['station_id'],
@@ -541,12 +539,13 @@ def book_charging_slot():
                     'charger_type': data['charger_type'],
                     'booking_date': preferred_date,
                     'booking_time': preferred_time,
-                    'status': 'pending_payment',
+                    'status': 'confirmed',
                     'estimated_duration': booking_data['booking_duration'],
                     'distance_to_station': booking_data['distance_to_station'],
-                    'amount_npr': amount_npr,
-                    'amount_paisa': amount_paisa,
-                    'requires_payment': True,
+                    'amount_npr': 0,  # Will be set by admin after charging
+                    'amount_paisa': 0,  # Will be set by admin after charging
+                    'requires_payment': False,
+                    'payment_method': 'pay_at_station',
                     'user_id': user_id
                 }
             }
@@ -567,12 +566,7 @@ def book_charging_slot():
                         station_coords[0], station_coords[1]
                     )
             
-            # Calculate payment amount
-            payment_calculation = Booking.calculate_payment_amount({
-                'booking_duration': data.get('booking_duration', 60),
-                'distance_to_station': round(distance_to_station, 2),
-                'urgency_level': data.get('urgency_level', 'medium')
-            })
+            # Remove automatic payment calculation - admin will set amount after charging
             
             # Prepare booking data
             booking_data = {
@@ -586,11 +580,14 @@ def book_charging_slot():
                 'distance_to_station': round(distance_to_station, 2),
                 'urgency_level': data.get('urgency_level', 'medium'),
                 'plug_type': data.get('plug_type', data['charger_type']),
-                'amount_npr': payment_calculation['amount_npr'],
-                'amount_paisa': payment_calculation['amount_paisa'],
-                'requires_payment': True,
-                'status': 'pending_payment',
-                'payment_status': 'pending'
+                'amount_npr': 0,  # Will be set by admin after charging
+                'amount_paisa': 0,  # Will be set by admin after charging
+                'requires_payment': False,  # Will be true when admin sets amount
+                'admin_amount_set': False,
+                'charging_completed': False,
+                'status': 'confirmed',
+                'payment_status': 'none',
+                'payment_method': 'pay_at_station'
             }
             
             # Store booking in database using original method
@@ -614,8 +611,9 @@ def book_charging_slot():
                     'database_id': booking['_id'],
                     'station_id': data['station_id'],
                     'charger_type': data['charger_type'],
-                    'status': 'pending_payment',
-                    'payment_status': 'pending',
+                    'status': 'confirmed',
+                    'payment_status': 'none',
+                    'payment_method': 'pay_at_station',
                     'booking_time': booking['booking_time'].isoformat() if 'booking_time' in booking else None,
                     'estimated_duration': booking_data['booking_duration'],
                     'distance_to_station': booking_data['distance_to_station'],
