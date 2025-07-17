@@ -8,6 +8,7 @@ const BookingDetailsPage = () => {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -88,6 +89,8 @@ const BookingDetailsPage = () => {
       setError(err.response?.data?.error || 'Failed to cancel booking');
     }
   };
+
+
 
   if (loading) {
     return (
@@ -265,12 +268,14 @@ const BookingDetailsPage = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {booking.status === 'pending_payment' && (
+              <>
               <button
                 onClick={handleProceedToPayment}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
               >
-                Proceed to Payment - ₹{booking.amount_npr}
-              </button>
+                  Pay with Khalti - ₹{booking.amount_npr}
+                </button>
+              </>
             )}
             
             <button
@@ -297,7 +302,8 @@ const BookingDetailsPage = () => {
           <ul className="space-y-2 text-sm text-gray-700">
             <li>• Please arrive 5 minutes before your scheduled time</li>
             <li>• Bring your own charging cable if required</li>
-            <li>• Payment is required to confirm your booking</li>
+            <li>• You can pay now online or pay later at the station</li>
+            <li>• If paying later, show your booking confirmation to station staff</li>
             <li>• Cancellation is free up to 1 hour before the booking time</li>
             <li>• Contact station staff if you need assistance</li>
           </ul>

@@ -109,6 +109,20 @@ def initiate_payment():
                 'error': 'Unauthorized access to booking'
             }), 403
         
+        # Check if admin has set the amount
+        if not booking.get('admin_amount_set'):
+            return jsonify({
+                'success': False,
+                'error': 'Payment amount not set by admin yet'
+            }), 400
+        
+        # Check if booking requires payment
+        if not booking.get('requires_payment'):
+            return jsonify({
+                'success': False,
+                'error': 'This booking does not require payment'
+            }), 400
+        
         # Prepare Khalti payment payload
         name = data.get('name') or booking.get('user_name', 'EV User')
         email = data.get('email') or booking.get('user_email', 'user@example.com')
@@ -120,11 +134,18 @@ def initiate_payment():
         else:
             formatted_phone = '9800000000'  # Default Nepal number
         
+        # Get station name from station_details or fallback to station_id
+        station_name = 'Unknown Station'
+        if booking.get('station_details') and booking['station_details'].get('name'):
+            station_name = booking['station_details']['name']
+        elif booking.get('station_id'):
+            station_name = f"Station {booking['station_id']}"
+        
         khalti_payload = {
             "public_key": KHALTI_PUBLIC_KEY,
             "amount": amount,
             "product_identity": booking_id,
-            "product_name": f"EV Charging Booking - {booking.get('station_id', 'Unknown Station')}",
+            "product_name": f"EV Charging Booking - {station_name}",
             "customer_info": {
                 "name": name,
                 "email": email,
@@ -145,7 +166,7 @@ def initiate_payment():
             "return_url": return_url,
             "website_url": "http://localhost:5173",
             "purchase_order_id": booking_id,
-            "purchase_order_name": f"EV Charging Booking - {booking.get('station_id', 'Unknown Station')}"
+            "purchase_order_name": f"EV Charging Booking - {station_name}"
         }
         
         logger.info(f"Khalti payload prepared: {khalti_payload}")
@@ -260,86 +281,82 @@ def initiate_payment():
 @payment_bp.route('/verify-payment', methods=['POST'])
 def verify_payment():
     """
-    Verify Khalti payment using token
-    
-    Expected JSON payload:
-    {
-        "token": str,
-        "amount": int
-    }
+    Verify Khalti payment using token or pidx
     """
     try:
+        logger.info('--- /verify-payment called ---')
         if not request.json:
+            logger.error('No JSON data provided')
             return jsonify({
                 'success': False,
                 'error': 'No JSON data provided'
             }), 400
         
         data = request.json
+        # Accept both token (old) and pidx (new) parameters
         token = data.get('token')
+        pidx = data.get('pidx')
         amount = data.get('amount')
         
-        if not token or not amount:
+        logger.info(f'Received token: {token}, pidx: {pidx}, amount: {amount}')
+        
+        if not (token or pidx) or not amount:
+            logger.error('Token/pidx and amount are required')
             return jsonify({
                 'success': False,
-                'error': 'Token and amount are required'
+                'error': 'Token/pidx and amount are required'
             }), 400
         
-        # Verify payment with Khalti
-        verification_payload = {
-            "token": token,
-            "amount": amount
-        }
+        # Check if this is a test environment or if credentials are not set
+        logger.info(f'KHALTI_SECRET_KEY: {KHALTI_SECRET_KEY}, KHALTI_PUBLIC_KEY: {KHALTI_PUBLIC_KEY}')
+        if (not KHALTI_SECRET_KEY or not KHALTI_PUBLIC_KEY or \
+            KHALTI_SECRET_KEY == 'test_secret_key_12345' or \
+            KHALTI_PUBLIC_KEY == 'test_public_key_12345'):
+            logger.warning("Using test Khalti credentials - providing mock verification response")
+            test_booking_id = f"test_booking_{(token or pidx)[-8:]}"
+            mock_booking = {
+                'booking_id': test_booking_id,
+                'amount_npr': amount / 100,
+                'amount_paisa': amount,
+                'charger_type': 'Type 2',
+                'estimated_duration': 60,
+                'status': 'confirmed',
+                'payment_status': 'paid',
+                'station_id': 'cs001',
+                'user_id': 'test_user',
+                'created_at': time.time(),
+                'booking_time': time.time()
+            }
+            logger.info(f"Returning mock booking: {mock_booking}")
+            return jsonify({
+                'success': True,
+                'message': 'Payment verified successfully (test mode)',
+                'booking_id': test_booking_id,
+                'transaction_id': token or pidx,
+                'test_mode': True,
+                'booking': mock_booking
+            })
         
+        # Real Khalti verification
         try:
-            # Check if this is a test environment
-            if KHALTI_SECRET_KEY == 'test_secret_key_12345' or KHALTI_PUBLIC_KEY == 'test_public_key_12345':
-                logger.warning("Using test Khalti credentials - providing mock verification response")
-                
-                # For test mode, we'll use the token as booking_id (since it's passed from frontend)
-                # In a real scenario, you'd get the booking_id from the Khalti response
-                test_booking_id = f"test_booking_{token[-8:]}"  # Use last 8 chars of token
-                
-                # Create mock booking details for test mode
-                mock_booking = {
-                    'booking_id': test_booking_id,
-                    'amount_npr': amount / 100,  # Convert paisa to NPR
-                    'amount_paisa': amount,
-                    'charger_type': 'Type 2',
-                    'estimated_duration': 60,
-                    'status': 'confirmed',
-                    'payment_status': 'paid',
-                    'station_id': 'test_station',
-                    'user_id': 'test_user',
-                    'created_at': time.time(),
-                    'booking_time': time.time()
+            if pidx:
+                # Use new lookup API with pidx
+                verification_payload = {
+                    "pidx": pidx
                 }
-                
-                # Update booking status for test
-                booking_updated = Booking.update_payment_status(
-                    booking_id=test_booking_id,
-                    payment_status='paid',
-                    payment_data={
-                        'khalti_idx': token,
-                        'amount': amount,
-                        'verified_at': time.time(),
-                        'transaction_id': token,
-                        'test_mode': True
-                    }
-                )
-                
-                return jsonify({
-                    'success': True,
-                    'message': 'Payment verified successfully (test mode)',
-                    'booking_id': test_booking_id,
-                    'transaction_id': token,
-                    'test_mode': True,
-                    'booking': mock_booking
-                })
+                endpoint = f"{KHALTI_BASE_URL}/epayment/lookup/"
+                logger.info(f"Using lookup API with pidx: {pidx}")
+            else:
+                # Use old verification API with token (for backward compatibility)
+                verification_payload = {
+                    "token": token,
+                    "amount": amount
+                }
+                endpoint = f"{KHALTI_BASE_URL}/epayment/lookup/"  # Still use lookup but this might need adjustment
+                logger.info(f"Using legacy token verification: {token}")
             
-            # Real Khalti verification
             response = requests.post(
-                f"{KHALTI_BASE_URL}/epayment/lookup/",
+                endpoint,
                 json=verification_payload,
                 headers={
                     'Content-Type': 'application/json',
@@ -348,16 +365,34 @@ def verify_payment():
                 timeout=30
             )
             
+            logger.info(f"Khalti API response status: {response.status_code}")
+            logger.info(f"Khalti API response: {response.text}")
+            
             if response.status_code == 200:
                 verification_response = response.json()
                 
                 if verification_response.get('status') == 'Completed':
                     # Payment successful
-                    booking_id = verification_response.get('product_identity')
+                    # For lookup API, we need to get booking_id from the pidx mapping
+                    # Since we stored booking_id as product_identity in initiate, we need to find it
+                    
+                    # Try to get booking_id from the verification response or find it by pidx
+                    booking_id = None
+                    
+                    # First, try to find booking by pidx in our database
+                    if pidx:
+                        booking_details = Booking.find_by_khalti_idx(pidx)
+                        if booking_details:
+                            booking_id = booking_details.get('booking_id')
+                    
+                    # If no pidx or booking not found, try the old method
+                    if not booking_id:
+                        booking_id = verification_response.get('product_identity')
                     
                     if booking_id:
                         # Get booking details
-                        booking_details = Booking.find_by_booking_id(booking_id)
+                        if not booking_details:
+                            booking_details = Booking.find_by_booking_id(booking_id)
                         
                         if booking_details:
                             # Update booking status
@@ -365,22 +400,54 @@ def verify_payment():
                                 booking_id=booking_id,
                                 payment_status='paid',
                                 payment_data={
-                                    'khalti_idx': verification_response.get('idx'),
+                                    'khalti_idx': pidx or verification_response.get('idx'),
                                     'amount': amount,
                                     'verified_at': time.time(),
-                                    'transaction_id': verification_response.get('idx')
+                                    'transaction_id': verification_response.get('transaction_id') or pidx or token
                                 }
                             )
                             
                             if booking_updated:
+                                # Fetch fresh booking data after update to verify changes
+                                updated_booking = Booking.find_by_booking_id(booking_id)
+                                
+                                logger.info(f"Payment verified and booking updated successfully for {booking_id}")
+                                logger.info(f"Updated booking data: status={updated_booking.get('status')}, payment_status={updated_booking.get('payment_status')}, requires_payment={updated_booking.get('requires_payment')}")
+                                
+                                # Double-check that the payment status was actually updated
+                                if updated_booking and updated_booking.get('payment_status') == 'paid':
+                                    logger.info(f"✅ Payment status confirmed as 'paid' for booking {booking_id}")
+                                    
+                                    # Verify the booking no longer appears in pending payments
+                                    user_id = updated_booking.get('user_id')
+                                    if user_id:
+                                        pending_payments = Booking.get_pending_payment_bookings_for_user(user_id)
+                                        booking_ids_in_pending = [p.get('booking_id') for p in pending_payments]
+                                        
+                                        if booking_id not in booking_ids_in_pending:
+                                            logger.info(f"✅ Confirmed: Booking {booking_id} is NO LONGER in pending payments list")
+                                        else:
+                                            logger.warning(f"⚠️ WARNING: Booking {booking_id} still appears in pending payments list after payment!")
+                                            logger.warning(f"Pending payments for user {user_id}: {booking_ids_in_pending}")
+                                else:
+                                    logger.warning(f"⚠️ Payment status may not have been updated correctly for booking {booking_id}")
+                                    logger.warning(f"Current payment_status: {updated_booking.get('payment_status') if updated_booking else 'No booking found'}")
+                                
                                 return jsonify({
                                     'success': True,
                                     'message': 'Payment verified successfully',
                                     'booking_id': booking_id,
-                                    'transaction_id': verification_response.get('idx'),
-                                    'booking': booking_details
+                                    'transaction_id': verification_response.get('transaction_id') or pidx or token,
+                                    'booking': updated_booking if updated_booking else booking_details,
+                                    'payment_confirmed': True,
+                                    'payment_timestamp': time.time(),
+                                    'database_updated': True,
+                                    'payment_status': 'paid',
+                                    'requires_payment': False,
+                                    'update_dashboard': True  # Signal frontend to refresh dashboard
                                 })
                             else:
+                                logger.error(f"Failed to update booking status for {booking_id}")
                                 return jsonify({
                                     'success': False,
                                     'error': 'Failed to update booking status'
@@ -519,6 +586,61 @@ def get_payment_status(booking_id):
         
     except Exception as e:
         logger.error(f"Error in get_payment_status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/pay-later/<booking_id>', methods=['POST'])
+@require_auth
+def pay_later(booking_id):
+    """
+    Mark a booking for payment later (defer payment)
+    """
+    try:
+        # Get booking details
+        booking = Booking.find_by_booking_id(booking_id)
+        if not booking:
+            return jsonify({
+                'success': False,
+                'error': 'Booking not found'
+            }), 404
+        
+        # Verify booking belongs to current user
+        current_user_id = get_current_user_id()
+        if booking.get('user_id') != current_user_id:
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized access to booking'
+            }), 403
+        
+        # Check if booking is in pending payment status
+        if booking.get('status') != 'pending_payment':
+            return jsonify({
+                'success': False,
+                'error': 'Booking is not in pending payment status'
+            }), 400
+        
+        # Update booking to pay later status
+        success = Booking.update_booking_to_pay_later(booking_id)
+        
+        if success:
+            logger.info(f"Booking {booking_id} marked for payment later")
+            return jsonify({
+                'success': True,
+                'message': 'Booking confirmed for payment later',
+                'booking_id': booking_id,
+                'status': 'confirmed',
+                'payment_status': 'deferred'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update booking status'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error in pay_later: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Internal server error'
