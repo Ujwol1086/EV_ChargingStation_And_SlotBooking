@@ -21,10 +21,12 @@ const PaymentSuccessPage = () => {
   const amount = searchParams.get('amount');
   const status = searchParams.get('status');
   
-  // Also check for alternative parameter names that Khalti might use
+  // Get actual Khalti parameters
   const pidx = searchParams.get('pidx');
   const purchase_order_id = searchParams.get('purchase_order_id');
+  const transaction_id_param = searchParams.get('transaction_id');
   const txn_id = searchParams.get('txn_id');
+  const tidx = searchParams.get('tidx');
 
   // Add detailed logging
   console.log('PaymentSuccessPage URL params:', {
@@ -33,7 +35,9 @@ const PaymentSuccessPage = () => {
     status,
     pidx,
     purchase_order_id,
+    transaction_id_param,
     txn_id,
+    tidx,
     allParams: Object.fromEntries(searchParams.entries()),
     locationState: location.state,
     currentBooking: booking,
@@ -46,31 +50,46 @@ const PaymentSuccessPage = () => {
       hasStation: !!station,
       token,
       pidx,
+      transaction_id_param,
       txn_id,
+      tidx,
       status,
-      amount
+      amount,
+      purchase_order_id
     });
 
     // If we don't have booking data from location state, try to get it from URL params
     if (!booking) {
-      // Try different combinations of parameters
-      const paymentToken = token || pidx || txn_id;
-      const paymentAmount = amount;
-      
-      if (paymentToken && paymentAmount && (status === 'success' || status === 'completed')) {
-        console.log('Attempting to fetch booking from payment verification...');
-        fetchBookingFromPayment(paymentToken, paymentAmount);
-      } else if (purchase_order_id && paymentAmount) {
-        // If we have booking ID and amount, try to fetch booking directly
-        console.log('Attempting to fetch booking by booking ID...');
+      // Check if this is a successful Khalti payment (status should be 'Completed')
+      if (status === 'Completed' && purchase_order_id) {
+        // For successful payments, booking_id is in purchase_order_id
+        console.log('Khalti successful payment detected, fetching booking by ID:', purchase_order_id);
         fetchBookingById(purchase_order_id);
+        // Set transaction ID for display
+        const actualTransactionId = transaction_id_param || txn_id || tidx || pidx;
+        if (actualTransactionId) {
+          setTransactionId(actualTransactionId);
+        }
       } else {
-        console.log('Insufficient parameters for payment verification:', {
-          paymentToken,
-          paymentAmount,
-          status,
-          purchase_order_id
-        });
+        // Fallback to old verification method for backward compatibility
+        const paymentToken = token || pidx || transaction_id_param || txn_id || tidx;
+        const paymentAmount = amount;
+        
+        if (paymentToken && paymentAmount && (status === 'success' || status === 'completed' || status === 'Completed')) {
+          console.log('Attempting to fetch booking from payment verification...');
+          fetchBookingFromPayment(paymentToken, paymentAmount);
+        } else if (purchase_order_id) {
+          // If we have booking ID but no clear status, try to fetch booking directly
+          console.log('Attempting to fetch booking by booking ID without status check...');
+          fetchBookingById(purchase_order_id);
+        } else {
+          console.log('Insufficient parameters for payment verification:', {
+            paymentToken,
+            paymentAmount,
+            status,
+            purchase_order_id
+          });
+        }
       }
     } else if (booking && !station) {
       // If we have booking but no station, fetch station details
@@ -83,7 +102,7 @@ const PaymentSuccessPage = () => {
         reason: 'already have booking and station'
       });
     }
-  }, [token, pidx, txn_id, status, amount, purchase_order_id, booking, station]);
+  }, [token, pidx, transaction_id_param, txn_id, tidx, status, amount, purchase_order_id, booking, station]);
 
   const fetchBookingById = async (bookingId) => {
     try {
@@ -127,6 +146,19 @@ const PaymentSuccessPage = () => {
     
     // Also trigger a more immediate refresh using a different flag
     localStorage.setItem('force_immediate_refresh', 'true');
+    
+    // Store payment completion details for dashboard notification
+    if (booking && transaction_id) {
+      localStorage.setItem('payment_completion_details', JSON.stringify({
+        bookingId: booking.booking_id,
+        transactionId: transaction_id,
+        amount: booking.amount_npr,
+        stationName: booking.station_details?.name || `Station ${booking.station_id}`,
+        completedAt: new Date().toISOString()
+      }));
+    }
+    
+    console.log('Dashboard refresh triggered with payment completion flags');
   };
 
   const fetchBookingFromPayment = async (paymentToken, paymentAmount) => {
@@ -136,11 +168,16 @@ const PaymentSuccessPage = () => {
 
       console.log('Verifying payment with token:', paymentToken, 'amount:', paymentAmount);
 
+      // Determine if this is a pidx or token
+      const isKhaltiPidx = paymentToken === pidx;
+      const verificationPayload = isKhaltiPidx ? 
+        { pidx: paymentToken, amount: parseInt(paymentAmount) } : 
+        { token: paymentToken, amount: parseInt(paymentAmount) };
+
+      console.log('Verification payload:', verificationPayload);
+
       // Verify payment and get booking details
-      const response = await axios.post('/payments/verify-payment', {
-        token: paymentToken,
-        amount: parseInt(paymentAmount)
-      });
+      const response = await axios.post('/payments/verify-payment', verificationPayload);
 
       console.log('Payment verification response:', response.data);
 
@@ -153,7 +190,10 @@ const PaymentSuccessPage = () => {
           transactionId: response.data.transaction_id,
           hasBookingData: !!response.data.booking,
           bookingData: response.data.booking,
-          testMode: response.data.test_mode
+          testMode: response.data.test_mode,
+          updateDashboard: response.data.update_dashboard,
+          paymentStatus: response.data.payment_status,
+          requiresPayment: response.data.requires_payment
         });
 
         // Use booking data from verification response
@@ -186,7 +226,21 @@ const PaymentSuccessPage = () => {
           setError('No booking data received from payment verification');
         }
 
-        triggerDashboardRefresh();
+        // Enhanced dashboard refresh for successful payments
+        if (response.data.payment_status === 'paid' && response.data.update_dashboard) {
+          console.log('Payment confirmed as paid, triggering enhanced dashboard refresh...');
+          
+          // Store multiple completion flags for maximum reliability
+          localStorage.setItem('payment_completed', 'true');
+          localStorage.setItem('payment_verified', 'true');
+          localStorage.setItem('payment_status_paid', 'true');
+          localStorage.setItem('clear_pending_payments', 'true');
+          localStorage.setItem('booking_payment_completed', bookingId);
+          
+          triggerDashboardRefresh();
+        } else {
+          triggerDashboardRefresh();
+        }
       } else {
         console.error('Payment verification failed:', response.data);
         setError(response.data.error || 'Payment verification failed');
@@ -277,10 +331,17 @@ const PaymentSuccessPage = () => {
               ) : (
                 <>
                   Payment completed but booking details are being retrieved.
-                  {token && <span className="block text-sm mt-2">Token: {token}</span>}
-                  {pidx && <span className="block text-sm">Payment ID: {pidx}</span>}
-                  {amount && <span className="block text-sm">Amount: {amount}</span>}
-                  {purchase_order_id && <span className="block text-sm">Booking ID: {purchase_order_id}</span>}
+                  <div className="mt-4 text-left bg-gray-100 p-3 rounded text-xs">
+                    <strong>Debug Info:</strong><br/>
+                    {token && <span className="block">Token: {token}</span>}
+                    {pidx && <span className="block">Payment ID (pidx): {pidx}</span>}
+                    {transaction_id_param && <span className="block">Transaction ID: {transaction_id_param}</span>}
+                    {txn_id && <span className="block">TXN ID: {txn_id}</span>}
+                    {tidx && <span className="block">TIDX: {tidx}</span>}
+                    {amount && <span className="block">Amount: {amount} paisa</span>}
+                    {purchase_order_id && <span className="block">Booking ID: {purchase_order_id}</span>}
+                    {status && <span className="block">Status: {status}</span>}
+                  </div>
                 </>
               )}
             </p>
@@ -289,17 +350,22 @@ const PaymentSuccessPage = () => {
                 <button
                   onClick={() => {
                     // Try to refetch with available data
-                    const paymentToken = token || pidx || txn_id;
-                    if (paymentToken && amount) {
-                      console.log('Retrying payment verification...');
-                      fetchBookingFromPayment(paymentToken, amount);
-                    } else if (purchase_order_id) {
-                      console.log('Retrying booking fetch...');
+                    if (status === 'Completed' && purchase_order_id) {
+                      console.log('Retrying with Khalti Completed status...');
                       fetchBookingById(purchase_order_id);
+                    } else {
+                      const paymentToken = token || pidx || transaction_id_param || txn_id || tidx;
+                      if (paymentToken && amount) {
+                        console.log('Retrying payment verification...');
+                        fetchBookingFromPayment(paymentToken, amount);
+                      } else if (purchase_order_id) {
+                        console.log('Retrying booking fetch...');
+                        fetchBookingById(purchase_order_id);
+                      }
                     }
                   }}
                   className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mb-2"
-                  disabled={!token && !pidx && !txn_id && !purchase_order_id}
+                  disabled={!token && !pidx && !transaction_id_param && !txn_id && !tidx && !purchase_order_id}
                 >
                   Retry Loading Payment Details
                 </button>

@@ -554,6 +554,11 @@ const RouteMap = () => {
               <p className="text-sm text-gray-600">
                 💰 Rs. {station.pricing || 'N/A'} per kWh
               </p>
+              {station.status === 'unavailable' && (
+                <p className="text-sm text-red-600 mt-1">
+                  ⚠️ {station.note || 'Station is currently unavailable'}
+                </p>
+              )}
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">
