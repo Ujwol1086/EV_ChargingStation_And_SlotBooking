@@ -1,31 +1,46 @@
 const StationCard = ({ station, onStationClick }) => {
   const getAvailabilityColor = (station) => {
+    // Check if station is unavailable
+    if (station.status === 'unavailable') return 'text-red-600 bg-red-50';
     if (station.available_slots === 0) return 'text-red-600 bg-red-50';
     if (station.available_slots <= 2) return 'text-orange-600 bg-orange-50';
     return 'text-green-600 bg-green-50';
   };
 
   const getAvailabilityText = (station) => {
+    // Check if station is unavailable
+    if (station.status === 'unavailable') return 'Station Unavailable';
     if (station.available_slots === 0) return 'Fully Booked';
     if (station.available_slots === 1) return '1 Slot Available';
     return `${station.available_slots} Slots Available`;
   };
 
+  const isStationUnavailable = station.status === 'unavailable' || station.name?.includes('(Not Found)');
+
   return (
     <div 
-      className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group"
+      className={`bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group ${
+        isStationUnavailable ? 'opacity-75' : ''
+      }`}
       onClick={() => onStationClick(station)}
     >
       {/* Station Header */}
       <div className="p-6 border-b border-gray-100">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-800 group-hover:text-blue-600 transition-colors">
+            <h3 className={`text-lg font-bold group-hover:text-blue-600 transition-colors ${
+              isStationUnavailable ? 'text-gray-500' : 'text-gray-800'
+            }`}>
               {station.name}
             </h3>
             <p className="text-sm text-gray-600 mt-1">
               📍 {station.location?.address || `${station.city || 'Unknown'}, ${station.province || 'Nepal'}`}
             </p>
+            {station.note && (
+              <p className="text-xs text-red-500 mt-1 italic">
+                ⚠️ {station.note}
+              </p>
+            )}
           </div>
           <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getAvailabilityColor(station)}`}>
             {getAvailabilityText(station)}
