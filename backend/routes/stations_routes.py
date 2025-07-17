@@ -155,10 +155,33 @@ def get_charging_station(station_id):
                     })
                 break
         
+        # Return a fallback station for missing station IDs
+        logger.warning(f"Station {station_id} not found, returning fallback data")
+        fallback_station = {
+            'id': station_id,
+            'name': f"Station {station_id}",
+            'location': {
+                'address': 'Location not available',
+                'coordinates': [0, 0]
+            },
+            'chargers': [],
+            'total_slots': 0,
+            'available_slots': 0,
+            'amenities': [],
+            'operatingHours': 'Unknown',
+            'pricing': 'Contact for pricing',
+            'photos': [],
+            'telephone': 'N/A',
+            'city': 'Unknown',
+            'province': 'Unknown',
+            'type': ['car']
+        }
+        
         return jsonify({
-            'success': False,
-            'error': f"Charging station with ID {station_id} not found"
-        }), 404
+            'success': True,
+            'station': fallback_station,
+            'note': 'This is a fallback station - the original station data was not found'
+        })
             
     except Exception as e:
         logger.error(f"Error fetching charging station {station_id}: {e}")

@@ -2,11 +2,11 @@ from flask import Flask
 from flask_cors import CORS
 from config.database import init_db, mongo
 from routes.auth_routes import auth_bp
-from routes.db_test_routes import db_test_bp
 from routes.stations_routes import stations_bp
 from routes.recommendation_routes import recommendation_bp
 from routes.admin_routes import admin_bp
 from routes.payment_routes import payment_bp
+from routes.booking_routes import booking_bp
 import logging
 import threading
 import time
@@ -57,11 +57,11 @@ def create_app():
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(db_test_bp, url_prefix='/api/db')
     app.register_blueprint(stations_bp, url_prefix='/api/stations')
     app.register_blueprint(recommendation_bp, url_prefix='/api/recommendations')
     app.register_blueprint(admin_bp)
     app.register_blueprint(payment_bp, url_prefix='/api/payments')
+    app.register_blueprint(booking_bp, url_prefix='/api/bookings')
     
     # Test route
     @app.route("/")

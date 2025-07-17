@@ -12,7 +12,8 @@ export default function Dashboard() {
     activeBookings: 0,
     completedBookings: 0,
     totalBookings: 0,
-    totalSpent: 0
+    totalSpent: 0,
+    totalCost: 0
   });
 
   useEffect(() => {
@@ -33,15 +34,18 @@ export default function Dashboard() {
 
         // Calculate statistics
         const completed = allBookings.filter(b => b.status === 'completed').length;
-        const totalSpent = allBookings.reduce((sum, booking) => {
-          return sum + (booking.total_cost || 0);
+        
+        // Calculate total cost (amount from all bookings)
+        const totalCost = allBookings.reduce((sum, booking) => {
+          return sum + (booking.amount_npr || 0);
         }, 0);
 
         setStats({
           activeBookings: activeBookingsResponse.data.success ? activeBookingsResponse.data.bookings.length : 0,
           completedBookings: completed,
           totalBookings: allBookings.length,
-          totalSpent: totalSpent
+          totalSpent: totalCost, // Keep for backward compatibility
+          totalCost: totalCost
         });
       }
 
@@ -87,7 +91,28 @@ export default function Dashboard() {
       case 'in_progress': return 'text-blue-600 bg-blue-100';
       case 'completed': return 'text-gray-600 bg-gray-100';
       case 'cancelled': return 'text-red-600 bg-red-100';
+      case 'pending_payment': return 'text-yellow-600 bg-yellow-100';
       default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getPaymentStatusColor = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'text-green-600 bg-green-100';
+      case 'pending': return 'text-yellow-600 bg-yellow-100';
+      case 'deferred': return 'text-blue-600 bg-blue-100';
+      case 'failed': return 'text-red-600 bg-red-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getPaymentStatusText = (paymentStatus) => {
+    switch (paymentStatus) {
+      case 'paid': return 'Paid';
+      case 'pending': return 'Payment Pending';
+      case 'deferred': return 'Pay at Station';
+      case 'failed': return 'Payment Failed';
+      default: return 'Unknown';
     }
   };
 
@@ -164,14 +189,14 @@ export default function Dashboard() {
 
           <div className="bg-white/80 backdrop-blur-sm p-6 rounded-xl shadow-lg border border-white/20">
             <div className="flex items-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-800">Rs. {loading ? '...' : stats.totalSpent.toFixed(0)}</p>
-                <p className="text-sm text-gray-600">Total Spent</p>
+                <p className="text-2xl font-bold text-red-600">Rs. {loading ? '...' : stats.totalCost.toFixed(0)}</p>
+                <p className="text-sm text-gray-600">Total Cost</p>
               </div>
             </div>
           </div>
@@ -229,23 +254,39 @@ export default function Dashboard() {
                           <h4 className="font-medium text-gray-800">
                             {booking.station_details?.name || `Station ${booking.station_id}`}
                           </h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                            {booking.status}
-                          </span>
+                          {/* Show payment status if it's different from booking status or if booking status is pending_payment */}
+                          {booking.payment_status && (booking.status === 'pending_payment' || booking.payment_status !== 'pending') ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
+                              {getPaymentStatusText(booking.payment_status)}
+                            </span>
+                          ) : (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                              {booking.status.replace('_', ' ')}
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-gray-600">
                           <p>🔌 {booking.charger_type} • 📅 {formatDate(booking.created_at)}</p>
+                          {booking.amount_npr && <p className="text-green-600">💰 ₹{booking.amount_npr}</p>}
                           {booking.auto_booked && <p className="text-green-600">🤖 Auto-booked</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {booking.status === 'confirmed' && (
+                        {booking.status === 'confirmed' && booking.payment_status !== 'deferred' && (
                           <button
                             onClick={() => handleCancelBooking(booking.booking_id)}
                             className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
                           >
                             Cancel
                           </button>
+                        )}
+                        {booking.status === 'pending_payment' && (
+                          <Link
+                            to={`/booking-details/${booking.booking_id}`}
+                            className="px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700 transition-colors"
+                          >
+                            Pay Now
+                          </Link>
                         )}
                         <Link
                           to={`/route/${booking.station_id}`}

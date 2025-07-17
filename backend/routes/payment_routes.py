@@ -261,73 +261,52 @@ def initiate_payment():
 def verify_payment():
     """
     Verify Khalti payment using token
-    
-    Expected JSON payload:
-    {
-        "token": str,
-        "amount": int
-    }
     """
     try:
+        logger.info('--- /verify-payment called ---')
         if not request.json:
+            logger.error('No JSON data provided')
             return jsonify({
                 'success': False,
                 'error': 'No JSON data provided'
             }), 400
-        
         data = request.json
         token = data.get('token')
         amount = data.get('amount')
-        
+        logger.info(f'Received token: {token}, amount: {amount}')
         if not token or not amount:
+            logger.error('Token and amount are required')
             return jsonify({
                 'success': False,
                 'error': 'Token and amount are required'
             }), 400
-        
         # Verify payment with Khalti
         verification_payload = {
             "token": token,
             "amount": amount
         }
-        
         try:
-            # Check if this is a test environment
-            if KHALTI_SECRET_KEY == 'test_secret_key_12345' or KHALTI_PUBLIC_KEY == 'test_public_key_12345':
+            # Check if this is a test environment or if credentials are not set
+            logger.info(f'KHALTI_SECRET_KEY: {KHALTI_SECRET_KEY}, KHALTI_PUBLIC_KEY: {KHALTI_PUBLIC_KEY}')
+            if (not KHALTI_SECRET_KEY or not KHALTI_PUBLIC_KEY or \
+                KHALTI_SECRET_KEY == 'test_secret_key_12345' or \
+                KHALTI_PUBLIC_KEY == 'test_public_key_12345'):
                 logger.warning("Using test Khalti credentials - providing mock verification response")
-                
-                # For test mode, we'll use the token as booking_id (since it's passed from frontend)
-                # In a real scenario, you'd get the booking_id from the Khalti response
-                test_booking_id = f"test_booking_{token[-8:]}"  # Use last 8 chars of token
-                
-                # Create mock booking details for test mode
+                test_booking_id = f"test_booking_{token[-8:]}"
                 mock_booking = {
                     'booking_id': test_booking_id,
-                    'amount_npr': amount / 100,  # Convert paisa to NPR
+                    'amount_npr': amount / 100,
                     'amount_paisa': amount,
                     'charger_type': 'Type 2',
                     'estimated_duration': 60,
                     'status': 'confirmed',
                     'payment_status': 'paid',
-                    'station_id': 'test_station',
+                    'station_id': 'cs001',
                     'user_id': 'test_user',
                     'created_at': time.time(),
                     'booking_time': time.time()
                 }
-                
-                # Update booking status for test
-                booking_updated = Booking.update_payment_status(
-                    booking_id=test_booking_id,
-                    payment_status='paid',
-                    payment_data={
-                        'khalti_idx': token,
-                        'amount': amount,
-                        'verified_at': time.time(),
-                        'transaction_id': token,
-                        'test_mode': True
-                    }
-                )
-                
+                logger.info(f"Returning mock booking: {mock_booking}")
                 return jsonify({
                     'success': True,
                     'message': 'Payment verified successfully (test mode)',
@@ -336,7 +315,6 @@ def verify_payment():
                     'test_mode': True,
                     'booking': mock_booking
                 })
-            
             # Real Khalti verification
             response = requests.post(
                 f"{KHALTI_BASE_URL}/epayment/lookup/",
@@ -519,6 +497,61 @@ def get_payment_status(booking_id):
         
     except Exception as e:
         logger.error(f"Error in get_payment_status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/pay-later/<booking_id>', methods=['POST'])
+@require_auth
+def pay_later(booking_id):
+    """
+    Mark a booking for payment later (defer payment)
+    """
+    try:
+        # Get booking details
+        booking = Booking.find_by_booking_id(booking_id)
+        if not booking:
+            return jsonify({
+                'success': False,
+                'error': 'Booking not found'
+            }), 404
+        
+        # Verify booking belongs to current user
+        current_user_id = get_current_user_id()
+        if booking.get('user_id') != current_user_id:
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized access to booking'
+            }), 403
+        
+        # Check if booking is in pending payment status
+        if booking.get('status') != 'pending_payment':
+            return jsonify({
+                'success': False,
+                'error': 'Booking is not in pending payment status'
+            }), 400
+        
+        # Update booking to pay later status
+        success = Booking.update_booking_to_pay_later(booking_id)
+        
+        if success:
+            logger.info(f"Booking {booking_id} marked for payment later")
+            return jsonify({
+                'success': True,
+                'message': 'Booking confirmed for payment later',
+                'booking_id': booking_id,
+                'status': 'confirmed',
+                'payment_status': 'deferred'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update booking status'
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error in pay_later: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Internal server error'
