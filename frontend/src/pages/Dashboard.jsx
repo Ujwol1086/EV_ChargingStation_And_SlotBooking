@@ -29,33 +29,88 @@ export default function Dashboard() {
       const paymentCompleted = localStorage.getItem('payment_completed');
       const paymentTimestamp = localStorage.getItem('payment_timestamp');
       const forceRefresh = localStorage.getItem('force_immediate_refresh');
+      const paymentDetails = localStorage.getItem('payment_completion_details');
+      
+      // Check for enhanced payment completion flags
+      const paymentVerified = localStorage.getItem('payment_verified');
+      const paymentStatusPaid = localStorage.getItem('payment_status_paid');
+      const clearPendingPayments = localStorage.getItem('clear_pending_payments');
+      const bookingPaymentCompleted = localStorage.getItem('booking_payment_completed');
       
       // Also check navigation state for immediate payment completion
       const navigationPaymentCompleted = location.state?.paymentCompleted;
       
-      if ((paymentCompleted === 'true' && paymentTimestamp) || navigationPaymentCompleted || forceRefresh === 'true') {
+      // Enhanced payment completion detection
+      const isPaymentCompleted = (paymentCompleted === 'true' && paymentTimestamp) || 
+                                 navigationPaymentCompleted || 
+                                 forceRefresh === 'true' ||
+                                 paymentVerified === 'true' ||
+                                 paymentStatusPaid === 'true' ||
+                                 clearPendingPayments === 'true';
+      
+      if (isPaymentCompleted) {
         const timestamp = paymentTimestamp ? parseInt(paymentTimestamp) : Date.now();
         const now = Date.now();
         
         // If payment was completed within the last 5 minutes, refresh data
-        if (now - timestamp < 5 * 60 * 1000 || navigationPaymentCompleted || forceRefresh === 'true') {
+        if (now - timestamp < 5 * 60 * 1000 || navigationPaymentCompleted || forceRefresh === 'true' || paymentVerified === 'true') {
           console.log('Payment recently completed, refreshing dashboard data...', {
             fromLocalStorage: paymentCompleted === 'true',
             fromNavigation: navigationPaymentCompleted,
             forceRefresh: forceRefresh === 'true',
-            bookingId: location.state?.bookingId,
-            transactionId: location.state?.transactionId
+            paymentVerified: paymentVerified === 'true',
+            paymentStatusPaid: paymentStatusPaid === 'true',
+            clearPendingPayments: clearPendingPayments === 'true',
+            bookingId: location.state?.bookingId || bookingPaymentCompleted,
+            transactionId: location.state?.transactionId,
+            paymentDetails: paymentDetails ? JSON.parse(paymentDetails) : null
           });
+          
+          // Immediately clear pending payments from UI if payment is confirmed as paid
+          if (paymentStatusPaid === 'true' || clearPendingPayments === 'true') {
+            console.log('Payment confirmed as paid, immediately clearing pending payments from UI...');
+            clearPendingPaymentsFromUI();
+          }
           
           // Force refresh with a small delay to ensure backend has updated
           setTimeout(() => {
             fetchBookingData();
           }, forceRefresh === 'true' ? 500 : 1000); // Shorter delay for force refresh
           
+          // Additional refresh after 2 seconds to ensure backend has processed
+          setTimeout(() => {
+            console.log('Performing additional refresh to ensure payment status is updated...');
+            fetchBookingData();
+          }, 2000);
+          
+          // Final refresh after 5 seconds for extra reliability
+          if (paymentStatusPaid === 'true') {
+            setTimeout(() => {
+              console.log('Final refresh after payment completion to ensure UI consistency...');
+              fetchBookingData();
+            }, 5000);
+          }
+          
+          // Clear pending payments from UI immediately if we have payment details
+          if (paymentDetails) {
+            try {
+              const details = JSON.parse(paymentDetails);
+              console.log('Clearing pending payments for completed payment:', details.bookingId);
+              clearPendingPaymentsFromUI();
+            } catch (e) {
+              console.error('Error parsing payment details for clearing:', e);
+            }
+          }
+          
           // Clear the flags after refresh
           localStorage.removeItem('payment_completed');
           localStorage.removeItem('payment_timestamp');
           localStorage.removeItem('force_immediate_refresh');
+          localStorage.removeItem('payment_completion_details');
+          localStorage.removeItem('payment_verified');
+          localStorage.removeItem('payment_status_paid');
+          localStorage.removeItem('clear_pending_payments');
+          localStorage.removeItem('booking_payment_completed');
           
           // Clear navigation state
           if (navigationPaymentCompleted) {
@@ -67,6 +122,41 @@ export default function Dashboard() {
     
     checkPaymentCompletion();
   }, []); // Initial load only
+
+  const clearPendingPaymentsFromUI = () => {
+    console.log('Clearing pending payments from UI...');
+    setPendingPayments([]);
+    setStats(prevStats => ({
+      ...prevStats,
+      pendingPayments: 0
+    }));
+  };
+
+  const handleManualRefresh = async () => {
+    console.log('Manual refresh triggered - clearing any cached data...');
+    
+    // Clear any cached payment completion flags
+    localStorage.removeItem('payment_completed');
+    localStorage.removeItem('payment_timestamp');
+    localStorage.removeItem('force_immediate_refresh');
+    localStorage.removeItem('payment_completion_details');
+    localStorage.removeItem('payment_verified');
+    localStorage.removeItem('payment_status_paid');
+    localStorage.removeItem('clear_pending_payments');
+    localStorage.removeItem('booking_payment_completed');
+    
+    // Clear pending payments from UI immediately
+    clearPendingPaymentsFromUI();
+    
+    // Force refresh booking data
+    await fetchBookingData();
+    
+    // Additional refresh after a short delay to ensure backend consistency
+    setTimeout(() => {
+      console.log('Manual refresh - additional check for payment status updates...');
+      fetchBookingData();
+    }, 1000);
+  };
 
   const fetchBookingData = async () => {
     try {
@@ -89,9 +179,45 @@ export default function Dashboard() {
           return sum + (booking.amount_npr || 0);
         }, 0);
 
-        // Set pending payments
+        // Set pending payments - filter out any that might have been paid recently
+        let validPendingPayments = [];
         if (pendingPaymentsResponse.data.success) {
-          setPendingPayments(pendingPaymentsResponse.data.pending_payments);
+          const pendingPayments = pendingPaymentsResponse.data.pending_payments;
+          console.log('Fetched pending payments:', pendingPayments);
+          console.log('Raw pending payments count:', pendingPayments.length);
+          
+          // Filter out any bookings that have payment_status as 'paid' (double-check)
+          validPendingPayments = pendingPayments.filter(payment => {
+            const isValidPending = payment.payment_status !== 'paid' && 
+                                   payment.requires_payment === true &&
+                                   payment.admin_amount_set === true;
+            
+            if (!isValidPending) {
+              console.log(`Filtering out payment for booking ${payment.booking_id}:`, {
+                payment_status: payment.payment_status,
+                requires_payment: payment.requires_payment,
+                admin_amount_set: payment.admin_amount_set
+              });
+            }
+            
+            return isValidPending;
+          });
+          
+          console.log('Filtered pending payments:', validPendingPayments);
+          console.log('Valid pending payments count:', validPendingPayments.length);
+          
+          // Check if any recent payment completion flags are set and clear pending payments
+          const clearPaymentsFlag = localStorage.getItem('clear_pending_payments');
+          const paymentStatusPaid = localStorage.getItem('payment_status_paid');
+          
+          if (clearPaymentsFlag === 'true' || paymentStatusPaid === 'true') {
+            console.log('Payment completion flag detected, forcefully clearing pending payments...');
+            validPendingPayments = [];
+          }
+          
+          setPendingPayments(validPendingPayments);
+        } else {
+          console.log('Failed to fetch pending payments:', pendingPaymentsResponse.data);
         }
 
         setStats({
@@ -100,7 +226,7 @@ export default function Dashboard() {
           totalBookings: allBookings.length,
           totalSpent: totalCost, // Keep for backward compatibility
           totalCost: totalCost,
-          pendingPayments: pendingPaymentsResponse.data.success ? pendingPaymentsResponse.data.count : 0
+          pendingPayments: validPendingPayments.length
         });
       }
 
@@ -199,6 +325,47 @@ export default function Dashboard() {
           </div>
         )}
 
+        {/* Payment Success Notification from localStorage */}
+        {(() => {
+          const paymentDetails = localStorage.getItem('payment_completion_details');
+          if (paymentDetails) {
+            try {
+              const details = JSON.parse(paymentDetails);
+              const completedAt = new Date(details.completedAt);
+              const now = new Date();
+              const timeDiff = now - completedAt;
+              
+              // Show notification if payment was completed within the last 2 minutes
+              if (timeDiff < 2 * 60 * 1000) {
+                return (
+                  <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
+                    <div className="flex items-center">
+                      <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold">🎉 Payment Successful!</h3>
+                        <p className="text-green-100">
+                          Your payment of ₹{details.amount} for {details.stationName} has been confirmed.
+                          <br />
+                          <span className="text-sm">
+                            Booking ID: {details.bookingId} • Transaction ID: {details.transactionId}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+            } catch (e) {
+              console.error('Error parsing payment details:', e);
+            }
+          }
+          return null;
+        })()}
+
         {/* Pending Payments Notification */}
         {pendingPayments.length > 0 && (
           <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
@@ -276,10 +443,7 @@ export default function Dashboard() {
             </div>
             <div className="hidden md:flex items-center space-x-4">
               <button
-                onClick={() => {
-                  console.log('Manual refresh triggered');
-                  fetchBookingData();
-                }}
+                onClick={handleManualRefresh}
                 className="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors font-medium flex items-center gap-2"
                 disabled={loading}
               >
@@ -440,7 +604,11 @@ export default function Dashboard() {
                             {booking.station_details?.name || `Station ${booking.station_id}`}
                           </h4>
                           {/* Show appropriate status based on booking state */}
-                          {booking.status === 'completed' && booking.admin_amount_set && booking.requires_payment ? (
+                          {booking.payment_status === 'paid' ? (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor('paid')}`}>
+                              Paid
+                            </span>
+                          ) : booking.status === 'completed' && booking.admin_amount_set && booking.requires_payment ? (
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor('pending')}`}>
                               Payment Pending
                             </span>
@@ -448,7 +616,7 @@ export default function Dashboard() {
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor('completed')}`}>
                               Charging Completed
                             </span>
-                          ) : booking.payment_status && booking.payment_status !== 'none' ? (
+                          ) : booking.payment_status && booking.payment_status !== 'none' && booking.payment_status !== 'paid' ? (
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(booking.payment_status)}`}>
                               {getPaymentStatusText(booking.payment_status)}
                             </span>

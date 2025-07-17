@@ -367,6 +367,102 @@
       "operatingHours": "6:00 AM - 10:00 PM",
       "pricing": "NPR 18 per kWh",
       "photos": []
+    },
+    {
+      "id": "cs023",
+      "name": "Pokhara Lakeside EV Hub",
+      "location": {
+        "address": "Lakeside, Pokhara, Gandaki",
+        "coordinates": [28.2167, 83.9500]
+      },
+      "chargers": [
+        {"type": "CCS", "power": "50kW", "available": true},
+        {"type": "Type 2", "power": "22kW", "available": true}
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Parking"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 20 per kWh",
+      "photos": []
+    },
+    {
+      "id": "cs024",
+      "name": "Kathmandu Central EV Plaza",
+      "location": {
+        "address": "Thamel, Kathmandu, Province 3",
+        "coordinates": [27.7172, 85.3240]
+      },
+      "chargers": [
+        {"type": "CCS", "power": "75kW", "available": true},
+        {"type": "Type 2", "power": "22kW", "available": true},
+        {"type": "CHAdeMO", "power": "50kW", "available": true}
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Parking", "Food"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 25 per kWh",
+      "photos": []
+    },
+    {
+      "id": "cs025",
+      "name": "Boudhanath EV Hub",
+      "location": {
+        "address": "Boudhanath, Kathmandu, Province 3",
+        "coordinates": [27.7217, 85.3619]
+      },
+      "chargers": [
+        {"type": "Type 2", "power": "22kW", "available": true},
+        {"type": "CCS", "power": "50kW", "available": true}
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Parking"],
+      "operatingHours": "6:00 AM - 10:00 PM",
+      "pricing": "NPR 20 per kWh",
+      "photos": []
+    },
+    {
+      "id": "cs026",
+      "name": "Patan Durbar Square Charger",
+      "location": {
+        "address": "Patan Durbar Square, Lalitpur, Province 3",
+        "coordinates": [27.6736, 85.3240]
+      },
+      "chargers": [
+        {"type": "Type 2", "power": "11kW", "available": true}
+      ],
+      "amenities": ["Restroom", "Cafe", "Parking"],
+      "operatingHours": "7:00 AM - 9:00 PM",
+      "pricing": "NPR 18 per kWh",
+      "photos": []
+    },
+    {
+      "id": "cs027",
+      "name": "Bhaktapur Heritage EV",
+      "location": {
+        "address": "Bhaktapur Durbar Square, Bhaktapur, Province 3",
+        "coordinates": [27.6719, 85.4295]
+      },
+      "chargers": [
+        {"type": "Type 2", "power": "22kW", "available": true},
+        {"type": "CCS", "power": "50kW", "available": true}
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Parking", "Food"],
+      "operatingHours": "6:00 AM - 10:00 PM",
+      "pricing": "NPR 22 per kWh",
+      "photos": []
+    },
+    {
+      "id": "cs028",
+      "name": "Nagarkot Viewpoint Charger",
+      "location": {
+        "address": "Nagarkot, Bhaktapur, Province 3",
+        "coordinates": [27.7167, 85.5167]
+      },
+      "chargers": [
+        {"type": "Type 2", "power": "11kW", "available": true},
+        {"type": "CCS", "power": "50kW", "available": true}
+      ],
+      "amenities": ["Restroom", "Cafe", "WiFi", "Parking", "Accommodation"],
+      "operatingHours": "24/7",
+      "pricing": "NPR 24 per kWh",
+      "photos": []
     }
   ]
 } 

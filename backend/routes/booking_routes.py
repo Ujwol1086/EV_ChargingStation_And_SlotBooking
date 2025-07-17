@@ -42,19 +42,27 @@ def get_booking_details(booking_id):
             station = ChargingStation.get_by_id(booking.get('station_id'))
             if not station:
                 logger.warning(f"Station {booking.get('station_id')} not found for booking {booking_id}")
-                # Create a fallback station object for missing stations
+                # Create a more detailed fallback station object for missing stations
                 station = {
                     'id': booking.get('station_id'),
-                    'name': f"Station {booking.get('station_id')}",
+                    'name': f"Station {booking.get('station_id')} (Not Found)",
                     'location': {
-                        'address': 'Location not available',
+                        'address': 'Station location unavailable - may have been removed or relocated',
                         'coordinates': [0, 0]
                     },
-                    'chargers': [],
+                    'chargers': [
+                        {
+                            'type': 'Unknown',
+                            'power': 'Unknown',
+                            'available': False
+                        }
+                    ],
                     'amenities': [],
                     'operatingHours': 'Unknown',
                     'pricing': 'Contact for pricing',
-                    'telephone': 'N/A'
+                    'telephone': 'N/A',
+                    'status': 'unavailable',
+                    'note': f'Station {booking.get("station_id")} was not found. It may have been removed, relocated, or the ID may be incorrect.'
                 }
         
         logger.info(f"Successfully retrieved booking details for: {booking_id}")
