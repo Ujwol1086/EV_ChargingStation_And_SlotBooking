@@ -36,8 +36,11 @@ class Booking:
                 "power": booking_data.get('power'),
                 "estimated_time": booking_data.get('estimated_time'),
                 "auto_booked": booking_data.get('auto_booked', False),
-                "status": booking_data.get('status', 'pending_payment'),
-                "payment_status": booking_data.get('payment_status', 'pending'),
+                "status": booking_data.get('status', 'confirmed'),
+                "payment_status": booking_data.get('payment_status', 'none'),
+                "payment_method": booking_data.get('payment_method', 'pay_at_station'),
+                "admin_amount_set": booking_data.get('admin_amount_set', False),
+                "charging_completed": booking_data.get('charging_completed', False),
                 "created_at": datetime.datetime.utcnow(),
                 "booking_time": datetime.datetime.utcnow(),
                 "estimated_duration": booking_data.get('booking_duration', 60),
@@ -386,8 +389,11 @@ class Booking:
                 "power": booking_data.get('power'),
                 "estimated_time": booking_data.get('estimated_time'),
                 "auto_booked": booking_data.get('auto_booked', False),
-                "status": booking_data.get('status', 'pending_payment'),
-                "payment_status": "pending",
+                "status": booking_data.get('status', 'confirmed'),
+                "payment_status": booking_data.get('payment_status', 'none'),
+                "payment_method": booking_data.get('payment_method', 'pay_at_station'),
+                "admin_amount_set": booking_data.get('admin_amount_set', False),
+                "charging_completed": booking_data.get('charging_completed', False),
                 "created_at": datetime.utcnow(),
                 "estimated_duration": booking_data.get('booking_duration', 60),
                 "station_details": booking_data.get('station_details', {}),
@@ -555,6 +561,8 @@ class Booking:
             # If payment is successful, update booking status to confirmed
             if payment_status == 'paid':
                 update_data['status'] = 'confirmed'
+                update_data['requires_payment'] = False  # Clear payment requirement
+                update_data['payment_completed_at'] = datetime.datetime.utcnow()
             # If payment is deferred (pay later), update booking status to confirmed but keep payment pending
             elif payment_status == 'deferred':
                 update_data['status'] = 'confirmed'
@@ -653,6 +661,106 @@ class Booking:
                 'distance_surcharge': 0,
                 'urgency_surcharge': 0
             }
+    
+    @staticmethod
+    def admin_set_charging_amount(booking_id, amount_npr, admin_user_id, charging_duration_minutes=None, notes=None):
+        """
+        Admin sets the amount to be paid after charging is completed
+        
+        Args:
+            booking_id: The booking ID
+            amount_npr: Amount in NPR to be charged
+            admin_user_id: ID of the admin setting the amount
+            charging_duration_minutes: Actual charging duration in minutes
+            notes: Optional notes about the charging session
+        """
+        try:
+            amount_paisa = int(amount_npr * 100)
+            current_time = datetime.datetime.utcnow()
+            
+            update_data = {
+                "amount_npr": amount_npr,
+                "amount_paisa": amount_paisa,
+                "requires_payment": True,
+                "admin_amount_set": True,
+                "charging_completed": True,
+                "payment_status": "pending",
+                "admin_set_amount_at": current_time,
+                "admin_user_id": admin_user_id,
+                "updated_at": current_time
+            }
+            
+            if charging_duration_minutes:
+                update_data["actual_charging_duration"] = charging_duration_minutes
+            
+            if notes:
+                update_data["admin_notes"] = notes
+            
+            result = mongo.db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": update_data}
+            )
+            
+            if result.modified_count > 0:
+                logger.info(f"Admin {admin_user_id} set amount {amount_npr} NPR for booking {booking_id}")
+                return True
+            else:
+                logger.warning(f"No booking found with booking_id: {booking_id}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error setting admin amount: {e}")
+            return False
+    
+    @staticmethod
+    def get_pending_payment_bookings_for_user(user_id):
+        """
+        Get all bookings that require payment for a specific user
+        
+        Args:
+            user_id: User ID to get pending payments for
+        """
+        try:
+            bookings = list(mongo.db.bookings.find({
+                "user_id": ObjectId(user_id),
+                "requires_payment": True,
+                "payment_status": "pending",
+                "admin_amount_set": True
+            }))
+            
+            # Convert ObjectId to string for JSON serialization
+            for booking in bookings:
+                booking["_id"] = str(booking["_id"])
+                booking["user_id"] = str(booking["user_id"])
+                
+            return bookings
+            
+        except Exception as e:
+            logger.error(f"Error getting pending payment bookings: {e}")
+            return []
+    
+    @staticmethod
+    def get_completed_bookings_for_admin():
+        """
+        Get all completed bookings that need admin review for amount setting
+        """
+        try:
+            bookings = list(mongo.db.bookings.find({
+                "status": "completed",
+                "charging_completed": True,
+                "admin_amount_set": False
+            }))
+            
+            # Convert ObjectId to string for JSON serialization
+            for booking in bookings:
+                booking["_id"] = str(booking["_id"])
+                booking["user_id"] = str(booking["user_id"])
+                
+            return bookings
+            
+        except Exception as e:
+            logger.error(f"Error getting completed bookings for admin: {e}")
+            return []
     
     @staticmethod
     def cleanup_expired_bookings():

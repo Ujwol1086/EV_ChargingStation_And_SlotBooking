@@ -8,14 +8,69 @@ const PaymentPage = () => {
   const [error, setError] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const [paymentUrl, setPaymentUrl] = useState('');
-  const [payLaterLoading, setPayLaterLoading] = useState(false);
+
+  const [booking, setBooking] = useState(null);
+  const [station, setStation] = useState(null);
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Get booking and station data from location state
-  const booking = location.state?.booking;
-  const station = location.state?.station;
+  // Initialize booking and station data from location state if available
+  useEffect(() => {
+    if (location.state?.booking) {
+      setBooking(location.state.booking);
+    }
+    if (location.state?.station) {
+      setStation(location.state.station);
+    }
+  }, [location.state]);
+
+  const fetchBookingForPayment = async (bookingId) => {
+    try {
+      setLoading(true);
+      setError('');
+
+      console.log('Fetching booking details for ID:', bookingId);
+      const response = await axios.get(`/bookings/${bookingId}`);
+      console.log('Booking API response:', response.data);
+      
+      if (response.data.success) {
+        const bookingData = response.data.booking;
+        setBooking(bookingData);
+        
+        // Fetch station details if available
+        if (bookingData.station_id) {
+          try {
+            const stationResponse = await axios.get(`/stations/${bookingData.station_id}`);
+            if (stationResponse.data.success) {
+              setStation(stationResponse.data.station);
+            }
+          } catch (err) {
+            console.log('Could not fetch station details');
+          }
+        }
+        
+        // Check if payment is ready
+        if (bookingData.admin_amount_set && bookingData.requires_payment) {
+          // Payment is ready, show payment options
+          console.log('Payment ready for booking:', bookingData.booking_id);
+          setLoading(false);
+        } else {
+          setError('Payment amount not yet set by admin');
+          setLoading(false);
+        }
+      } else {
+        console.error('Booking API returned success=false:', response.data);
+        setError(response.data.error || 'Booking not found');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error fetching booking:', err);
+      console.error('Error response:', err.response?.data);
+      setError(err.response?.data?.error || 'Failed to fetch booking details');
+      setLoading(false);
+    }
+  };
 
   const initiatePayment = useCallback(async () => {
     try {
@@ -49,32 +104,7 @@ const PaymentPage = () => {
     }
   }, [booking]);
 
-  const handlePayLater = async () => {
-    try {
-      setPayLaterLoading(true);
-      setError('');
 
-      const response = await axios.post(`/payments/pay-later/${booking.booking_id}`);
-
-      if (response.data.success) {
-        setPaymentStatus('pay_later_success');
-        // Redirect to dashboard after a short delay
-        setTimeout(() => {
-          navigate('/dashboard', { 
-            state: { 
-              message: 'Booking confirmed! You can pay later at the station.' 
-            } 
-          });
-        }, 2000);
-      } else {
-        setError(response.data.error || 'Failed to confirm booking for payment later');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to confirm booking for payment later');
-    } finally {
-      setPayLaterLoading(false);
-    }
-  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -82,15 +112,35 @@ const PaymentPage = () => {
       return;
     }
 
-    if (!booking || !station) {
+    // Handle booking from URL parameters for admin-set amounts
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookingId = urlParams.get('booking_id');
+    
+    console.log('PaymentPage: bookingId from URL:', bookingId);
+    console.log('PaymentPage: current booking:', booking);
+    
+    if (bookingId && !booking) {
+      console.log('PaymentPage: Fetching booking for ID:', bookingId);
+      fetchBookingForPayment(bookingId);
+      return;
+    }
+
+    if (!booking) {
       setError('No booking information found');
       setLoading(false);
       return;
     }
 
-    // Auto-initiate payment when page loads
-    initiatePayment();
-  }, [booking, isAuthenticated, navigate, initiatePayment]);
+    // Check if payment is ready but don't auto-initiate
+    if (booking.admin_amount_set && booking.requires_payment) {
+      console.log('PaymentPage: Payment ready, displaying payment options');
+      setLoading(false);
+    } else {
+      console.log('PaymentPage: Payment not ready. admin_amount_set:', booking.admin_amount_set, 'requires_payment:', booking.requires_payment);
+      setError('Payment not yet available for this booking');
+      setLoading(false);
+    }
+  }, [booking, isAuthenticated, navigate]);
 
   const handlePaymentSuccess = useCallback(async () => {
     try {
@@ -158,14 +208,72 @@ const PaymentPage = () => {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full mx-4">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Invalid Payment Request</h2>
-            <p className="text-gray-600 mb-6">No booking information found.</p>
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Go to Dashboard
-            </button>
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Loading Payment Information</h2>
+                <p className="text-gray-600 mb-6">Please wait while we fetch your booking details...</p>
+              </>
+            ) : error ? (
+              <>
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Payment Error</h2>
+                <p className="text-gray-600 mb-6">{error}</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => {
+                      setError('');
+                      setLoading(false);
+                      const urlParams = new URLSearchParams(window.location.search);
+                      const bookingId = urlParams.get('booking_id');
+                      if (bookingId) {
+                        fetchBookingForPayment(bookingId);
+                      }
+                    }}
+                    className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Retry Loading
+                  </button>
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="w-full px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Go to Dashboard
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">Booking Information Missing</h2>
+                <p className="text-gray-600 mb-6">
+                  We couldn't find the booking information needed for payment. 
+                  This might happen if you accessed this page directly or if the session expired.
+                </p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Go to Dashboard
+                  </button>
+                  <button
+                    onClick={() => navigate('/recommendations')}
+                    className="w-full px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Find Stations to Book
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -185,8 +293,12 @@ const PaymentPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Complete Your Booking</h2>
-                <p className="text-gray-600">Secure payment required to confirm your charging slot</p>
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">💰 Pay for Charging Session</h2>
+                <p className="text-gray-600">
+                  Your charging session is complete! 
+                  <br />
+                  <span className="text-sm text-blue-600">Amount set by admin based on actual usage</span>
+                </p>
               </div>
 
               {/* Booking Summary */}
@@ -257,22 +369,7 @@ const PaymentPage = () => {
                       Processing...
                     </div>
                   ) : (
-                    `Pay Now - ₹${booking.amount_npr}`
-                  )}
-                </button>
-                
-                <button
-                  onClick={handlePayLater}
-                  disabled={payLaterLoading}
-                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                >
-                  {payLaterLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Processing...
-                    </div>
-                  ) : (
-                    'Pay Later at Station'
+                    `Pay with Khalti - ₹${booking.amount_npr}`
                   )}
                 </button>
                 
@@ -335,28 +432,7 @@ const PaymentPage = () => {
             </div>
           )}
 
-          {/* Pay Later Success State */}
-          {paymentStatus === 'pay_later_success' && (
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">Booking Confirmed!</h2>
-              <p className="text-gray-600 mb-4">Your booking has been confirmed. You can pay ₹{booking.amount_npr} at the station.</p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <h3 className="font-semibold text-blue-800 mb-2">Important Information</h3>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Please arrive 5 minutes before your scheduled time</li>
-                  <li>• Bring your own charging cable if required</li>
-                  <li>• Payment of ₹{booking.amount_npr} is due at the station</li>
-                  <li>• Show your booking confirmation to station staff</li>
-                </ul>
-              </div>
-              <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
-            </div>
-          )}
+
         </div>
       </div>
     </div>

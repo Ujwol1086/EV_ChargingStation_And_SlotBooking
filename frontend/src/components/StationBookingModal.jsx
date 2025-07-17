@@ -92,6 +92,7 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
       const response = await axios.post('/recommendations/book-slot', bookingData);
 
       if (response.data.success) {
+        alert('Booking confirmed! You will pay at the station based on actual usage.');
         onBookingSuccess(response.data.booking);
         onClose();
       } else {
