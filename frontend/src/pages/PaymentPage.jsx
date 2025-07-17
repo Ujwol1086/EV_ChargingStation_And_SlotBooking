@@ -8,6 +8,7 @@ const PaymentPage = () => {
   const [error, setError] = useState('');
   const [paymentStatus, setPaymentStatus] = useState('pending');
   const [paymentUrl, setPaymentUrl] = useState('');
+  const [payLaterLoading, setPayLaterLoading] = useState(false);
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,6 +48,33 @@ const PaymentPage = () => {
       setLoading(false);
     }
   }, [booking]);
+
+  const handlePayLater = async () => {
+    try {
+      setPayLaterLoading(true);
+      setError('');
+
+      const response = await axios.post(`/payments/pay-later/${booking.booking_id}`);
+
+      if (response.data.success) {
+        setPaymentStatus('pay_later_success');
+        // Redirect to dashboard after a short delay
+        setTimeout(() => {
+          navigate('/dashboard', { 
+            state: { 
+              message: 'Booking confirmed! You can pay later at the station.' 
+            } 
+          });
+        }, 2000);
+      } else {
+        setError(response.data.error || 'Failed to confirm booking for payment later');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to confirm booking for payment later');
+    } finally {
+      setPayLaterLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -229,7 +257,22 @@ const PaymentPage = () => {
                       Processing...
                     </div>
                   ) : (
-                    `Confirm Booking - ₹${booking.amount_npr}`
+                    `Pay Now - ₹${booking.amount_npr}`
+                  )}
+                </button>
+                
+                <button
+                  onClick={handlePayLater}
+                  disabled={payLaterLoading}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  {payLaterLoading ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    'Pay Later at Station'
                   )}
                 </button>
                 
@@ -289,6 +332,29 @@ const PaymentPage = () => {
               </div>
               <h2 className="text-xl font-semibold text-gray-800 mb-2">Payment Successful!</h2>
               <p className="text-gray-600">Redirecting to success page...</p>
+            </div>
+          )}
+
+          {/* Pay Later Success State */}
+          {paymentStatus === 'pay_later_success' && (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Booking Confirmed!</h2>
+              <p className="text-gray-600 mb-4">Your booking has been confirmed. You can pay ₹{booking.amount_npr} at the station.</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <h3 className="font-semibold text-blue-800 mb-2">Important Information</h3>
+                <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Please arrive 5 minutes before your scheduled time</li>
+                  <li>• Bring your own charging cable if required</li>
+                  <li>• Payment of ₹{booking.amount_npr} is due at the station</li>
+                  <li>• Show your booking confirmation to station staff</li>
+                </ul>
+              </div>
+              <p className="text-sm text-gray-500">Redirecting to dashboard...</p>
             </div>
           )}
         </div>
