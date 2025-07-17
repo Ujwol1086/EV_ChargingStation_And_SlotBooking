@@ -9,6 +9,7 @@ import AdminStations from "./admin/pages/AdminStations";
 import AdminUsers from "./admin/pages/AdminUsers";
 import AdminBookings from "./admin/pages/AdminBookings";
 import AdminAnalytics from "./admin/pages/AdminAnalytics";
+import AdminChargingManagement from "./admin/pages/AdminChargingManagement";
 
 // Pages
 import Home from "./pages/Home";
@@ -109,6 +110,11 @@ const App = () => {
               <Route path="/admin/analytics" element={
                 <ProtectedAdminRoute>
                   <AdminLayout><AdminAnalytics /></AdminLayout>
+                </ProtectedAdminRoute>
+              } />
+              <Route path="/admin/charging" element={
+                <ProtectedAdminRoute>
+                  <AdminLayout><AdminChargingManagement /></AdminLayout>
                 </ProtectedAdminRoute>
               } />
             </Routes>

@@ -135,22 +135,11 @@ const BookingPage = () => {
       if (response.data.success) {
         const booking = response.data.booking;
         
-        // Check if payment is required
-        if (booking.requires_payment && booking.status === 'pending_payment') {
-          // Redirect to payment page
-          navigate('/payment', {
-            state: {
-              booking: booking,
-              station: station
-            }
-          });
-        } else {
-          // Booking confirmed without payment
-          setSuccess(true);
-          setTimeout(() => {
-            navigate('/dashboard');
-          }, 3000);
-        }
+        // Booking confirmed - no upfront payment required
+        setSuccess(true);
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 3000);
       } else {
         setError(response.data.error || 'Booking failed');
       }
@@ -202,12 +191,17 @@ const BookingPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Booking Created! 🎉</h1>
-          <p className="text-gray-600 mb-6">
-            Your charging slot has been created at <strong>{station.name}</strong> for{' '}
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Booking Confirmed! 🎉</h1>
+          <p className="text-gray-600 mb-4">
+            Your charging slot has been confirmed at <strong>{station.name}</strong> for{' '}
             <strong>{formData.booking_date}</strong> at <strong>{formData.booking_time}</strong>.
-            Redirecting to payment...
           </p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <p className="text-blue-800 text-sm">
+              💡 <strong>Pay at Station:</strong> You'll pay based on actual usage after charging. 
+              The admin will set the amount based on your charging time and energy consumed.
+            </p>
+          </div>
           <div className="space-y-3">
             <button
               onClick={() => navigate('/dashboard')}
