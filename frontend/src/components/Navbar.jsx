@@ -36,10 +36,16 @@ export default function Navbar() {
               Home
             </Link>
             <Link
-              to="/map"
+              to="/stations"
               className="px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300 font-medium"
             >
               Stations
+            </Link>
+            <Link
+              to="/map"
+              className="px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300 font-medium"
+            >
+              Map
             </Link>
 
             {isAuthenticated ? (
