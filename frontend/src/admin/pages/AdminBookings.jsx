@@ -4,12 +4,20 @@ import Notification from '../../components/Notification';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
+  const [completedBookings, setCompletedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [showAmountModal, setShowAmountModal] = useState(false);
+  const [amountForm, setAmountForm] = useState({
+    amount_npr: '',
+    charging_duration_minutes: '',
+    notes: ''
+  });
+  const [settingAmount, setSettingAmount] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -18,14 +26,30 @@ const AdminBookings = () => {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/admin/bookings');
-      if (response.data.success) {
-        setBookings(response.data.bookings);
+      setNotification(null);
+
+      // Fetch all bookings
+      const allBookingsResponse = await axios.get('/admin/bookings');
+      
+      // Fetch completed bookings that need amount setting
+      const completedBookingsResponse = await axios.get('/admin/bookings/completed');
+
+      if (allBookingsResponse.data.success) {
+        setBookings(allBookingsResponse.data.bookings || []);
       }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      // Show empty state instead of dummy data
+
+      if (completedBookingsResponse.data.success) {
+        setCompletedBookings(completedBookingsResponse.data.bookings || []);
+      }
+
+    } catch (err) {
+      console.error('Error fetching bookings:', err);
+      setNotification({
+        message: 'Failed to fetch bookings. Please try again later.',
+        type: 'error'
+      });
       setBookings([]);
+      setCompletedBookings([]);
     } finally {
       setLoading(false);
     }
@@ -98,6 +122,66 @@ const AdminBookings = () => {
         // Refresh to get the latest data
         fetchBookings();
       }
+    }
+  };
+
+  const handleSetAmount = (booking) => {
+    setSelectedBooking(booking);
+    setAmountForm({
+      amount_npr: '',
+      charging_duration_minutes: '',
+      notes: ''
+    });
+    setShowAmountModal(true);
+  };
+
+  const handleAmountSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedBooking || !amountForm.amount_npr) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      setSettingAmount(true);
+      setNotification(null);
+
+      const response = await axios.post(`/admin/bookings/${selectedBooking.booking_id}/set-amount`, {
+        amount_npr: parseFloat(amountForm.amount_npr),
+        charging_duration_minutes: amountForm.charging_duration_minutes ? parseInt(amountForm.charging_duration_minutes) : null,
+        notes: amountForm.notes
+      });
+
+      if (response.data.success) {
+        alert('Charging amount set successfully! User will be notified.');
+        setShowAmountModal(false);
+        setSelectedBooking(null);
+        // Refresh bookings
+        fetchBookings();
+      } else {
+        alert(response.data.error || 'Failed to set amount');
+      }
+
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to set charging amount');
+    } finally {
+      setSettingAmount(false);
+    }
+  };
+
+  const handleMarkCompleted = async (bookingId) => {
+    try {
+      const response = await axios.post(`/admin/bookings/${bookingId}/mark-completed`);
+      
+      if (response.data.success) {
+        alert('Booking marked as charging completed');
+        fetchBookings();
+      } else {
+        alert(response.data.error || 'Failed to mark as completed');
+      }
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to mark booking as completed');
     }
   };
 
@@ -203,6 +287,36 @@ const AdminBookings = () => {
           </div>
         </div>
       </div>
+
+      {/* Recent Payment Confirmations Alert */}
+      {bookings.filter(b => b.payment_status === 'paid' && 
+        b.payment_data?.verified_at && 
+        (Date.now() - (b.payment_data.verified_at * 1000)) < 60000 // Last 1 minute
+      ).length > 0 && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center">
+            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">💰 Payment Received!</h3>
+              <p className="text-green-100">
+                {bookings.filter(b => b.payment_status === 'paid' && 
+                  b.payment_data?.verified_at && 
+                  (Date.now() - (b.payment_data.verified_at * 1000)) < 60000
+                ).length} payment{bookings.filter(b => b.payment_status === 'paid' && 
+                  b.payment_data?.verified_at && 
+                  (Date.now() - (b.payment_data.verified_at * 1000)) < 60000
+                ).length > 1 ? 's' : ''} confirmed in the last minute.
+                <br />
+                <span className="text-sm">Database automatically updated.</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status Overview */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -427,6 +541,93 @@ const AdminBookings = () => {
         />
       )}
 
+      {/* Amount Setting Modal */}
+      {showAmountModal && selectedBooking && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Set Charging Amount
+              </h3>
+              
+              <div className="mb-4 p-3 bg-gray-50 rounded">
+                <p className="text-sm text-gray-600">
+                  <strong>Booking:</strong> {selectedBooking.booking_id}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Station:</strong> {selectedBooking.station_details?.name || selectedBooking.station_id}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>Charger:</strong> {selectedBooking.charger_type}
+                </p>
+              </div>
+
+              <form onSubmit={handleAmountSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (NPR) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={amountForm.amount_npr}
+                    onChange={(e) => setAmountForm({ ...amountForm, amount_npr: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    placeholder="Enter amount to charge"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Charging Duration (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={amountForm.charging_duration_minutes}
+                    onChange={(e) => setAmountForm({ ...amountForm, charging_duration_minutes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Actual charging time"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    value={amountForm.notes}
+                    onChange={(e) => setAmountForm({ ...amountForm, notes: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows={3}
+                    placeholder="Additional notes about the charging session"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAmountModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={settingAmount}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  >
+                    {settingAmount ? 'Setting...' : 'Set Amount'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Notification */}
       {notification && (
         <Notification
@@ -529,8 +730,8 @@ const BookingDetailsModal = ({ booking, onClose }) => {
                     {booking.payment_status && (
                       <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getPaymentStatusColor(booking.payment_status)}`}>
                         {getPaymentStatusText(booking.payment_status)}
-                  </span>
-                    )}
+                    </span>
+                      )}
                   {booking.auto_booked && (
                       <div className="text-xs text-blue-600">Auto-booked</div>
                   )}

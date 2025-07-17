@@ -8,7 +8,7 @@ const BookingDetailsPage = () => {
   const [station, setStation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [payLaterLoading, setPayLaterLoading] = useState(false);
+
   const { isAuthenticated } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -90,30 +90,7 @@ const BookingDetailsPage = () => {
     }
   };
 
-  const handlePayLater = async () => {
-    if (!booking) return;
 
-    try {
-      setPayLaterLoading(true);
-      setError('');
-
-      const response = await axios.post(`/payments/pay-later/${booking.booking_id}`);
-      
-      if (response.data.success) {
-        navigate('/dashboard', { 
-          state: { 
-            message: 'Booking confirmed! You can pay ₹' + booking.amount_npr + ' at the station.' 
-          } 
-        });
-      } else {
-        setError(response.data.error || 'Failed to confirm booking for payment later');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to confirm booking for payment later');
-    } finally {
-      setPayLaterLoading(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -296,23 +273,8 @@ const BookingDetailsPage = () => {
                 onClick={handleProceedToPayment}
                 className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-colors font-medium"
               >
-                  Pay Now - ₹{booking.amount_npr}
+                  Pay with Khalti - ₹{booking.amount_npr}
                 </button>
-                
-                <button
-                  onClick={handlePayLater}
-                  disabled={payLaterLoading}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                >
-                  {payLaterLoading ? (
-                    <div className="flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Processing...
-                    </div>
-                  ) : (
-                    'Pay Later at Station'
-                  )}
-              </button>
               </>
             )}
             
