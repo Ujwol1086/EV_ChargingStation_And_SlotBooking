@@ -93,23 +93,46 @@ class Booking:
     
     @staticmethod
     def find_by_booking_id(booking_id):
-        """Find a booking by its booking ID"""
+        """Find a booking by booking_id"""
         try:
-            logger.info(f"Finding booking by booking_id: {booking_id}")
-            
+            logger.info(f"Finding booking with booking_id: {booking_id}")
             booking = mongo.db.bookings.find_one({"booking_id": booking_id})
             
             if booking:
+                # Convert ObjectId to string for JSON serialization
                 booking["_id"] = str(booking["_id"])
                 booking["user_id"] = str(booking["user_id"])
-                logger.info(f"Booking found: {booking_id}")
+                
+                logger.info(f"Booking found: {booking.get('booking_id')}")
+                return booking
             else:
-                logger.info(f"No booking found with booking_id: {booking_id}")
-            
-            return booking
-            
+                logger.warning(f"No booking found with booking_id: {booking_id}")
+                return None
+                
         except Exception as e:
-            logger.error(f"Error finding booking by booking_id: {e}")
+            logger.error(f"Error finding booking: {e}")
+            return None
+    
+    @staticmethod
+    def find_by_khalti_idx(khalti_idx):
+        """Find a booking by Khalti payment index (pidx)"""
+        try:
+            logger.info(f"Finding booking with khalti_idx: {khalti_idx}")
+            booking = mongo.db.bookings.find_one({"khalti_idx": khalti_idx})
+            
+            if booking:
+                # Convert ObjectId to string for JSON serialization
+                booking["_id"] = str(booking["_id"])
+                booking["user_id"] = str(booking["user_id"])
+                
+                logger.info(f"Booking found by khalti_idx: {booking.get('booking_id')}")
+                return booking
+            else:
+                logger.warning(f"No booking found with khalti_idx: {khalti_idx}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error finding booking by khalti_idx: {e}")
             return None
     
     @staticmethod
@@ -553,6 +576,14 @@ class Booking:
         try:
             logger.info(f"Updating payment status for booking {booking_id} to {payment_status}")
             
+            # First, check if the booking exists
+            existing_booking = mongo.db.bookings.find_one({"booking_id": booking_id})
+            if not existing_booking:
+                logger.error(f"Booking {booking_id} not found in database")
+                return False
+            
+            logger.info(f"Found existing booking: status={existing_booking.get('status')}, payment_status={existing_booking.get('payment_status')}")
+            
             update_data = {
                 "payment_status": payment_status,
                 "updated_at": datetime.datetime.utcnow()
@@ -563,9 +594,11 @@ class Booking:
                 update_data['status'] = 'confirmed'
                 update_data['requires_payment'] = False  # Clear payment requirement
                 update_data['payment_completed_at'] = datetime.datetime.utcnow()
+                logger.info(f"Setting booking {booking_id} to confirmed status with payment completed")
             # If payment is deferred (pay later), update booking status to confirmed but keep payment pending
             elif payment_status == 'deferred':
                 update_data['status'] = 'confirmed'
+                logger.info(f"Setting booking {booking_id} to confirmed status with deferred payment")
             
             # Add payment data if provided
             if payment_data:
@@ -573,6 +606,9 @@ class Booking:
                 # Add individual fields for easier querying
                 for key, value in payment_data.items():
                     update_data[f'payment_{key}'] = value
+                logger.info(f"Added payment data to booking {booking_id}: {list(payment_data.keys())}")
+            
+            logger.info(f"Final update data for booking {booking_id}: {list(update_data.keys())}")
             
             result = mongo.db.bookings.update_one(
                 {"booking_id": booking_id},
@@ -580,10 +616,18 @@ class Booking:
             )
             
             if result.modified_count > 0:
-                logger.info(f"Payment status updated successfully for booking {booking_id}")
+                logger.info(f"✅ Payment status updated successfully for booking {booking_id}")
+                
+                # Verify the update by fetching the updated booking
+                updated_booking = mongo.db.bookings.find_one({"booking_id": booking_id})
+                if updated_booking:
+                    logger.info(f"✅ Verification: Updated booking {booking_id} - status={updated_booking.get('status')}, payment_status={updated_booking.get('payment_status')}")
+                else:
+                    logger.warning(f"⚠️ Could not verify update for booking {booking_id}")
+                
                 return True
             else:
-                logger.warning(f"No booking found with booking_id: {booking_id}")
+                logger.warning(f"No booking found with booking_id: {booking_id} or no changes made")
                 return False
                 
         except Exception as e:

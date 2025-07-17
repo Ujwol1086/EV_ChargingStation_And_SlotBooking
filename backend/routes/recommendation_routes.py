@@ -497,6 +497,24 @@ def book_charging_slot():
                 'plug_type': data.get('plug_type', data['charger_type'])
             }
             
+            # ALWAYS fetch fresh station details from database to ensure consistency
+            station = ChargingStation.get_by_id(data['station_id'])
+            if station:
+                booking_data['station_details'] = {
+                    'name': station.get('name', f"Station {data['station_id']}"),
+                    'location': station.get('location', {}),
+                    'pricing': station.get('pricing', 'Contact for pricing'),
+                    'chargers': station.get('chargers', [])
+                }
+            else:
+                # Fallback if station not found
+                booking_data['station_details'] = {
+                    'name': f"Station {data['station_id']} (Not Found)",
+                    'location': {'address': 'Location unavailable', 'coordinates': [0, 0]},
+                    'pricing': 'Contact for pricing',
+                    'chargers': []
+                }
+            
             # Calculate distance if user location provided
             if 'user_location' in data and 'station_details' in data:
                 station_coords = data['station_details'].get('location', {}).get('coordinates', [])
@@ -589,6 +607,24 @@ def book_charging_slot():
                 'payment_status': 'none',
                 'payment_method': 'pay_at_station'
             }
+            
+            # ALWAYS fetch fresh station details from database to ensure consistency
+            station = ChargingStation.get_by_id(data['station_id'])
+            if station:
+                booking_data['station_details'] = {
+                    'name': station.get('name', f"Station {data['station_id']}"),
+                    'location': station.get('location', {}),
+                    'pricing': station.get('pricing', 'Contact for pricing'),
+                    'chargers': station.get('chargers', [])
+                }
+            else:
+                # Fallback if station not found
+                booking_data['station_details'] = {
+                    'name': f"Station {data['station_id']} (Not Found)",
+                    'location': {'address': 'Location unavailable', 'coordinates': [0, 0]},
+                    'pricing': 'Contact for pricing',
+                    'chargers': []
+                }
             
             # Store booking in database using original method
             booking = Booking.create_booking(

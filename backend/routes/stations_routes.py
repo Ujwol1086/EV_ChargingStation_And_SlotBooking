@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify
 import json
 import os
 import logging
+import time
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -77,6 +78,7 @@ def normalize_station_data(station, index):
         logger.error(f"Error normalizing station data: {e}")
         return None
 
+@stations_bp.route('', methods=['GET'])
 @stations_bp.route('/', methods=['GET'])
 def get_charging_stations():
     """Get all charging stations"""
@@ -121,6 +123,15 @@ def get_charging_stations():
             'error': str(e)
         }), 500
 
+@stations_bp.route('/test', methods=['GET'])
+def test_stations_endpoint():
+    """Test endpoint to verify stations API is working"""
+    return jsonify({
+        'success': True,
+        'message': 'Stations API is working correctly',
+        'timestamp': time.time()
+    })
+
 @stations_bp.route('/list', methods=['GET'])
 def get_charging_stations_list():
     """Get all charging stations (list route)"""
@@ -162,14 +173,22 @@ def get_charging_station(station_id):
         
         # Return a fallback station for missing station IDs
         logger.warning(f"Station {station_id} not found, returning fallback data")
+        
+        # Create a more informative fallback station
         fallback_station = {
             'id': station_id,
-            'name': f"Station {station_id}",
+            'name': f"Station {station_id} (Not Found)",
             'location': {
-                'address': 'Location not available',
+                'address': 'Location data unavailable - Station may have been removed or relocated',
                 'coordinates': [0, 0]
             },
-            'chargers': [],
+            'chargers': [
+                {
+                    'type': 'Unknown',
+                    'power': 'Unknown',
+                    'available': False
+                }
+            ],
             'total_slots': 0,
             'available_slots': 0,
             'amenities': [],
@@ -179,12 +198,15 @@ def get_charging_station(station_id):
             'telephone': 'N/A',
             'city': 'Unknown',
             'province': 'Unknown',
-            'type': ['car']
+            'type': ['car'],
+            'status': 'unavailable',
+            'note': f'Station {station_id} was not found in the database. It may have been removed, relocated, or the ID may be incorrect.'
         }
         
         return jsonify({
             'success': True,
             'station': fallback_station,
+            'warning': f'Station {station_id} not found - showing fallback data',
             'note': 'This is a fallback station - the original station data was not found'
         })
             
