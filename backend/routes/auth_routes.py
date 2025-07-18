@@ -55,6 +55,7 @@ def login():
     # Remove password from response
     user.pop("password", None)
     user["_id"] = str(user["_id"])  # Convert ObjectId to string
+    user["id"] = user["_id"]  # Add id field for frontend compatibility
     
     # Check if user is admin
     is_admin = user.get('role') == 'admin'
@@ -88,5 +89,8 @@ def get_me():
     
     if not user:
         return jsonify({"error": "User not found"}), 404
+    
+    # Add id field for frontend compatibility
+    user["id"] = user["_id"]
     
     return jsonify({"user": user}), 200
