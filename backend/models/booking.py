@@ -566,7 +566,7 @@ class Booking:
     @staticmethod
     def update_payment_status(booking_id, payment_status, payment_data=None):
         """
-        Update payment status for a booking
+        Update payment status for a booking with enhanced error checking and atomicity
         
         Args:
             booking_id: The booking ID
@@ -574,31 +574,37 @@ class Booking:
             payment_data: Additional payment data (optional)
         """
         try:
-            logger.info(f"Updating payment status for booking {booking_id} to {payment_status}")
+            logger.info(f"🔄 Starting payment status update for booking {booking_id} to {payment_status}")
             
             # First, check if the booking exists
             existing_booking = mongo.db.bookings.find_one({"booking_id": booking_id})
             if not existing_booking:
-                logger.error(f"Booking {booking_id} not found in database")
+                logger.error(f"❌ Booking {booking_id} not found in database")
                 return False
             
-            logger.info(f"Found existing booking: status={existing_booking.get('status')}, payment_status={existing_booking.get('payment_status')}")
+            logger.info(f"📋 Found existing booking: status={existing_booking.get('status')}, payment_status={existing_booking.get('payment_status')}, requires_payment={existing_booking.get('requires_payment')}")
             
+            # Build update data with timestamp
+            current_time = datetime.datetime.utcnow()
             update_data = {
                 "payment_status": payment_status,
-                "updated_at": datetime.datetime.utcnow()
+                "updated_at": current_time,
+                "payment_status_updated_at": current_time
             }
             
             # If payment is successful, update booking status to confirmed
             if payment_status == 'paid':
-                update_data['status'] = 'confirmed'
-                update_data['requires_payment'] = False  # Clear payment requirement
-                update_data['payment_completed_at'] = datetime.datetime.utcnow()
-                logger.info(f"Setting booking {booking_id} to confirmed status with payment completed")
+                update_data.update({
+                    'status': 'confirmed',
+                    'requires_payment': False,  # CRITICAL: Clear payment requirement
+                    'payment_completed_at': current_time,
+                    'payment_verified': True
+                })
+                logger.info(f"💰 Setting booking {booking_id} to PAID status with requires_payment=False")
             # If payment is deferred (pay later), update booking status to confirmed but keep payment pending
             elif payment_status == 'deferred':
                 update_data['status'] = 'confirmed'
-                logger.info(f"Setting booking {booking_id} to confirmed status with deferred payment")
+                logger.info(f"⏳ Setting booking {booking_id} to confirmed status with deferred payment")
             
             # Add payment data if provided
             if payment_data:
@@ -606,32 +612,73 @@ class Booking:
                 # Add individual fields for easier querying
                 for key, value in payment_data.items():
                     update_data[f'payment_{key}'] = value
-                logger.info(f"Added payment data to booking {booking_id}: {list(payment_data.keys())}")
+                logger.info(f"💳 Added payment data to booking {booking_id}: {list(payment_data.keys())}")
             
-            logger.info(f"Final update data for booking {booking_id}: {list(update_data.keys())}")
+            logger.info(f"📝 Final update data for booking {booking_id}: {list(update_data.keys())}")
+            logger.info(f"🔍 Key update values: payment_status={update_data.get('payment_status')}, requires_payment={update_data.get('requires_payment')}, status={update_data.get('status')}")
             
+            # Perform atomic update with upsert=False to ensure we're updating existing record
             result = mongo.db.bookings.update_one(
                 {"booking_id": booking_id},
                 {"$set": update_data}
             )
             
+            logger.info(f"📊 Update result: matched_count={result.matched_count}, modified_count={result.modified_count}")
+            
             if result.modified_count > 0:
                 logger.info(f"✅ Payment status updated successfully for booking {booking_id}")
                 
-                # Verify the update by fetching the updated booking
+                # CRITICAL: Verify the update by fetching the updated booking
                 updated_booking = mongo.db.bookings.find_one({"booking_id": booking_id})
                 if updated_booking:
-                    logger.info(f"✅ Verification: Updated booking {booking_id} - status={updated_booking.get('status')}, payment_status={updated_booking.get('payment_status')}")
+                    logger.info(f"🔍 Verification: Updated booking {booking_id}")
+                    logger.info(f"   - status: {updated_booking.get('status')}")
+                    logger.info(f"   - payment_status: {updated_booking.get('payment_status')}")
+                    logger.info(f"   - requires_payment: {updated_booking.get('requires_payment')}")
+                    logger.info(f"   - payment_verified: {updated_booking.get('payment_verified')}")
+                    
+                    # Double-check the critical fields for paid status
+                    if payment_status == 'paid':
+                        if (updated_booking.get('payment_status') == 'paid' and 
+                            updated_booking.get('requires_payment') == False):
+                            logger.info(f"✅ VERIFICATION PASSED: Booking {booking_id} correctly updated to paid status")
+                            
+                            # Additional verification: Check that this booking no longer appears in pending payments
+                            user_id = updated_booking.get('user_id')
+                            if user_id:
+                                test_pending = mongo.db.bookings.find({
+                                    "user_id": user_id,
+                                    "requires_payment": True,
+                                    "payment_status": "pending",
+                                    "admin_amount_set": True
+                                })
+                                pending_booking_ids = [b.get('booking_id') for b in test_pending]
+                                
+                                if booking_id not in pending_booking_ids:
+                                    logger.info(f"✅ FINAL VERIFICATION: Booking {booking_id} NO LONGER appears in pending payments query")
+                                else:
+                                    logger.error(f"❌ CRITICAL ERROR: Booking {booking_id} STILL appears in pending payments after update!")
+                                    logger.error(f"   Pending booking IDs: {pending_booking_ids}")
+                                    return False
+                        else:
+                            logger.error(f"❌ VERIFICATION FAILED: Booking {booking_id} payment status update incomplete")
+                            logger.error(f"   Expected: payment_status='paid', requires_payment=False")
+                            logger.error(f"   Actual: payment_status='{updated_booking.get('payment_status')}', requires_payment={updated_booking.get('requires_payment')}")
+                            return False
                 else:
                     logger.warning(f"⚠️ Could not verify update for booking {booking_id}")
+                    return False
                 
                 return True
             else:
-                logger.warning(f"No booking found with booking_id: {booking_id} or no changes made")
+                logger.warning(f"⚠️ No booking found with booking_id: {booking_id} or no changes made")
+                logger.warning(f"   Matched count: {result.matched_count}")
                 return False
                 
         except Exception as e:
-            logger.error(f"Error updating payment status: {e}")
+            logger.error(f"💥 Error updating payment status for booking {booking_id}: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
     
     @staticmethod
@@ -759,28 +806,51 @@ class Booking:
     @staticmethod
     def get_pending_payment_bookings_for_user(user_id):
         """
-        Get all bookings that require payment for a specific user
+        Get all bookings that require payment for a specific user with enhanced filtering
         
         Args:
             user_id: User ID to get pending payments for
         """
         try:
-            bookings = list(mongo.db.bookings.find({
+            logger.info(f"🔍 Fetching pending payments for user {user_id}")
+            
+            # Enhanced query with explicit filtering
+            query = {
                 "user_id": ObjectId(user_id),
                 "requires_payment": True,
-                "payment_status": "pending",
-                "admin_amount_set": True
-            }))
+                "payment_status": {"$in": ["pending", "failed"]},  # Only truly pending payments
+                "admin_amount_set": True,
+                "status": {"$ne": "cancelled"}  # Exclude cancelled bookings
+            }
             
-            # Convert ObjectId to string for JSON serialization
+            logger.info(f"📋 Pending payments query: {query}")
+            
+            bookings = list(mongo.db.bookings.find(query))
+            
+            logger.info(f"📊 Found {len(bookings)} pending payment bookings for user {user_id}")
+            
+            # Additional client-side filtering for extra safety
+            filtered_bookings = []
             for booking in bookings:
-                booking["_id"] = str(booking["_id"])
-                booking["user_id"] = str(booking["user_id"])
-                
-            return bookings
+                # Double-check that this booking truly requires payment
+                if (booking.get('requires_payment') == True and 
+                    booking.get('payment_status') in ['pending', 'failed'] and 
+                    booking.get('admin_amount_set') == True and
+                    booking.get('payment_status') != 'paid'):  # Explicit check
+                    
+                    # Convert ObjectId to string for JSON serialization
+                    booking["_id"] = str(booking["_id"])
+                    booking["user_id"] = str(booking["user_id"])
+                    filtered_bookings.append(booking)
+                    logger.info(f"✅ Including booking {booking.get('booking_id')} in pending payments")
+                else:
+                    logger.info(f"❌ Excluding booking {booking.get('booking_id')} - payment_status: {booking.get('payment_status')}, requires_payment: {booking.get('requires_payment')}")
+            
+            logger.info(f"📈 Final filtered pending payments count: {len(filtered_bookings)}")
+            return filtered_bookings
             
         except Exception as e:
-            logger.error(f"Error getting pending payment bookings: {e}")
+            logger.error(f"💥 Error getting pending payment bookings for user {user_id}: {e}")
             return []
     
     @staticmethod
