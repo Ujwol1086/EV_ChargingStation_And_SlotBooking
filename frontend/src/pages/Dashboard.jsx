@@ -142,9 +142,12 @@ export default function Dashboard() {
   };
 
   const handleManualRefresh = async () => {
-    console.log('Manual refresh triggered - clearing any cached data...');
+    console.log('Manual refresh triggered - clearing cached flags but preserving payment history...');
     
-    // Clear any cached payment completion flags
+    // IMPROVED: Preserve paid booking IDs to prevent them from reappearing
+    const paidBookingIds = localStorage.getItem('paid_booking_ids');
+    
+    // Clear completion flags but preserve payment history
     localStorage.removeItem('payment_completed');
     localStorage.removeItem('payment_timestamp');
     localStorage.removeItem('force_immediate_refresh');
@@ -156,10 +159,33 @@ export default function Dashboard() {
     localStorage.removeItem('clear_pending_notifications');
     localStorage.removeItem('payment_notification_cleared');
     localStorage.removeItem('force_dashboard_refresh');
-    localStorage.removeItem('paid_booking_ids'); // NEW: Clear paid booking IDs
+    
+    // FIXED: Restore paid booking IDs to prevent reappearance
+    if (paidBookingIds) {
+      localStorage.setItem('paid_booking_ids', paidBookingIds);
+      console.log('Preserved paid booking IDs during refresh:', paidBookingIds);
+    }
     
     // Clear pending payments from UI immediately
     clearPendingPaymentsFromUI();
+    
+    try {
+      // ENHANCED: Call backend force refresh to fix any payment status inconsistencies
+      console.log('🔧 Calling backend force refresh to fix payment inconsistencies...');
+      const forceRefreshResponse = await axios.post('/payments/force-refresh-payment-status');
+      
+      if (forceRefreshResponse.data.success) {
+        console.log('✅ Backend force refresh completed:', forceRefreshResponse.data);
+        if (forceRefreshResponse.data.fixed_count > 0) {
+          console.log(`🔧 Fixed ${forceRefreshResponse.data.fixed_count} inconsistent payment statuses`);
+        }
+      } else {
+        console.warn('⚠️ Backend force refresh failed:', forceRefreshResponse.data);
+      }
+    } catch (error) {
+      console.error('❌ Error during backend force refresh:', error);
+      // Continue with normal refresh even if force refresh fails
+    }
     
     // Force refresh booking data
     await fetchBookingData();
@@ -211,38 +237,46 @@ export default function Dashboard() {
           console.log('Fetched pending payments:', pendingPayments);
           console.log('Raw pending payments count:', pendingPayments.length);
           
-          // Check if any recent payment completion flags are set first
+          // Get list of paid booking IDs for exclusion
+          const paidBookingIdsStr = localStorage.getItem('paid_booking_ids');
+          const paidBookingIds = paidBookingIdsStr ? JSON.parse(paidBookingIdsStr) : [];
+          
+          // ENHANCED: Always filter pending payments regardless of localStorage flags
+          validPendingPayments = pendingPayments.filter(payment => {
+            const bookingId = payment.booking_id;
+            
+            // Check multiple conditions to ensure this is truly a pending payment
+            const isValidPending = (
+              payment.payment_status !== 'paid' && 
+              payment.requires_payment === true &&
+              payment.admin_amount_set === true &&
+              payment.status !== 'cancelled' &&
+              !paidBookingIds.includes(bookingId)  // Exclude from localStorage cache
+            );
+            
+            if (!isValidPending) {
+              console.log(`Filtering out payment for booking ${bookingId}:`, {
+                payment_status: payment.payment_status,
+                requires_payment: payment.requires_payment,
+                admin_amount_set: payment.admin_amount_set,
+                status: payment.status,
+                is_in_paid_list: paidBookingIds.includes(bookingId)
+              });
+            }
+            
+            return isValidPending;
+          });
+          
+          // Check if any recent payment completion flags are set
           const clearPaymentsFlag = localStorage.getItem('clear_pending_payments');
           const paymentStatusPaid = localStorage.getItem('payment_status_paid');
           const clearPendingNotifications = localStorage.getItem('clear_pending_notifications');
           const paymentNotificationCleared = localStorage.getItem('payment_notification_cleared');
           
-          // NEW: Get list of paid booking IDs for exclusion
-          const paidBookingIdsStr = localStorage.getItem('paid_booking_ids');
-          const paidBookingIds = paidBookingIdsStr ? JSON.parse(paidBookingIdsStr) : [];
-          
+          // If payment flags are set, additionally clear all pending payments from UI
           if (clearPaymentsFlag === 'true' || paymentStatusPaid === 'true' || clearPendingNotifications === 'true') {
             console.log('Payment completion flag detected, forcefully clearing pending payments...');
             validPendingPayments = [];
-          } else {
-            // Filter out any bookings that have payment_status as 'paid' (double-check)
-            validPendingPayments = pendingPayments.filter(payment => {
-              const isValidPending = payment.payment_status !== 'paid' && 
-                                     payment.requires_payment === true &&
-                                     payment.admin_amount_set === true &&
-                                     !paidBookingIds.includes(payment.booking_id); // NEW: Exclude paid bookings
-              
-              if (!isValidPending) {
-                console.log(`Filtering out payment for booking ${payment.booking_id}:`, {
-                  payment_status: payment.payment_status,
-                  requires_payment: payment.requires_payment,
-                  admin_amount_set: payment.admin_amount_set,
-                  is_in_paid_list: paidBookingIds.includes(payment.booking_id)
-                });
-              }
-              
-              return isValidPending;
-            });
             
             // Additional check: if a specific booking was just paid, remove it from pending
             if (paymentNotificationCleared) {
@@ -252,7 +286,7 @@ export default function Dashboard() {
             }
           }
           
-          console.log('Filtered pending payments:', validPendingPayments);
+          console.log('Final validated pending payments:', validPendingPayments);
           console.log('Valid pending payments count:', validPendingPayments.length);
           
           setPendingPayments(validPendingPayments);
@@ -656,7 +690,7 @@ export default function Dashboard() {
                             if (booking.payment_status === 'paid' || isRecentlyPaid) {
                               return (
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor('paid')}`}>
-                                  Paid ✅
+                                  Paid
                                 </span>
                               );
                             }
@@ -665,7 +699,7 @@ export default function Dashboard() {
                             if (booking.admin_amount_set && booking.requires_payment === false && booking.status === 'completed') {
                               return (
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor('paid')}`}>
-                                  Paid ✅
+                                  Paid 
                                 </span>
                               );
                             }
@@ -707,8 +741,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-sm text-gray-600">
                           <p>🔌 {booking.charger_type} • 📅 {formatDate(booking.created_at)}</p>
-                          {booking.amount_npr && <p className="text-green-600">💰 ₹{booking.amount_npr}</p>}
-                          {booking.auto_booked && <p className="text-green-600">🤖 Auto-booked</p>}
+                          {booking.amount_npr && <p className="text-green-600"> ₹{booking.amount_npr}</p>}
+                          {booking.auto_booked && <p className="text-green-600">Auto-booked</p>}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
