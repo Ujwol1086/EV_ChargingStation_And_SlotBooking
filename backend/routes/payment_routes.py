@@ -7,6 +7,7 @@ import hmac
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 import logging
+from bson.objectid import ObjectId
 
 from models.booking import Booking
 from middleware.auth_middleware import require_auth, get_current_user_id
@@ -411,27 +412,77 @@ def verify_payment():
                                 # Fetch fresh booking data after update to verify changes
                                 updated_booking = Booking.find_by_booking_id(booking_id)
                                 
-                                logger.info(f"Payment verified and booking updated successfully for {booking_id}")
-                                logger.info(f"Updated booking data: status={updated_booking.get('status')}, payment_status={updated_booking.get('payment_status')}, requires_payment={updated_booking.get('requires_payment')}")
+                                logger.info(f"✅ Payment verified and booking updated successfully for {booking_id}")
+                                logger.info(f"📊 Updated booking data: status={updated_booking.get('status')}, payment_status={updated_booking.get('payment_status')}, requires_payment={updated_booking.get('requires_payment')}")
+                                
+                                # CRITICAL DEBUG: Log the exact user_id and its type
+                                user_id = updated_booking.get('user_id')
+                                logger.info(f"🔍 CRITICAL DEBUG: user_id = {user_id}, type = {type(user_id)}")
                                 
                                 # Double-check that the payment status was actually updated
                                 if updated_booking and updated_booking.get('payment_status') == 'paid':
                                     logger.info(f"✅ Payment status confirmed as 'paid' for booking {booking_id}")
                                     
                                     # Verify the booking no longer appears in pending payments
-                                    user_id = updated_booking.get('user_id')
                                     if user_id:
+                                        logger.info(f"🔍 Verifying pending payments for user {user_id}")
+                                        
+                                        # CRITICAL DEBUG: Test the exact query that get_pending_payment_bookings_for_user uses
+                                        from bson.objectid import ObjectId
+                                        test_user_id = ObjectId(user_id) if isinstance(user_id, str) else user_id
+                                        logger.info(f"🔍 CRITICAL DEBUG: test_user_id = {test_user_id}, type = {type(test_user_id)}")
+                                        
+                                        # Test the exact query
+                                        test_query = {
+                                            "user_id": test_user_id,
+                                            "requires_payment": True,
+                                            "payment_status": {"$in": ["pending", "failed"]},
+                                            "admin_amount_set": True,
+                                            "status": {"$ne": "cancelled"}
+                                        }
+                                        logger.info(f"🔍 CRITICAL DEBUG: Testing query = {test_query}")
+                                        
+                                        # Execute the test query directly
+                                        from config.database import mongo
+                                        test_bookings = list(mongo.db.bookings.find(test_query))
+                                        test_booking_ids = [b.get('booking_id') for b in test_bookings]
+                                        logger.info(f"🔍 CRITICAL DEBUG: Direct query result = {test_booking_ids}")
+                                        
+                                        # Now call the function
                                         pending_payments = Booking.get_pending_payment_bookings_for_user(user_id)
                                         booking_ids_in_pending = [p.get('booking_id') for p in pending_payments]
                                         
+                                        logger.info(f"📋 Current pending payment booking IDs: {booking_ids_in_pending}")
+                                        logger.info(f"🔍 CRITICAL DEBUG: Does {booking_id} appear in pending list? {booking_id in booking_ids_in_pending}")
+                                        
                                         if booking_id not in booking_ids_in_pending:
-                                            logger.info(f"✅ Confirmed: Booking {booking_id} is NO LONGER in pending payments list")
+                                            logger.info(f"✅ CONFIRMED: Booking {booking_id} is NO LONGER in pending payments list")
                                         else:
                                             logger.warning(f"⚠️ WARNING: Booking {booking_id} still appears in pending payments list after payment!")
-                                            logger.warning(f"Pending payments for user {user_id}: {booking_ids_in_pending}")
+                                            logger.warning(f"🚨 This indicates a database consistency issue!")
+                                            logger.warning(f"📋 All pending payments for user {user_id}: {booking_ids_in_pending}")
+                                            
+                                            # DEBUG: Check the exact booking document in database
+                                            actual_booking_in_db = mongo.db.bookings.find_one({"booking_id": booking_id})
+                                            logger.warning(f"🔍 CRITICAL DEBUG: Actual booking in DB = {actual_booking_in_db}")
+                                            
+                                            # Try to force refresh the booking status
+                                            logger.info(f"🔄 Attempting to force refresh booking {booking_id}")
+                                            force_update_result = Booking.update_payment_status(
+                                                booking_id=booking_id,
+                                                payment_status='paid',
+                                                payment_data={
+                                                    'khalti_idx': pidx or verification_response.get('idx'),
+                                                    'amount': amount,
+                                                    'verified_at': time.time(),
+                                                    'transaction_id': verification_response.get('transaction_id') or pidx or token,
+                                                    'force_update': True
+                                                }
+                                            )
+                                            logger.info(f"🔄 Force update result: {force_update_result}")
                                 else:
                                     logger.warning(f"⚠️ Payment status may not have been updated correctly for booking {booking_id}")
-                                    logger.warning(f"Current payment_status: {updated_booking.get('payment_status') if updated_booking else 'No booking found'}")
+                                    logger.warning(f"🔍 Current payment_status: {updated_booking.get('payment_status') if updated_booking else 'No booking found'}")
                                 
                                 return jsonify({
                                     'success': True,
@@ -444,7 +495,16 @@ def verify_payment():
                                     'database_updated': True,
                                     'payment_status': 'paid',
                                     'requires_payment': False,
-                                    'update_dashboard': True  # Signal frontend to refresh dashboard
+                                    'update_dashboard': True,  # Signal frontend to refresh dashboard
+                                    'clear_pending_notifications': True,  # New flag to clear notifications
+                                    'test_results': {  # NEW: Add same structure as test endpoint
+                                        'booking_removed_from_pending': booking_id not in booking_ids_in_pending,
+                                        'updated_booking_status': {
+                                            'payment_status': updated_booking.get('payment_status') if updated_booking else 'paid',
+                                            'requires_payment': updated_booking.get('requires_payment') if updated_booking else False,
+                                            'status': updated_booking.get('status') if updated_booking else 'confirmed'
+                                        }
+                                    }
                                 })
                             else:
                                 logger.error(f"Failed to update booking status for {booking_id}")
@@ -641,6 +701,261 @@ def pay_later(booking_id):
         
     except Exception as e:
         logger.error(f"Error in pay_later: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/debug/pending-payments/<user_id>', methods=['GET'])
+@require_auth
+def debug_pending_payments(user_id):
+    """
+    Debug endpoint to check pending payments for a user and identify any issues
+    """
+    try:
+        current_user_id = get_current_user_id()
+        
+        # Only allow users to check their own pending payments or admins
+        if user_id != current_user_id:
+            # Check if current user is admin (simplified check)
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized access'
+            }), 403
+        
+        logger.info(f"🔍 Debug: Checking pending payments for user {user_id}")
+        
+        # Get all bookings for the user
+        all_bookings = list(mongo.db.bookings.find({"user_id": ObjectId(user_id)}))
+        logger.info(f"📊 Total bookings for user {user_id}: {len(all_bookings)}")
+        
+        # Get pending payments using the function
+        pending_payments = Booking.get_pending_payment_bookings_for_user(user_id)
+        logger.info(f"📋 Pending payments found: {len(pending_payments)}")
+        
+        # Analyze all bookings to find any that might be incorrectly categorized
+        analysis = {
+            'total_bookings': len(all_bookings),
+            'pending_payments_count': len(pending_payments),
+            'bookings_requiring_payment': 0,
+            'bookings_with_pending_status': 0,
+            'bookings_with_paid_status': 0,
+            'bookings_admin_amount_set': 0,
+            'potential_issues': []
+        }
+        
+        for booking in all_bookings:
+            booking_id = booking.get('booking_id', 'Unknown')
+            
+            if booking.get('requires_payment'):
+                analysis['bookings_requiring_payment'] += 1
+                
+            if booking.get('payment_status') == 'pending':
+                analysis['bookings_with_pending_status'] += 1
+                
+            if booking.get('payment_status') == 'paid':
+                analysis['bookings_with_paid_status'] += 1
+                
+            if booking.get('admin_amount_set'):
+                analysis['bookings_admin_amount_set'] += 1
+            
+            # Check for potential issues
+            if (booking.get('payment_status') == 'paid' and 
+                booking.get('requires_payment') == True):
+                analysis['potential_issues'].append({
+                    'booking_id': booking_id,
+                    'issue': 'Payment status is paid but requires_payment is still True',
+                    'payment_status': booking.get('payment_status'),
+                    'requires_payment': booking.get('requires_payment'),
+                    'status': booking.get('status')
+                })
+                
+            if (booking.get('payment_status') == 'pending' and 
+                booking.get('requires_payment') == False):
+                analysis['potential_issues'].append({
+                    'booking_id': booking_id,
+                    'issue': 'Payment status is pending but requires_payment is False',
+                    'payment_status': booking.get('payment_status'),
+                    'requires_payment': booking.get('requires_payment'),
+                    'status': booking.get('status')
+                })
+        
+        logger.info(f"📈 Analysis complete: {analysis}")
+        
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'analysis': analysis,
+            'pending_payments': [
+                {
+                    'booking_id': p.get('booking_id'),
+                    'payment_status': p.get('payment_status'),
+                    'requires_payment': p.get('requires_payment'),
+                    'admin_amount_set': p.get('admin_amount_set'),
+                    'amount_npr': p.get('amount_npr'),
+                    'status': p.get('status')
+                } for p in pending_payments
+            ]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in debug_pending_payments: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/refresh-payment-status/<booking_id>', methods=['POST'])
+@require_auth
+def refresh_payment_status(booking_id):
+    """
+    Manually refresh and fix payment status for a booking
+    """
+    try:
+        current_user_id = get_current_user_id()
+        
+        # Get booking details
+        booking = Booking.find_by_booking_id(booking_id)
+        if not booking:
+            return jsonify({
+                'success': False,
+                'error': 'Booking not found'
+            }), 404
+        
+        # Verify booking belongs to current user
+        if booking.get('user_id') != current_user_id:
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized access to booking'
+            }), 403
+        
+        logger.info(f"🔄 Manual refresh requested for booking {booking_id}")
+        logger.info(f"📋 Current booking status: payment_status={booking.get('payment_status')}, requires_payment={booking.get('requires_payment')}")
+        
+        # If booking is already marked as paid but still showing as requiring payment, fix it
+        if booking.get('payment_status') == 'paid' and booking.get('requires_payment') == True:
+            logger.info(f"🔧 Fixing inconsistent payment status for booking {booking_id}")
+            
+            success = Booking.update_payment_status(
+                booking_id=booking_id,
+                payment_status='paid',
+                payment_data=booking.get('payment_data', {})
+            )
+            
+            if success:
+                return jsonify({
+                    'success': True,
+                    'message': 'Payment status refreshed successfully',
+                    'booking_id': booking_id,
+                    'action_taken': 'Fixed inconsistent payment status'
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to refresh payment status'
+                }), 500
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'Payment status is already consistent',
+                'booking_id': booking_id,
+                'current_status': {
+                    'payment_status': booking.get('payment_status'),
+                    'requires_payment': booking.get('requires_payment')
+                }
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in refresh_payment_status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/test-payment-flow/<booking_id>', methods=['POST'])
+@require_auth
+def test_payment_flow(booking_id):
+    """
+    Test endpoint to simulate payment completion and debug notification clearing
+    """
+    try:
+        current_user_id = get_current_user_id()
+        
+        # Get booking details
+        booking = Booking.find_by_booking_id(booking_id)
+        if not booking:
+            return jsonify({
+                'success': False,
+                'error': 'Booking not found'
+            }), 404
+        
+        # Verify booking belongs to current user
+        if booking.get('user_id') != current_user_id:
+            return jsonify({
+                'success': False,
+                'error': 'Unauthorized access to booking'
+            }), 403
+        
+        logger.info(f"🧪 TEST: Simulating payment completion for booking {booking_id}")
+        logger.info(f"📋 Current booking status before update:")
+        logger.info(f"   - payment_status: {booking.get('payment_status')}")
+        logger.info(f"   - requires_payment: {booking.get('requires_payment')}")
+        logger.info(f"   - admin_amount_set: {booking.get('admin_amount_set')}")
+        logger.info(f"   - status: {booking.get('status')}")
+        
+        # Check current pending payments before update
+        pending_before = Booking.get_pending_payment_bookings_for_user(current_user_id)
+        pending_ids_before = [p.get('booking_id') for p in pending_before]
+        logger.info(f"📋 Pending payments BEFORE update: {pending_ids_before}")
+        
+        # Simulate payment update
+        success = Booking.update_payment_status(
+            booking_id=booking_id,
+            payment_status='paid',
+            payment_data={
+                'test_transaction': True,
+                'test_timestamp': time.time(),
+                'amount': booking.get('amount_paisa', 0)
+            }
+        )
+        
+        if success:
+            # Check current pending payments after update
+            pending_after = Booking.get_pending_payment_bookings_for_user(current_user_id)
+            pending_ids_after = [p.get('booking_id') for p in pending_after]
+            logger.info(f"📋 Pending payments AFTER update: {pending_ids_after}")
+            
+            # Get updated booking
+            updated_booking = Booking.find_by_booking_id(booking_id)
+            logger.info(f"📋 Updated booking status after update:")
+            logger.info(f"   - payment_status: {updated_booking.get('payment_status')}")
+            logger.info(f"   - requires_payment: {updated_booking.get('requires_payment')}")
+            logger.info(f"   - admin_amount_set: {updated_booking.get('admin_amount_set')}")
+            logger.info(f"   - status: {updated_booking.get('status')}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Test payment completed',
+                'booking_id': booking_id,
+                'test_results': {
+                    'pending_before': pending_ids_before,
+                    'pending_after': pending_ids_after,
+                    'booking_removed_from_pending': booking_id not in pending_ids_after,
+                    'updated_booking_status': {
+                        'payment_status': updated_booking.get('payment_status'),
+                        'requires_payment': updated_booking.get('requires_payment'),
+                        'status': updated_booking.get('status')
+                    }
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to update payment status'
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Error in test_payment_flow: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Internal server error'

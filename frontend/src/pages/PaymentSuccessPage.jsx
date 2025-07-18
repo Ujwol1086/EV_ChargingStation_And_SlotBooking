@@ -229,6 +229,7 @@ const PaymentSuccessPage = () => {
         // Enhanced dashboard refresh for successful payments
         if (response.data.payment_status === 'paid' && response.data.update_dashboard) {
           console.log('Payment confirmed as paid, triggering enhanced dashboard refresh...');
+          console.log('Payment verification response:', response.data);
           
           // Store multiple completion flags for maximum reliability
           localStorage.setItem('payment_completed', 'true');
@@ -236,6 +237,42 @@ const PaymentSuccessPage = () => {
           localStorage.setItem('payment_status_paid', 'true');
           localStorage.setItem('clear_pending_payments', 'true');
           localStorage.setItem('booking_payment_completed', bookingId);
+          
+          // NEW: Additional flags for immediate notification clearing
+          if (response.data.clear_pending_notifications) {
+            localStorage.setItem('clear_pending_notifications', 'true');
+            localStorage.setItem('payment_notification_cleared', bookingId);
+            localStorage.setItem('force_dashboard_refresh', 'true');
+          }
+          
+          // NEW: Store a list of paid booking IDs for exclusion
+          const existingPaidBookings = localStorage.getItem('paid_booking_ids');
+          const paidBookingIds = existingPaidBookings ? JSON.parse(existingPaidBookings) : [];
+          if (!paidBookingIds.includes(bookingId)) {
+            paidBookingIds.push(bookingId);
+            localStorage.setItem('paid_booking_ids', JSON.stringify(paidBookingIds));
+          }
+          
+          // Store detailed payment completion info
+          localStorage.setItem('payment_completion_details', JSON.stringify({
+            bookingId: bookingId,
+            transactionId: response.data.transaction_id,
+            amount: response.data.booking?.amount_npr || 'Unknown',
+            stationName: response.data.booking?.station_details?.name || 'Unknown Station',
+            completedAt: new Date().toISOString(),
+            paymentStatus: 'paid',
+            databaseUpdated: response.data.database_updated,
+            testResults: response.data.test_results
+          }));
+          
+          // NEW: Log the success for debugging (similar to test button)
+          console.log('✅ Payment verification completed successfully!');
+          console.log('📊 Payment test results:', response.data.test_results);
+          if (response.data.test_results?.booking_removed_from_pending) {
+            console.log('✅ Booking confirmed as removed from pending payments');
+          } else {
+            console.log('⚠️ Booking may still appear in pending payments - will be cleared by localStorage flags');
+          }
           
           triggerDashboardRefresh();
         } else {
@@ -533,11 +570,33 @@ const PaymentSuccessPage = () => {
             <button
               onClick={() => {
                 triggerDashboardRefresh();
+                
+                // NEW: Apply the same immediate clearing logic as test button
+                console.log('🚀 Navigating to dashboard - applying immediate notification clearing...');
+                
+                // Force immediate localStorage flag setting (same as test button)
+                localStorage.setItem('clear_pending_notifications', 'true');
+                localStorage.setItem('payment_status_paid', 'true');
+                localStorage.setItem('force_dashboard_refresh', 'true');
+                
+                // Add booking to paid list if not already there
+                const bookingId = booking?.booking_id;
+                if (bookingId) {
+                  const existingPaidBookings = localStorage.getItem('paid_booking_ids');
+                  const paidBookingIds = existingPaidBookings ? JSON.parse(existingPaidBookings) : [];
+                  if (!paidBookingIds.includes(bookingId)) {
+                    paidBookingIds.push(bookingId);
+                    localStorage.setItem('paid_booking_ids', JSON.stringify(paidBookingIds));
+                  }
+                  localStorage.setItem('payment_notification_cleared', bookingId);
+                }
+                
                 navigate('/dashboard', { 
                   state: { 
                     paymentCompleted: true, 
-                    bookingId: booking.booking_id,
-                    transactionId: transaction_id 
+                    bookingId: booking?.booking_id,
+                    transactionId: transaction_id,
+                    forceRefresh: true // NEW: Force immediate refresh
                   } 
                 });
               }}
