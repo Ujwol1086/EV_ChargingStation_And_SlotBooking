@@ -8,6 +8,7 @@ from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 import logging
 from bson.objectid import ObjectId
+import datetime
 
 from models.booking import Booking
 from middleware.auth_middleware import require_auth, get_current_user_id
@@ -956,6 +957,69 @@ def test_payment_flow(booking_id):
             
     except Exception as e:
         logger.error(f"Error in test_payment_flow: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+
+@payment_bp.route('/force-refresh-payment-status', methods=['POST'])
+@require_auth
+def force_refresh_payment_status():
+    """
+    Force refresh all payment statuses for the current user to fix any inconsistencies
+    """
+    try:
+        current_user_id = get_current_user_id()
+        
+        logger.info(f"🔄 Force refresh requested for all payments for user {current_user_id}")
+        
+        # Find all bookings where payment_status is 'paid' but requires_payment is still True
+        inconsistent_query = {
+            "user_id": ObjectId(current_user_id),
+            "payment_status": "paid",
+            "requires_payment": True
+        }
+        
+        inconsistent_bookings = list(mongo.db.bookings.find(inconsistent_query))
+        logger.info(f"🔍 Found {len(inconsistent_bookings)} bookings with inconsistent payment status")
+        
+        fixed_count = 0
+        for booking in inconsistent_bookings:
+            booking_id = booking.get('booking_id')
+            logger.info(f"🔧 Fixing inconsistent payment status for booking {booking_id}")
+            
+            # Force update to consistent state
+            result = mongo.db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": {
+                    "requires_payment": False,
+                    "payment_verified": True,
+                    "status": "confirmed",
+                    "payment_status": "paid",
+                    "payment_consistency_fixed": True,
+                    "fixed_at": datetime.datetime.utcnow()
+                }}
+            )
+            
+            if result.modified_count > 0:
+                fixed_count += 1
+                logger.info(f"✅ Fixed inconsistent payment status for booking {booking_id}")
+            else:
+                logger.warning(f"⚠️ Could not fix payment status for booking {booking_id}")
+        
+        # Get fresh pending payments after fixes
+        pending_payments = Booking.get_pending_payment_bookings_for_user(current_user_id)
+        
+        return jsonify({
+            'success': True,
+            'message': f'Payment status refresh completed. Fixed {fixed_count} inconsistent bookings.',
+            'fixed_count': fixed_count,
+            'remaining_pending_payments': len(pending_payments),
+            'pending_booking_ids': [p.get('booking_id') for p in pending_payments]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in force_refresh_payment_status: {str(e)}")
         return jsonify({
             'success': False,
             'error': 'Internal server error'
