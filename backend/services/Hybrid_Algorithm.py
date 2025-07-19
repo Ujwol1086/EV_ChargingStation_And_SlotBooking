@@ -79,9 +79,9 @@ class HybridAlgorithm:
         
         # Energy consumption factors
         self.energy_factors = {
-            'base_consumption_per_km': 0.2,  # kWh per km (base)
-            'ac_penalty': 0.15,  # 15% more energy when AC is on
-            'passenger_penalty_per_person': 0.03,  # 3% more per additional passenger
+            'base_consumption_per_km': 0.19,  # kWh per km (base)
+            'ac_penalty': 0.10,  # 10% more energy when AC is on
+            'passenger_penalty_per_person': 0.025,  # 2.5% more per additional passenger
             'terrain_multipliers': {
                 'flat': 1.0,
                 'hilly': 1.2,
