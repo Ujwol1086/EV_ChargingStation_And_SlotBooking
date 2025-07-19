@@ -457,35 +457,51 @@ class HybridAlgorithm:
             terrain, weather
         )
         
-        # 5. Enhanced Urgency score with dynamic multipliers
-        urgency_multipliers = {
-            'low': 0.3,
-            'medium': 0.6,
-            'high': 0.8,
-            'emergency': 1.0
-        }
-        urgency_multiplier = urgency_multipliers.get(urgency.lower(), 0.6)
-        urgency_score = urgency_multiplier
+        # 5. FIXED: Enhanced Urgency score with distance-dependent logic
+        # For high urgency, the score should be inversely proportional to distance
+        # For low urgency, the score should be based on amenities/quality
         
-        # Additional urgency bonuses based on context and battery level
         if urgency.lower() == 'emergency':
-            # Emergency gets maximum score
-            urgency_score = 1.0
-            # Additional bonus for nearby stations in emergency
+            # Emergency: Maximum urgency, heavily distance-dependent
             if distance <= 5:
-                urgency_score = min(1.0, urgency_score + 0.3)  # 30% bonus for very close stations
+                urgency_score = 1.0  # Maximum score for very close stations
             elif distance <= 15:
-                urgency_score = min(1.0, urgency_score + 0.2)  # 20% bonus for close stations
+                urgency_score = 0.9  # Very high score for close stations
+            elif distance <= 30:
+                urgency_score = 0.7  # High score for moderate distance
+            else:
+                urgency_score = 0.3  # Lower score for far stations
         elif urgency.lower() == 'high':
-            # High urgency gets bonus for nearby stations
+            # High urgency: Distance-dependent scoring
             if distance <= 10:
-                urgency_score = min(1.0, urgency_score + 0.2)
+                urgency_score = 0.9  # Very high score for nearby stations
             elif distance <= 25:
-                urgency_score = min(1.0, urgency_score + 0.1)
+                urgency_score = 0.7  # High score for moderate distance
+            elif distance <= 50:
+                urgency_score = 0.5  # Medium score for far stations
+            else:
+                urgency_score = 0.2  # Low score for very far stations
+        elif urgency.lower() == 'medium':
+            # Medium urgency: Balanced approach
+            if distance <= 20:
+                urgency_score = 0.6  # Good score for reasonable distance
+            elif distance <= 40:
+                urgency_score = 0.4  # Moderate score for moderate distance
+            else:
+                urgency_score = 0.2  # Lower score for far stations
         elif urgency.lower() == 'low':
-            # Low urgency gets bonus for better amenities/rating
+            # Low urgency: Focus on quality over proximity
+            base_score = 0.3
+            # Bonus for better amenities/rating
             if station.get('rating', 0) >= 4.0:
-                urgency_score = min(1.0, urgency_score + 0.1)
+                base_score += 0.2
+            # Small penalty for very far stations
+            if distance > 50:
+                base_score = max(0.1, base_score - 0.1)
+            urgency_score = base_score
+        else:
+            # Default case
+            urgency_score = 0.5
         
         # 6. Pricing score (lower price is better)
         pricing = station.get('pricing', 20)  # Default to 20 NPR/kWh
@@ -591,7 +607,7 @@ class HybridAlgorithm:
             'weights_used': weights
         }
 
-    def get_enhanced_recommendations(self, user_location, stations, user_context=None, max_recommendations=5):
+    def get_enhanced_recommendations(self, user_location, stations, user_context=None, max_recommendations=8):
         """
         Get enhanced station recommendations with context-aware scoring and destination filtering
         
@@ -686,13 +702,26 @@ class HybridAlgorithm:
                         # Adjust max detour based on urgency level
                         base_max_detour = user_context.get('max_detour_km', 20)
                         
-                        # For high urgency, be more lenient with route filtering
-                        urgency_detour_multipliers = {
-                            'low': 0.8,      # More strict for low urgency
-                            'medium': 1.0,   # Normal filtering
-                            'high': 1.5,     # More lenient for high urgency
-                            'emergency': 2.0  # Very lenient for emergency
-                        }
+                        # FIXED: When destination is specified, prioritize route-based recommendations
+                        # Use much more lenient filtering to ensure we capture all stations along the route
+                        if urgency.lower() == 'low':
+                            # For low urgency with destination, use very lenient filtering
+                            base_max_detour = max(25, base_max_detour)  # Minimum 25km detour
+                            urgency_detour_multipliers = {
+                                'low': 2.0,      # Very lenient for low urgency (50km detour)
+                                'medium': 1.5,   # More lenient for medium urgency
+                                'high': 1.5,     # More lenient for high urgency
+                                'emergency': 2.0  # Very lenient for emergency
+                            }
+                        else:
+                            # For other urgency levels, still be lenient for route-based recommendations
+                            base_max_detour = max(20, base_max_detour)  # Minimum 20km detour
+                            urgency_detour_multipliers = {
+                                'low': 1.5,      # More lenient for low urgency
+                                'medium': 1.2,   # Slightly more lenient for medium urgency
+                                'high': 1.5,     # More lenient for high urgency
+                                'emergency': 2.0  # Very lenient for emergency
+                            }
                         
                         adjusted_max_detour = base_max_detour * urgency_detour_multipliers.get(urgency.lower(), 1.0)
                         
@@ -704,6 +733,15 @@ class HybridAlgorithm:
                             urgency=urgency
                         )
                         
+                        # Log route analysis details for debugging
+                        logger.debug(f"Route analysis for {station.get('id', 'unknown')}: "
+                                   f"detour={route_analysis['detour_distance']:.1f}km, "
+                                   f"angle_diff={route_analysis['angle_difference']:.1f}°, "
+                                   f"distance_to_station={route_analysis['distance_to_station']:.1f}km, "
+                                   f"max_detour={adjusted_max_detour}km, "
+                                   f"is_along_route={route_analysis['is_along_route']}, "
+                                   f"filtering={route_analysis.get('filtering_details', {})}")
+                        
                         # For emergency situations, include all stations within reasonable distance
                         if urgency.lower() == 'emergency':
                             # Include station if it's within 50km of the route
@@ -711,13 +749,50 @@ class HybridAlgorithm:
                             if route_analysis['distance_to_station'] <= emergency_max_distance:
                                 route_analysis['is_along_route'] = True
                         
-                        # Skip stations not along the route (unless emergency)
+                        # FIXED: When destination is specified, ensure strict direction filtering
+                        # Only include stations that are actually in the direction of the destination
+                        if destination_coords:
+                            # Calculate bearing to destination and to station
+                            bearing_to_dest = self.calculate_bearing(user_location, destination_coords)
+                            bearing_to_station = self.calculate_bearing(user_location, station_location)
+                            
+                            # Calculate angle difference
+                            angle_diff = abs(bearing_to_dest - bearing_to_station)
+                            if angle_diff > 180:
+                                angle_diff = 360 - angle_diff
+                            
+                            # For destination-based routing, be strict about direction
+                            # Only include stations within 60 degrees of the destination direction
+                            max_angle_for_destination = 60
+                            
+                            if angle_diff > max_angle_for_destination:
+                                route_analysis['is_along_route'] = False
+                                logger.info(f"Destination filtering: station {station.get('id', 'unknown')} ({station.get('name', 'Unknown')}) rejected - "
+                                           f"angle_diff={angle_diff:.1f}° > {max_angle_for_destination}° "
+                                           f"(bearing_to_dest={bearing_to_dest:.1f}°, bearing_to_station={bearing_to_station:.1f}°)")
+                            else:
+                                logger.info(f"Destination filtering: station {station.get('id', 'unknown')} ({station.get('name', 'Unknown')}) accepted - "
+                                           f"angle_diff={angle_diff:.1f}° <= {max_angle_for_destination}°")
+                        
+                        # FIXED: For low urgency with high battery, be more lenient with route filtering
+                        # BUT only if no destination is specified or if station is in right direction
+                        if urgency.lower() == 'low' and battery_percentage >= 80 and not destination_coords:
+                            # Include stations within a larger radius for high battery + low urgency
+                            # BUT only when no specific destination is given
+                            max_radius_km = 30  # 30km radius instead of strict route filtering
+                            if route_analysis['distance_to_station'] <= max_radius_km:
+                                route_analysis['is_along_route'] = True
+                                logger.debug(f"Low urgency + high battery (no destination): including station {station.get('id', 'unknown')} within {max_radius_km}km radius")
+                        
+                        # Route filtering is now handled in the is_station_along_route method with multiple criteria
+                        
+                        # Skip stations not along the route (unless emergency or high battery + low urgency)
                         if not route_analysis['is_along_route']:
                             route_filtered_count += 1
-                            logger.debug(f"Station {station.get('id', 'unknown')} filtered out: detour={route_analysis['detour_distance']:.1f}km, angle_diff={route_analysis['angle_difference']:.1f}°, urgency={urgency}")
+                            logger.info(f"Station {station.get('id', 'unknown')} ({station.get('name', 'Unknown')}) filtered out: detour={route_analysis['detour_distance']:.1f}km, angle_diff={route_analysis['angle_difference']:.1f}°, distance_to_station={route_analysis['distance_to_station']:.1f}km, urgency={urgency}, battery={battery_percentage}%")
                             continue
                         else:
-                            logger.debug(f"Station {station.get('id', 'unknown')} included: detour={route_analysis['detour_distance']:.1f}km, angle_diff={route_analysis['angle_difference']:.1f}°, urgency={urgency}")
+                            logger.info(f"Station {station.get('id', 'unknown')} ({station.get('name', 'Unknown')}) included: detour={route_analysis['detour_distance']:.1f}km, angle_diff={route_analysis['angle_difference']:.1f}°, distance_to_station={route_analysis['distance_to_station']:.1f}km, urgency={urgency}, battery={battery_percentage}%")
                     
                     # Calculate distance
                     distance = self.haversine_distance(
@@ -758,10 +833,23 @@ class HybridAlgorithm:
                             'is_reachable': True
                         }
                     
-                    # Boost score for stations along route to destination
+                    # FIXED: Boost score for stations along route to destination
                     if route_analysis and route_analysis['is_along_route']:
                         # Boost score based on route efficiency
-                        route_efficiency_bonus = route_analysis['route_efficiency'] * 0.1  # Up to 10% bonus
+                        route_efficiency_bonus = route_analysis['route_efficiency'] * 0.15  # Up to 15% bonus
+                        
+                        # Additional bonus for stations that are closer to destination (further along route)
+                        # This ensures we prioritize stations along the route rather than nearby stations
+                        if route_analysis['distance_station_to_dest'] < distance:
+                            # Station is closer to destination than to user - give extra bonus
+                            route_efficiency_bonus += 0.1  # Additional 10% bonus
+                        
+                        # FIXED: Extra bonus for destination-based routing to ensure route stations are prioritized
+                        if destination_coords:
+                            # Additional 20% bonus for stations that are actually along the route to destination
+                            route_efficiency_bonus += 0.2
+                            logger.debug(f"Destination routing bonus: +20% for station {station.get('id', 'unknown')} along route")
+                        
                         score_analysis['total_score'] = min(1.0, score_analysis['total_score'] + route_efficiency_bonus)
                         score_analysis['breakdown']['route_efficiency_bonus'] = round(route_efficiency_bonus, 3)
                     
@@ -1418,7 +1506,7 @@ class HybridAlgorithm:
         
         return result 
 
-    def get_recommendations(self, user_location, stations, user_preferences=None, max_recommendations=5):
+    def get_recommendations(self, user_location, stations, user_preferences=None, max_recommendations=8):
         """
         Get station recommendations using simplified API (backward compatibility)
         
@@ -1500,6 +1588,7 @@ class HybridAlgorithm:
             destination_coords: [lat, lon] of destination
             station_location: [lat, lon] of station
             max_detour_km: Maximum detour distance to consider station "along route"
+            urgency: Urgency level for angle filtering
             
         Returns:
             Dict with route analysis
@@ -1537,14 +1626,15 @@ class HybridAlgorithm:
         if angle_diff > 180:
             angle_diff = 360 - angle_diff
         
-        # Station should be in roughly the same direction (within 90 degrees)
-        # For high urgency, be more lenient with direction
-        base_angle_limit = 90
+        # FIXED: When destination is specified, be much more strict about direction
+        # Station should be in the general direction of destination (within reasonable angle)
+        # For destination-based routing, we want stations that are actually along the route
+        base_angle_limit = 45  # Much stricter base angle limit
         urgency_angle_multipliers = {
-            'low': 0.8,      # More strict for low urgency (72 degrees)
-            'medium': 1.0,   # Normal filtering (90 degrees)
-            'high': 1.2,     # More lenient for high urgency (108 degrees)
-            'emergency': 1.5  # Very lenient for emergency (135 degrees)
+            'low': 1.5,      # 67.5 degrees for low urgency (still reasonable for route planning)
+            'medium': 1.2,   # 54 degrees for medium urgency
+            'high': 1.5,     # 67.5 degrees for high urgency
+            'emergency': 2.0  # 90 degrees for emergency (most lenient)
         }
         
         # Use the urgency parameter passed to the method
@@ -1552,15 +1642,77 @@ class HybridAlgorithm:
         
         is_right_direction = angle_diff <= angle_limit
         
+        # FIXED: More lenient route filtering logic
+        # A station is considered "along route" if it meets ANY of these criteria:
+        # 1. Small detour distance (original logic)
+        # 2. Station is in the right direction and within reasonable distance
+        # 3. Station is close to the direct route line
+        
+        # Criterion 1: Small detour
+        small_detour = detour_distance <= max_detour_km
+        
+        # Criterion 2: Right direction and reasonable distance
+        # For route planning, we want stations that are in the general direction of destination
+        # and not too far from the user's path
+        # FIXED: When destination is specified, be strict about direction but reasonable about distance
+        if urgency.lower() == 'low':
+            reasonable_distance = distance_to_station <= (direct_distance * 1.3)  # Within 130% of direct route distance for low urgency
+        else:
+            reasonable_distance = distance_to_station <= (direct_distance * 1.1)  # Within 110% of direct route distance for other urgencies
+        
+        right_direction = angle_diff <= angle_limit
+        
+        # Criterion 3: Close to route line (perpendicular distance)
+        # Calculate if station is within a buffer zone of the direct route
+        # FIXED: When destination is specified, use reasonable buffer but strict direction
+        if urgency.lower() == 'low':
+            route_buffer_km = 50  # 50km buffer around the direct route for low urgency
+        else:
+            route_buffer_km = 40  # 40km buffer around the direct route for other urgencies
+        
+        close_to_route = distance_to_station <= route_buffer_km and angle_diff <= angle_limit  # Use same angle limit
+        
+        # FIXED: For destination-based routing, direction is the primary criterion
+        # A station is considered "along route" if it meets direction requirements AND one of the other criteria
+        # This ensures stations in the wrong direction are always rejected
+        
+        # Primary criterion: Must be in the right direction (strict filtering)
+        direction_ok = angle_diff <= angle_limit
+        
+        # Secondary criteria (only if direction is ok)
+        if direction_ok:
+            # Station is in right direction, check other criteria
+            is_along_route_final = small_detour or reasonable_distance or close_to_route
+        else:
+            # Station is in wrong direction - reject regardless of other criteria
+            is_along_route_final = False
+        
+        # FIXED: For low urgency, include stations that are further along the route (closer to destination)
+        # BUT only if they are already in the right direction
+        if urgency.lower() == 'low' and direction_ok:
+            # Include stations that are closer to destination than to user (further along route)
+            # This allows users to plan charging stops further along their journey
+            if distance_station_to_dest < distance_to_station:
+                # Station is closer to destination than to user - include it for low urgency
+                is_along_route_final = True
+        
         return {
-            'is_along_route': is_along_route and is_right_direction,
+            'is_along_route': is_along_route_final,
             'detour_distance': detour_distance,
             'direct_distance': direct_distance,
             'via_station_distance': via_station_distance,
             'angle_difference': angle_diff,
             'distance_to_station': distance_to_station,
             'distance_station_to_dest': distance_station_to_dest,
-            'route_efficiency': direct_distance / via_station_distance if via_station_distance > 0 else 0
+            'route_efficiency': direct_distance / via_station_distance if via_station_distance > 0 else 0,
+            'filtering_details': {
+                'small_detour': small_detour,
+                'right_direction': right_direction,
+                'reasonable_distance': reasonable_distance,
+                'close_to_route': close_to_route,
+                'angle_limit_used': angle_limit,
+                'route_buffer_km': route_buffer_km
+            }
         }
     
     def calculate_bearing(self, start_coords, end_coords):

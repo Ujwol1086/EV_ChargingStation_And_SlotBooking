@@ -215,7 +215,7 @@ def get_recommendations():
                 user_location=user_location,
                 stations=station_data,
                 user_context=user_context,
-                max_recommendations=5
+                max_recommendations=10
             )
             
             # Extract recommendations from the result dictionary
@@ -976,7 +976,7 @@ def get_route_recommendations():
                 user_location=user_location,
                 stations=stations,
                 user_context=user_context,
-                max_recommendations=5  # More recommendations when no specific destination
+                max_recommendations=10  # More recommendations for route-based search
             )
             
             if isinstance(result, dict) and 'recommendations' in result:
