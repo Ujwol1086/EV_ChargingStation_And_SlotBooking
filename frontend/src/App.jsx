@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
+import DashboardRouter from "./components/DashboardRouter";
 import Navbar from "./components/Navbar";
 import AdminLayout from "./admin/AdminLayout";
 import AdminDashboard from "./admin/pages/AdminDashboard";
@@ -41,6 +42,14 @@ const App = () => {
               <Route path="/recommendations" element={<Recommendations />} />
               <Route
                 path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <DashboardRouter />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/user-dashboard"
                 element={
                   <ProtectedRoute>
                     <Dashboard />
