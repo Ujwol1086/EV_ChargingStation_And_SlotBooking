@@ -11,7 +11,7 @@ class User:
     """User model for MongoDB"""
     
     @staticmethod
-    def create_user(username, email, password, role="user"):
+    def create_user(username, email, password, role="user", google_id=None, profile_picture=None):
         """Create a new user"""
         try:
             logger.info(f"Attempting to create user with email: {email}")
@@ -31,9 +31,14 @@ class User:
             user = {
                 "username": username,
                 "email": email,
-                "password": generate_password_hash(password),
-                "role": role
+                "role": role,
+                "google_id": google_id,
+                "profile_picture": profile_picture
             }
+            
+            # Only add password if it's provided (for non-Google users)
+            if password:
+                user["password"] = generate_password_hash(password)
             
             # Insert user into database
             logger.info(f"Inserting new user: {username}, {email}, role: {role}")
@@ -51,6 +56,86 @@ class User:
             logger.error(f"Error creating user: {e}")
             return None
     
+    @staticmethod
+    def create_or_update_google_user(google_data):
+        """Create or update user from Google OAuth data"""
+        try:
+            logger.info(f"Processing Google user data for email: {google_data.get('email')}")
+            
+            if mongo.db is None:
+                logger.error("Database connection not established")
+                return None
+            
+            # Check if user exists by Google ID or email
+            existing_user = mongo.db.users.find_one({
+                "$or": [
+                    {"google_id": google_data.get('id')},
+                    {"email": google_data.get('email')}
+                ]
+            })
+            
+            if existing_user:
+                # Update existing user with Google info if needed
+                update_data = {}
+                if not existing_user.get('google_id') and google_data.get('id'):
+                    update_data['google_id'] = google_data.get('id')
+                if not existing_user.get('profile_picture') and google_data.get('picture'):
+                    update_data['profile_picture'] = google_data.get('picture')
+                
+                if update_data:
+                    mongo.db.users.update_one(
+                        {"_id": existing_user["_id"]},
+                        {"$set": update_data}
+                    )
+                    # Refresh user data
+                    existing_user = mongo.db.users.find_one({"_id": existing_user["_id"]})
+                
+                logger.info(f"Updated existing user: {existing_user.get('email')}")
+            else:
+                # Create new user from Google data
+                username = google_data.get('name', google_data.get('email').split('@')[0])
+                existing_user = User.create_user(
+                    username=username,
+                    email=google_data.get('email'),
+                    password=None,  # No password for Google users
+                    google_id=google_data.get('id'),
+                    profile_picture=google_data.get('picture')
+                )
+                logger.info(f"Created new Google user: {username}")
+            
+            if existing_user:
+                # Remove password and convert ObjectId to string
+                existing_user.pop("password", None)
+                existing_user["_id"] = str(existing_user["_id"])
+                existing_user["id"] = existing_user["_id"]
+            
+            return existing_user
+        except Exception as e:
+            logger.error(f"Error creating/updating Google user: {e}")
+            return None
+    
+    @staticmethod
+    def find_by_google_id(google_id):
+        """Find a user by Google ID"""
+        try:
+            logger.info(f"Finding user by Google ID: {google_id}")
+            
+            if mongo.db is None:
+                logger.error("Database connection not established")
+                return None
+                
+            user = mongo.db.users.find_one({"google_id": google_id})
+            if user:
+                logger.info(f"User found with Google ID: {google_id}")
+                user.pop("password", None)
+                user["_id"] = str(user["_id"])
+            else:
+                logger.info(f"No user found with Google ID: {google_id}")
+            return user
+        except Exception as e:
+            logger.error(f"Error finding user by Google ID: {e}")
+            return None
+
     @staticmethod
     def find_by_email(email):
         """Find a user by email"""

@@ -5,7 +5,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-JWT_SECRET = os.getenv('JWT_SECRET')
+# Support both env var names
+JWT_SECRET = os.getenv('JWT_SECRET') or os.getenv('JWT_SECRET_KEY')
+
+if not JWT_SECRET or not isinstance(JWT_SECRET, str):
+    # Provide a clear error at startup if secret is missing or invalid
+    raise RuntimeError(
+        'JWT secret not configured. Please set JWT_SECRET or JWT_SECRET_KEY in your environment/.env.'
+    )
 
 def generate_token(user_id):
     """Generate a JWT token for the user"""

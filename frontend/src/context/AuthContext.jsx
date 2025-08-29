@@ -64,6 +64,56 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Google login
+  const googleLogin = async () => {
+    try {
+      // Get Google authorization URL from backend
+      const response = await api.get("/auth/google/login");
+      const { auth_url } = response.data;
+      
+      // Open Google OAuth in a popup window
+      const popup = window.open(
+        auth_url,
+        'google-oauth',
+        'width=500,height=600,scrollbars=yes,resizable=yes'
+      );
+
+      // Wait for the popup to complete OAuth flow
+      return new Promise((resolve, reject) => {
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            reject(new Error('OAuth popup was closed'));
+          }
+        }, 1000);
+
+        // Listen for message from popup (if using postMessage)
+        const messageHandler = (event) => {
+          if (event.data && event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', messageHandler);
+            popup.close();
+            
+            // Handle successful OAuth
+            const { token, user, is_admin } = event.data;
+            localStorage.setItem("token", token);
+            setUser(user);
+            setIsAuthenticated(true);
+            setIsAdmin(is_admin || false);
+            resolve({ success: true, is_admin });
+          }
+        };
+
+        window.addEventListener('message', messageHandler);
+      });
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.error || "Google login failed",
+      };
+    }
+  };
+
   // Logout user
   const logout = () => {
     localStorage.removeItem("token");
@@ -81,6 +131,7 @@ export function AuthProvider({ children }) {
         isLoading,
         register,
         login,
+        googleLogin,
         logout,
       }}
     >
