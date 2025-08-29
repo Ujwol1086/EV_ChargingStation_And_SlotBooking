@@ -1,9 +1,89 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, redirect, url_for
 from models.user import User
 from config.auth import generate_token, decode_token
+from services.google_oauth_service import GoogleOAuthService
+from config.google_config import FRONTEND_OAUTH_REDIRECT
 import json
+import logging
 
 auth_bp = Blueprint('auth', __name__)
+logger = logging.getLogger(__name__)
+
+@auth_bp.route('/google/login', methods=['GET'])
+def google_login():
+    """Redirect user to Google OAuth"""
+    try:
+        auth_url = GoogleOAuthService.get_authorization_url()
+        if auth_url:
+            return jsonify({"auth_url": auth_url}), 200
+        else:
+            return jsonify({"error": "Failed to generate Google authorization URL"}), 500
+    except Exception as e:
+        logger.exception("Google login error")
+        return jsonify({"error": "Google login error", "details": str(e)}), 500
+
+@auth_bp.route('/google/callback', methods=['GET'])
+def google_callback():
+    """Handle Google OAuth callback"""
+    try:
+        # Check if Google sent an error
+        google_error = request.args.get('error')
+        if google_error:
+            error_desc = request.args.get('error_description')
+            logger.error(f"Google returned error: {google_error}, description: {error_desc}")
+            return jsonify({"error": "Google returned error", "details": error_desc or google_error}), 400
+        
+        # Get authorization code from query parameters
+        authorization_code = request.args.get('code')
+        
+        if not authorization_code:
+            logger.error("Authorization code not provided in callback")
+            return jsonify({"error": "Authorization code not provided"}), 400
+        
+        # Exchange code for tokens
+        tokens = GoogleOAuthService.exchange_code_for_tokens(authorization_code)
+        if not tokens:
+            logger.error("Failed to exchange authorization code for tokens")
+            return jsonify({"error": "Failed to exchange authorization code"}), 400
+        
+        # Get user info from Google
+        user_info = GoogleOAuthService.get_user_info(tokens['access_token'])
+        if not user_info:
+            logger.error("Failed to get user info from Google with provided access token")
+            return jsonify({"error": "Failed to get user info from Google"}), 400
+        
+        # Create or update user in our database
+        user = User.create_or_update_google_user(user_info)
+        if not user:
+            logger.error("Failed to create or update user from Google data")
+            return jsonify({"error": "Failed to create/update user"}), 500
+        
+        # Generate JWT token
+        token = generate_token(str(user["_id"]))
+        
+        # Check if user is admin
+        is_admin = user.get('role') == 'admin'
+        
+        # If redirect flag is present (default: yes), redirect to frontend callback with token
+        redirect_flag = request.args.get('redirect', '1')
+        if redirect_flag == '1' and FRONTEND_OAUTH_REDIRECT:
+            try:
+                target = f"{FRONTEND_OAUTH_REDIRECT}?token={token}&is_admin={'1' if is_admin else '0'}"
+                return redirect(target)
+            except Exception:
+                logger.exception("Failed to redirect to frontend OAuth callback, falling back to JSON response")
+        
+        # Fallback: JSON response
+        return jsonify({
+            "message": "Google login successful",
+            "token": token,
+            "user": user,
+            "is_admin": is_admin
+        }), 200
+        
+    except Exception as e:
+        logger.exception("Google callback error")
+        return jsonify({"error": "Google callback error", "details": str(e)}), 500
 
 @auth_bp.route('/register', methods=['POST'])
 def register():

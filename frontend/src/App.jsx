@@ -25,6 +25,7 @@ import BookingPage from "./pages/BookingPage";
 import PaymentPage from "./pages/PaymentPage";
 import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import BookingDetailsPage from "./pages/BookingDetailsPage";
+import GoogleOAuthCallback from "./components/GoogleOAuthCallback";
 
 const App = () => {
   return (
@@ -40,6 +41,7 @@ const App = () => {
               <Route path="/map" element={<Map />} />
               <Route path="/stations" element={<StationsList />} />
               <Route path="/recommendations" element={<Recommendations />} />
+              <Route path="/auth/google/callback" element={<GoogleOAuthCallback />} />
               <Route
                 path="/dashboard"
                 element={
