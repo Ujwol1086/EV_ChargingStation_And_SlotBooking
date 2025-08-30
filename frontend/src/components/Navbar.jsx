@@ -25,16 +25,18 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-10">
-            {["Home", "Stations", "Map", "About"].map((item) => (
-              <Link
-                key={item}
-                to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-                className="relative text-gray-300 hover:text-white transition-colors duration-300 group text-lg font-medium"
-              >
-                {item}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-400 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-            ))}
+            {["Home", "Charging Stations", "Locations", "Trip Planner"].map(
+              (item) => (
+                <Link
+                  key={item}
+                  to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
+                  className="relative text-gray-300 hover:text-white transition-colors duration-300 group text-lg font-medium"
+                >
+                  {item}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-400 group-hover:w-full transition-all duration-300"></span>
+                </Link>
+              )
+            )}
           </div>
 
           {/* Auth Buttons */}
@@ -60,7 +62,9 @@ export default function Navbar() {
                       {user?.username?.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-white text-sm font-medium">{user?.username}</span>
+                  <span className="text-white text-sm font-medium">
+                    {user?.username}
+                  </span>
                 </div>
               </div>
             ) : (
