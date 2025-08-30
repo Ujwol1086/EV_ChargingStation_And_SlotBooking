@@ -7,10 +7,10 @@ import { useState } from "react";
 // Responsive Container Component
 const Container = ({ children, className = "" }) => {
   return (
-    <div className={`w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 ${className}`}>
-      <div className="max-w-7xl mx-auto">
-        {children}
-      </div>
+    <div
+      className={`w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 ${className}`}
+    >
+      <div className="max-w-7xl mx-auto">{children}</div>
     </div>
   );
 };
@@ -24,7 +24,10 @@ export default function Navbar() {
       <Container>
         <nav className="flex items-center justify-between py-3 sm:py-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2 sm:space-x-3 group">
+          <Link
+            to="/"
+            className="flex items-center space-x-2 sm:space-x-3 group"
+          >
             <div className="relative">
               <div className="w-7 h-7 sm:w-11 sm:h-11 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-all duration-300">
                 <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
@@ -51,7 +54,7 @@ export default function Navbar() {
                 </Link>
               )
             )}
-
+          </div>
           {/* Auth Buttons - Desktop */}
           <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
             {isAuthenticated ? (
@@ -79,7 +82,6 @@ export default function Navbar() {
                   <span className="text-white text-sm font-medium">
                     {user?.username}
                   </span>
-
                 </div>
               </div>
             ) : (
@@ -159,7 +161,9 @@ export default function Navbar() {
                           {user?.username?.charAt(0).toUpperCase()}
                         </span>
                       </div>
-                      <span className="text-white text-sm font-medium">{user?.username}</span>
+                      <span className="text-white text-sm font-medium">
+                        {user?.username}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -169,7 +173,10 @@ export default function Navbar() {
                       className="text-gray-300 hover:text-white hover:bg-gray-800/50 text-base py-2 justify-start"
                       asChild
                     >
-                      <Link to="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Link
+                        to="/login"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
                         Login
                       </Link>
                     </Button>
@@ -177,7 +184,10 @@ export default function Navbar() {
                       className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white py-1 rounded-lg font-semibold text-sm"
                       asChild
                     >
-                      <Link to="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                      <Link
+                        to="/register"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
                         Register
                       </Link>
                     </Button>
