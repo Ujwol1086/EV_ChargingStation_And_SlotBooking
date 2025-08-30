@@ -67,7 +67,7 @@ export default function Navbar() {
                 </Link>
                 <Button
                   variant="ghost"
-                  className="text-gray-300 hover:text-white hover:bg-gray-800/50 text-sm lg:text-base px-3 lg:px-4 py-1.5 lg:py-2"
+                  className="text-gray-300 hover:text-white hover:bg-gray-800/50 text-sm lg:text-base px-3 lg:px-4 py-1.5 lg:py-2 cursor-pointer"
                   onClick={logout}
                 >
                   Logout
