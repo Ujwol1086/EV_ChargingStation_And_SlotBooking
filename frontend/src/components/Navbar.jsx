@@ -37,18 +37,20 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-4 lg:space-x-7">
-            {["Home", "Stations", "Map", "About"].map((item) => (
-              <Link
-                key={item}
-                to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
-                                 className="relative text-gray-300 hover:text-white transition-colors duration-300 group text-base lg:text-lg font-medium"
-              >
-                {item}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-400 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-            ))}
-          </div>
+
+          <div className="hidden md:flex items-center space-x-10">
+            {["Home", "Charging Stations", "Locations", "Trip Planner"].map(
+              (item) => (
+                <Link
+                  key={item}
+                  to={item === "Home" ? "/" : `/${item.toLowerCase()}`}
+                  className="relative text-gray-300 hover:text-white transition-colors duration-300 group text-lg font-medium"
+                >
+                  {item}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-400 group-hover:w-full transition-all duration-300"></span>
+                </Link>
+              )
+            )}
 
           {/* Auth Buttons - Desktop */}
           <div className="hidden md:flex items-center space-x-3 lg:space-x-4">
@@ -73,7 +75,11 @@ export default function Navbar() {
                       {user?.username?.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-white text-xs font-medium">{user?.username}</span>
+
+                  <span className="text-white text-sm font-medium">
+                    {user?.username}
+                  </span>
+
                 </div>
               </div>
             ) : (
