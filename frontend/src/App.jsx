@@ -39,9 +39,36 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/map" element={<Map />} />
+              <Route
+                path="/map/nea"
+                element={<Map selectedStationType="nea" />}
+              />
+              <Route
+                path="/map/byd"
+                element={<Map selectedStationType="byd" />}
+              />
+              <Route
+                path="/map/kia"
+                element={<Map selectedStationType="kia" />}
+              />
+              <Route
+                path="/map/hyundai"
+                element={<Map selectedStationType="hyundai" />}
+              />
+              <Route
+                path="/map/tata"
+                element={<Map selectedStationType="tata" />}
+              />
+              <Route
+                path="/map/mg"
+                element={<Map selectedStationType="mg" />}
+              />
               <Route path="/stations" element={<StationsList />} />
               <Route path="/recommendations" element={<Recommendations />} />
-              <Route path="/auth/google/callback" element={<GoogleOAuthCallback />} />
+              <Route
+                path="/auth/google/callback"
+                element={<GoogleOAuthCallback />}
+              />
               <Route
                 path="/dashboard"
                 element={
@@ -98,36 +125,66 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
-              <Route path="/admin" element={
-                <ProtectedAdminRoute>
-                  <AdminLayout><AdminDashboard /></AdminLayout>
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/stations" element={
-                <ProtectedAdminRoute>
-                  <AdminLayout><AdminStations /></AdminLayout>
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/users" element={
-                <ProtectedAdminRoute>
-                  <AdminLayout><AdminUsers /></AdminLayout>
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/bookings" element={
-                <ProtectedAdminRoute>
-                  <AdminLayout><AdminBookings /></AdminLayout>
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/analytics" element={
-                <ProtectedAdminRoute>
-                  <AdminLayout><AdminAnalytics /></AdminLayout>
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/charging" element={
-                <ProtectedAdminRoute>
-                  <AdminLayout><AdminChargingManagement /></AdminLayout>
-                </ProtectedAdminRoute>
-              } />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminDashboard />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/stations"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminStations />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminUsers />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/bookings"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminBookings />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/analytics"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminAnalytics />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/charging"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminChargingManagement />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
             </Routes>
           </main>
         </div>

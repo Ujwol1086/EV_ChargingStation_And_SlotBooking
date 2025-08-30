@@ -5,33 +5,58 @@ import StationMarkers from "../components/map/StationMarkers";
 import UserLocationMarker from "../components/map/UserLocationMarker";
 import StationBookingModal from "../components/StationBookingModal";
 
-const Map = () => {
+const Map = ({ selectedStationType }) => {
   const [stations, setStations] = useState([]);
-  const [userLocation, setUserLocation] = useState([27.7172, 85.3240]); // Default to Kathmandu
-  const [recommendations, setRecommendations] = useState([]);
+  const [filteredStations, setFilteredStations] = useState([]);
+  const [userLocation, setUserLocation] = useState([27.7172, 85.324]); // Default Kathmandu
   const [selectedStation, setSelectedStation] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [mapCenter, setMapCenter] = useState(userLocation);
 
-  // Fetch all stations on component mount
+  // Fetch stations on mount
   useEffect(() => {
     fetchStations();
     getCurrentLocation();
   }, []);
 
+  // Filter stations whenever stations or selectedStationType changes
+  useEffect(() => {
+    if (selectedStationType && selectedStationType !== "All") {
+      setFilteredStations(
+        stations.filter((station) =>
+          station.chargers.some(
+            (charger) =>
+              (charger.type ?? "").toString().toLowerCase() ===
+              selectedStationType.toLowerCase()
+          )
+        )
+      );
+    } else {
+      setFilteredStations(stations);
+    }
+  }, [stations, selectedStationType]);
+
+  // Update map center when a station is selected
+  useEffect(() => {
+    if (selectedStation) {
+      setMapCenter(selectedStation.location.coordinates);
+    }
+  }, [selectedStation]);
+
   const fetchStations = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/stations');
+      const response = await axios.get("/stations");
       if (response.data.success) {
         setStations(response.data.stations || []);
       } else {
-        setError('Failed to fetch stations');
+        setError("Failed to fetch stations");
       }
     } catch (err) {
-      console.error('Error fetching stations:', err);
-      setError('Failed to load charging stations');
+      console.error("Error fetching stations:", err);
+      setError("Failed to load charging stations");
     } finally {
       setLoading(false);
     }
@@ -41,12 +66,11 @@ const Map = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          const coords = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(coords);
+          setMapCenter(coords); // Initialize map center at user location
         },
-        (error) => {
-          console.error("Error getting location:", error);
-          // Keep default location
-        }
+        (error) => console.error("Error getting location:", error)
       );
     }
   };
@@ -62,12 +86,11 @@ const Map = () => {
   };
 
   const handleBookingSuccess = () => {
-    // Refresh stations to update availability
-    fetchStations();
+    fetchStations(); // Refresh stations
     handleCloseBookingModal();
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center h-96">
@@ -78,13 +101,14 @@ const Map = () => {
         </div>
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-red-800 mb-2">Error Loading Map</h2>
+          <h2 className="text-xl font-bold text-red-800 mb-2">
+            Error Loading Map
+          </h2>
           <p className="text-red-600 mb-4">{error}</p>
           <button
             onClick={fetchStations}
@@ -95,100 +119,58 @@ const Map = () => {
         </div>
       </div>
     );
-  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">🗺️ Charging Station Map</h1>
-        <p className="text-gray-600">
-          Explore all available charging stations in your area. Click on any station to view details and book a slot.
-        </p>
+    <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-4 mt-20">
+      {/* Left: Station List */}
+      <div className="md:w-1/3 max-h-[80vh] overflow-y-auto">
+        {filteredStations.map((station) => (
+          <div
+            key={station.id}
+            className={`border p-3 mb-3 rounded-lg cursor-pointer transition hover:shadow-lg ${
+              selectedStation?.id === station.id
+                ? "border-blue-500 bg-blue-50"
+                : "border-gray-200 bg-white"
+            }`}
+            onClick={() => handleStationClick(station)}
+          >
+            <h3 className="font-semibold text-lg">{station.name}</h3>
+            <p className="text-gray-600 text-sm">
+              Chargers:{" "}
+              {station.chargers
+                .map((c) => (c.type ?? "Unknown").toString().toUpperCase())
+                .join(", ")}
+            </p>
+            <p className="text-gray-600 text-sm">
+              Available: {station.chargers.filter((c) => c.available).length} /{" "}
+              {station.chargers.length}
+            </p>
+            <p className="text-gray-600 text-sm">
+              Address: {station.location.address}
+            </p>
+            {station.amenities.length > 0 && (
+              <p className="text-gray-500 text-xs">
+                Amenities: {station.amenities.join(", ")}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Map Stats */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <span className="text-2xl mr-3">🔌</span>
-            <div>
-              <p className="text-sm text-gray-600">Total Stations</p>
-              <p className="text-xl font-bold text-gray-800">{stations.length}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <span className="text-2xl mr-3">✅</span>
-            <div>
-              <p className="text-sm text-gray-600">Available</p>
-              <p className="text-xl font-bold text-green-600">
-                {stations.filter(s => s.availability > 0).length}
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <span className="text-2xl mr-3">💰</span>
-            <div>
-              <p className="text-sm text-gray-600">Avg. Price</p>
-              <p className="text-xl font-bold text-blue-600">
-                Rs. {stations.length > 0 ? 
-                  Math.round(stations.reduce((sum, s) => sum + (s.pricing || 0), 0) / stations.length) : 
-                  0}/kWh
-              </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white p-4 rounded-lg shadow border">
-          <div className="flex items-center">
-            <span className="text-2xl mr-3">⭐</span>
-            <div>
-              <p className="text-sm text-gray-600">Avg. Rating</p>
-              <p className="text-xl font-bold text-yellow-600">
-                {stations.length > 0 ? 
-                  (stations.reduce((sum, s) => sum + (s.rating || 0), 0) / stations.length).toFixed(1) : 
-                  0}/5
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Map Container */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <MapContainer center={userLocation} zoom={12}>
+      {/* Right: Map */}
+      <div className="md:w-2/3 bg-white rounded-lg shadow-lg overflow-hidden h-[80vh]">
+        <MapContainer
+          center={mapCenter}
+          zoom={12}
+          selectedStation={selectedStation}
+        >
           <UserLocationMarker userLocation={userLocation} />
           <StationMarkers
-            stations={stations}
-            recommendations={recommendations}
+            stations={filteredStations}
             onStationClick={handleStationClick}
             selectedStation={selectedStation}
           />
         </MapContainer>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-4 bg-white rounded-lg shadow p-4">
-        <h3 className="font-semibold text-gray-800 mb-3">Map Legend</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-            <span>Your Location</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-500 rounded-full"></div>
-            <span>Available Stations</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-500 rounded-full"></div>
-            <span>Fully Booked</span>
-          </div>
-        </div>
       </div>
 
       {/* Booking Modal */}
