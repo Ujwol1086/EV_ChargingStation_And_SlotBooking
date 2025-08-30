@@ -14,6 +14,7 @@ const Map = ({ selectedStationType }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [mapCenter, setMapCenter] = useState(userLocation);
+  const [companyFilter, setCompanyFilter] = useState(selectedStationType);
 
   // Fetch stations on mount
   useEffect(() => {
@@ -21,22 +22,19 @@ const Map = ({ selectedStationType }) => {
     getCurrentLocation();
   }, []);
 
-  // Filter stations whenever stations or selectedStationType changes
+  // Update company filter when selectedStationType changes
   useEffect(() => {
-    if (selectedStationType && selectedStationType !== "All") {
-      setFilteredStations(
-        stations.filter((station) =>
-          station.chargers.some(
-            (charger) =>
-              (charger.type ?? "").toString().toLowerCase() ===
-              selectedStationType.toLowerCase()
-          )
-        )
-      );
-    } else {
-      setFilteredStations(stations);
+    setCompanyFilter(selectedStationType);
+  }, [selectedStationType]);
+
+  // Fetch stations when company filter changes
+  useEffect(() => {
+    if (companyFilter && companyFilter !== "all") {
+      fetchStations();
+    } else if (companyFilter === "all") {
+      fetchStations();
     }
-  }, [stations, selectedStationType]);
+  }, [companyFilter]);
 
   // Update map center when a station is selected
   useEffect(() => {
@@ -48,9 +46,11 @@ const Map = ({ selectedStationType }) => {
   const fetchStations = async () => {
     try {
       setLoading(true);
-      const response = await axios.get("/stations");
+      const url = companyFilter && companyFilter !== "all" ? `/stations?company=${companyFilter}` : '/stations';
+      const response = await axios.get(url);
       if (response.data.success) {
         setStations(response.data.stations || []);
+        setFilteredStations(response.data.stations || []);
       } else {
         setError("Failed to fetch stations");
       }
@@ -90,6 +90,18 @@ const Map = ({ selectedStationType }) => {
     handleCloseBookingModal();
   };
 
+  const getCompanyDisplayName = (companyType) => {
+    const companyNames = {
+      'nea': 'NEA',
+      'byd': 'BYD',
+      'kia': 'KIA',
+      'hyundai': 'HYUNDAI',
+      'tata': 'TATA',
+      'mg': 'MG'
+    };
+    return companyNames[companyType] || 'Unknown';
+  };
+
   if (loading)
     return (
       <div className="container mx-auto px-4 py-8">
@@ -124,37 +136,71 @@ const Map = ({ selectedStationType }) => {
     <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-4 mt-20">
       {/* Left: Station List */}
       <div className="md:w-1/3 max-h-[80vh] overflow-y-auto">
-        {filteredStations.map((station) => (
-          <div
-            key={station.id}
-            className={`border p-3 mb-3 rounded-lg cursor-pointer transition hover:shadow-lg ${
-              selectedStation?.id === station.id
-                ? "border-blue-500 bg-blue-50"
-                : "border-gray-200 bg-white"
-            }`}
-            onClick={() => handleStationClick(station)}
-          >
-            <h3 className="font-semibold text-lg">{station.name}</h3>
-            <p className="text-gray-600 text-sm">
-              Chargers:{" "}
-              {station.chargers
-                .map((c) => (c.type ?? "Unknown").toString().toUpperCase())
-                .join(", ")}
+        {/* Company Filter Header */}
+        {companyFilter && companyFilter !== "all" ? (
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">
+              {getCompanyDisplayName(companyFilter)} Charging Stations
+            </h2>
+            <p className="text-sm text-gray-600">
+              Showing {filteredStations.length} stations
             </p>
-            <p className="text-gray-600 text-sm">
-              Available: {station.chargers.filter((c) => c.available).length} /{" "}
-              {station.chargers.length}
-            </p>
-            <p className="text-gray-600 text-sm">
-              Address: {station.location.address}
-            </p>
-            {station.amenities.length > 0 && (
-              <p className="text-gray-500 text-xs">
-                Amenities: {station.amenities.join(", ")}
-              </p>
-            )}
           </div>
-        ))}
+        ) : (
+          <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
+            <h2 className="text-lg font-bold text-gray-800 mb-2">
+              All Charging Stations
+            </h2>
+            <p className="text-sm text-gray-600">
+              Showing {filteredStations.length} stations
+            </p>
+          </div>
+        )}
+        
+        {filteredStations.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No stations found for this company.</p>
+          </div>
+        ) : (
+          filteredStations.map((station) => (
+            <div
+              key={station.id}
+              className={`border p-3 mb-3 rounded-lg cursor-pointer transition hover:shadow-lg ${
+                selectedStation?.id === station.id
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-200 bg-white"
+              }`}
+              onClick={() => handleStationClick(station)}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold text-lg">{station.name}</h3>
+                {station.company && (
+                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                    {station.company}
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-600 text-sm">
+                Chargers:{" "}
+                {station.chargers
+                  .map((c) => (c.type ?? "Unknown").toString().toUpperCase())
+                  .join(", ")}
+              </p>
+              <p className="text-gray-600 text-sm">
+                Available: {station.chargers.filter((c) => c.available).length} /{" "}
+                {station.chargers.length}
+              </p>
+              <p className="text-gray-600 text-sm">
+                Address: {station.location.address}
+              </p>
+              {station.amenities.length > 0 && (
+                <p className="text-gray-500 text-xs">
+                  Amenities: {station.amenities.join(", ")}
+                </p>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Right: Map */}

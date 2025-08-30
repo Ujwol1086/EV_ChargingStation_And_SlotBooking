@@ -37,6 +37,7 @@ def normalize_station_data(station, index):
         amenities = station.get('amenities', [])
         if not isinstance(amenities, list):
             amenities = []
+        
         normalized = {
             'id': station_id,
             'name': station.get('name', 'Unknown Station'),
@@ -54,7 +55,8 @@ def normalize_station_data(station, index):
             'telephone': station.get('telephone', ''),
             'city': station.get('city', ''),
             'province': station.get('province', ''),
-            'type': station.get('type', ['car'])
+            'type': station.get('type', ['car']),
+            'company': station.get('company', 'Unknown')
         }
         return normalized
     except Exception as e:
@@ -63,9 +65,9 @@ def normalize_station_data(station, index):
 
 @stations_bp.route('', methods=['GET'])
 def get_charging_stations():
-    """Get all charging stations or filter by type"""
+    """Get all charging stations or filter by company type"""
     try:
-        type_filter = request.args.get('type', None)  # Get ?type=NEA from query params
+        company_filter = request.args.get('company', None)  # Get ?company=nea from query params
         
         # Load JSON file
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -82,10 +84,9 @@ def get_charging_stations():
         for index, station in enumerate(raw_stations):
             normalized = normalize_station_data(station, index)
             if normalized:
-                # Apply type filter if requested
-                if type_filter:
-                    station_types = [t.lower() for t in normalized.get('type', [])]
-                    if type_filter.lower() in station_types:
+                # Apply company filter if requested
+                if company_filter and company_filter.lower() != 'all':
+                    if normalized.get('company') and normalized['company'].lower() == company_filter.lower():
                         normalized_stations.append(normalized)
                 else:
                     normalized_stations.append(normalized)
@@ -93,7 +94,8 @@ def get_charging_stations():
         return jsonify({
             'success': True,
             'stations': normalized_stations,
-            'total_count': len(normalized_stations)
+            'total_count': len(normalized_stations),
+            'company_filter': company_filter
         })
     except Exception as e:
         logger.error(f"Error fetching stations: {e}")

@@ -39,6 +39,7 @@ const App = () => {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/map" element={<Map />} />
+              <Route path="/map/all" element={<Map selectedStationType="all" />} />
               <Route
                 path="/map/nea"
                 element={<Map selectedStationType="nea" />}

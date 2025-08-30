@@ -3,6 +3,7 @@
     {
       "id": "cs001",
       "name": "Hotel Barahi",
+      "company": "Independent",
       "location": {
         "address": "Lakeside Rd 6, Pokhara, Province 3",
         "coordinates": [28.2097, 83.9856]
@@ -16,6 +17,7 @@
     {
       "id": "cs002",
       "name": "Hundai Service (L I Auto Service)",
+      "company": "HYUNDAI",
       "location": {
         "address": "Hundai service, kupondole, Kathmandu, Province 3",
         "coordinates": [27.690739168677144,85.31152580415048]
@@ -29,6 +31,7 @@
     {
       "id": "cs003",
       "name": "Hyundai Sales/Service Tinkune",
+      "company": "HYUNDAI",
       "location": {
         "address": "Hyundai Sales/Service Tinkune, Kathmandu, Province 3",
         "coordinates": [27.69166081858411,85.31175442397266]
@@ -42,6 +45,7 @@
     {
       "id": "cs004",
       "name": "Siddhartha Resort Chisapani - Hyundai",
+      "company": "HYUNDAI",
       "location": {
         "address": "J7VJ+2H7, Chisapani 21800, Nepal, Chisapani",
         "coordinates": [28.6419,81.2101]
@@ -55,6 +59,7 @@
     {
       "id": "cs005",
       "name": "Waterfront Resort, Hyundai AC Charger",
+      "company": "HYUNDAI",
       "location": {
         "address": "Baidam Rd, Pokhara 33700, Nepal, Pokhara",
         "coordinates": [28.2097,83.9856]
@@ -68,6 +73,7 @@
     {
       "id": "cs006",
       "name": "Hotel Landmark MG",
+      "company": "MG",
       "location": {
         "address": "6X39+HRP, Pokhara 33700, Nepal, Pokhara",
         "coordinates": [28.2097,83.9856]
@@ -81,6 +87,7 @@
     {
       "id": "cs007",
       "name": "Nepal Electricity Authority BYD",
+      "company": "NEA",
       "location": {
         "address": "6X39+HRP, Pokhara 33700, Nepal, Pokhara",
         "coordinates": [28.2097,83.9856]
@@ -94,6 +101,7 @@
     {
       "id": "cs008",
       "name": "Pokhara Grande Hotel Hyundai AC charger",
+      "company": "HYUNDAI",
       "location": {
         "address": "5XRF+X8V, Pokhara 33700, Nepal, Pokhara",
         "coordinates": [28.2097,83.9856]
@@ -107,6 +115,7 @@
     {
       "id": "cs009",
       "name": "Barahi Service Center - Hyundai AC Charger",
+      "company": "HYUNDAI",
       "location": {
         "address": "Pokhara-Baglung Hwy, Pokhara 33700, Nepal, Pokhara",
         "coordinates": [28.2097,83.9856]
@@ -120,6 +129,7 @@
     {
       "id": "cs010",
       "name": "Ace Overseas - Kia",
+      "company": "KIA",
       "location": {
         "address": "6X4V+QMX, Pokhara 33700, Nepal, Pokhara",
         "coordinates": [28.2097,83.9856]
@@ -133,6 +143,7 @@
     {
       "id": "cs011",
       "name": "Thankot Highway Fast Charge",
+      "company": "BYD",
       "location": {
         "address": "Thankot, Kathmandu, Province 3",
         "coordinates": [27.7037,85.2037]
@@ -149,6 +160,7 @@
     {
       "id": "cs012",
       "name": "Naubise EV Plaza",
+      "company": "TATA",
       "location": {
         "address": "Naubise, Dhading, Province 3",
         "coordinates": [27.75,85.15]
@@ -162,6 +174,7 @@
     {
       "id": "cs013",
       "name": "Galchhi Riverside Charger",
+      "company": "BYD",
       "location": {
         "address": "Galchhi, Dhading, Province 3",
         "coordinates": [27.815,84.977]
@@ -175,6 +188,7 @@
     {
       "id": "cs014",
       "name": "Malekhu Highway Stop",
+      "company": "Independent",
       "location": {
         "address": "Malekhu, Dhading, Province 3",
         "coordinates": [27.87,84.9]
@@ -188,6 +202,7 @@
     {
       "id": "cs015",
       "name": "Gajuri EV Point",
+      "company": "BYD",
       "location": {
         "address": "Gajuri, Dhading, Province 3",
         "coordinates": [27.9,84.8]
@@ -204,6 +219,7 @@
     {
       "id": "cs016",
       "name": "Benighat Fast Charge",
+      "company": "TATA",
       "location": {
         "address": "Benighat, Dhading, Province 3",
         "coordinates": [27.95,84.7]
@@ -217,6 +233,7 @@
     {
       "id": "cs017",
       "name": "Mugling Junction Charger",
+      "company": "Independent",
       "location": {
         "address": "Mugling, Chitwan, Province 3",
         "coordinates": [27.8500,84.5500]
@@ -233,6 +250,7 @@
     {
       "id": "cs018",
       "name": "Kurintar Resort EV",
+      "company": "Independent",
       "location": {
         "address": "Kurintar, Chitwan, Province 3",
         "coordinates": [27.8333,84.6333]
@@ -246,6 +264,7 @@
     {
       "id": "cs019",
       "name": "Aanbukhaireni Highway Charger",
+      "company": "Independent",
       "location": {
         "address": "Aanbukhaireni, Tanahun, Gandaki",
         "coordinates": [27.95,84.4333]
@@ -259,6 +278,7 @@
     {
       "id": "cs020",
       "name": "Damauli City EV Plaza",
+      "company": "Independent",
       "location": {
         "address": "Damauli, Tanahun, Gandaki",
         "coordinates": [27.9833,84.25]
@@ -272,6 +292,7 @@
     {
       "id": "cs021",
       "name": "Khairenitar EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Khairenitar, Tanahun, Gandaki",
         "coordinates": [28.0333,84.1167]
@@ -288,6 +309,7 @@
     {
       "id": "cs022",
       "name": "Lekhnath Highway Charger",
+      "company": "Independent",
       "location": {
         "address": "Lekhnath, Kaski, Gandaki",
         "coordinates": [28.1833,83.9833]
@@ -301,6 +323,7 @@
     {
       "id": "cs023",
       "name": "Pokhara Lakeside EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Lakeside, Pokhara, Gandaki",
         "coordinates": [28.2097,83.9856]
@@ -317,6 +340,7 @@
     {
       "id": "cs024",
       "name": "Kathmandu Central EV Plaza",
+      "company": "Independent",
       "location": {
         "address": "Thamel, Kathmandu, Province 3",
         "coordinates": [27.7172,85.324]
@@ -334,6 +358,7 @@
     {
       "id": "cs025",
       "name": "Boudhanath EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Boudhanath, Kathmandu, Province 3",
         "coordinates": [27.7217,85.3619]
@@ -350,6 +375,7 @@
     {
       "id": "cs026",
       "name": "Patan Durbar Square Charger",
+      "company": "Independent",
       "location": {
         "address": "Patan Durbar Square, Lalitpur, Province 3",
         "coordinates": [27.6736,85.324]
@@ -363,6 +389,7 @@
     {
       "id": "cs027",
       "name": "Bhaktapur Heritage EV",
+      "company": "Independent",
       "location": {
         "address": "Bhaktapur Durbar Square, Bhaktapur, Province 3",
         "coordinates": [27.6719,85.4295]
@@ -379,6 +406,7 @@
     {
       "id": "cs028",
       "name": "Nagarkot Viewpoint Charger",
+      "company": "Independent",
       "location": {
         "address": "Nagarkot, Bhaktapur, Province 3",
         "coordinates": [27.7167,85.5167]
@@ -395,6 +423,7 @@
     {
       "id": "cs029",
       "name": "Gokarna EV Charger",
+      "company": "Independent",
       "location": {
         "address": "Gokarna, Kathmandu",
         "coordinates": [27.7256,85.3608]
@@ -408,6 +437,7 @@
     {
       "id": "cs030",
       "name": "Pashupatinath EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Pashupatinath, Kathmandu",
         "coordinates": [27.7100,85.3483]
@@ -421,6 +451,7 @@
     {
       "id": "cs031",
       "name": "Chitwan EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Bharatpur, Chitwan",
         "coordinates": [27.6800,84.4292]
@@ -434,6 +465,7 @@
     {
       "id": "cs032",
       "name": "Pokhara Airport EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Pokhara Airport, Pokhara",
         "coordinates": [28.2133,83.9850]
@@ -447,6 +479,7 @@
     {
       "id": "cs033",
       "name": "Bharatpur EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Bharatpur, Chitwan",
         "coordinates": [27.6801,84.4267]
@@ -460,6 +493,7 @@
     {
       "id": "cs034",
       "name": "Hetauda EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Hetauda, Makwanpur",
         "coordinates": [27.4167,85.0333]
@@ -473,6 +507,7 @@
     {
       "id": "cs035",
       "name": "Dhulikhel EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Dhulikhel, Kavrepalanchok",
         "coordinates": [27.6153,85.5400]
@@ -486,6 +521,7 @@
     {
       "id": "cs036",
       "name": "Nagarkot EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Nagarkot, Bhaktapur",
         "coordinates": [27.7170,85.5200]
@@ -499,6 +535,7 @@
     {
       "id": "cs037",
       "name": "Daman EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Daman, Makwanpur",
         "coordinates": [27.5917,85.0092]
@@ -512,6 +549,7 @@
     {
       "id": "cs038",
       "name": "Bandipur EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Bandipur, Tanahun",
         "coordinates": [27.8667,84.3667]
@@ -525,6 +563,7 @@
     {
       "id": "cs039",
       "name": "Tansen EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Tansen, Palpa",
         "coordinates": [27.9167,83.5667]
@@ -538,6 +577,7 @@
     {
       "id": "cs040",
       "name": "Palung EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Palung, Makwanpur",
         "coordinates": [27.6167,84.9833]
@@ -551,6 +591,7 @@
     {
       "id": "cs041",
       "name": "Gorkha EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Gorkha Bazaar, Gorkha",
         "coordinates": [28.0100,84.6292]
@@ -564,6 +605,7 @@
     {
       "id": "cs042",
       "name": "Lamjung EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Besisahar, Lamjung",
         "coordinates": [28.1250,84.3500]
@@ -577,6 +619,7 @@
     {
       "id": "cs043",
       "name": "Dordi EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Dordi, Lamjung",
         "coordinates": [28.2000,84.3333]
@@ -590,6 +633,7 @@
     {
       "id": "cs044",
       "name": "Tansen Mall EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Tansen Mall, Palpa",
         "coordinates": [27.9167,83.5667]
@@ -603,6 +647,7 @@
     {
       "id": "cs045",
       "name": "Sauraha EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Sauraha, Chitwan",
         "coordinates": [27.6667,84.4333]
@@ -616,6 +661,7 @@
     {
       "id": "cs046",
       "name": "Bharatpur Mall EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Bharatpur Mall, Chitwan",
         "coordinates": [27.6833,84.4167]
@@ -629,6 +675,7 @@
     {
       "id": "cs047",
       "name": "Pokhara City Center EV",
+      "company": "Independent",
       "location": {
         "address": "Pokhara City Center, Gandaki",
         "coordinates": [28.2097,83.9856]
@@ -642,6 +689,7 @@
     {
       "id": "cs048",
       "name": "Damauli City Center EV",
+      "company": "Independent",
       "location": {
         "address": "Damauli, Tanahun, Gandaki",
         "coordinates": [27.9833,84.2500]
@@ -655,6 +703,7 @@
   {
   "id": "cs049",
   "name": "Biratnagar EV Plaza",
+  "company": "Independent",
   "location": {
     "address": "Biratnagar, Morang, Province 1",
     "coordinates": [26.4745, 87.2835]
@@ -684,6 +733,7 @@
     {
       "id": "cs050",
       "name": "Birtamode EV Station",
+      "company": "Independent",
       "location": {
         "address": "Birtamode, Jhapa",
         "coordinates": [26.6167, 88.1167]
@@ -699,6 +749,7 @@
     {
       "id": "cs051",
       "name": "Ithari EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Ithari, Sunsari",
         "coordinates": [26.6667, 87.2833]
@@ -714,6 +765,7 @@
     {
       "id": "cs052",
       "name": "Lahan EV Station",
+      "company": "Independent",
       "location": {
         "address": "Lahan, Siraha",
         "coordinates": [26.6667, 86.6167]
@@ -729,6 +781,7 @@
     {
       "id": "cs053",
       "name": "Janakpur EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Janakpur, Dhanusha",
         "coordinates": [26.7275, 85.9375]
@@ -744,6 +797,7 @@
     {
       "id": "cs054",
       "name": "Hetauda EV Station",
+      "company": "Independent",
       "location": {
         "address": "Hetauda, Makwanpur",
         "coordinates": [27.4167, 85.0333]
@@ -759,6 +813,7 @@
     {
       "id": "cs055",
       "name": "Dhulikhel EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Dhulikhel, Kavrepalanchok",
         "coordinates": [27.6153, 85.5400]
@@ -774,6 +829,7 @@
     {
       "id": "cs056",
       "name": "Bandipur EV Station",
+      "company": "Independent",
       "location": {
         "address": "Bandipur, Tanahun",
         "coordinates": [27.8667, 84.3667]
@@ -789,6 +845,7 @@
     {
       "id": "cs057",
       "name": "Tansen EV Station",
+      "company": "Independent",
       "location": {
         "address": "Tansen, Palpa",
         "coordinates": [27.9167, 83.5667]
@@ -804,6 +861,7 @@
     {
       "id": "cs058",
       "name": "Palung EV Station",
+      "company": "Independent",
       "location": {
         "address": "Palung, Makwanpur",
         "coordinates": [27.6167, 84.9833]
@@ -819,6 +877,7 @@
     {
       "id": "cs059",
       "name": "Gorkha EV Station",
+      "company": "Independent",
       "location": {
         "address": "Gorkha, Gorkha",
         "coordinates": [28.0100, 84.6292]
@@ -834,6 +893,7 @@
     {
       "id": "cs060",
       "name": "Lamjung EV Station",
+      "company": "Independent",
       "location": {
         "address": "Lamjung, Besisahar",
         "coordinates": [28.1250, 84.3500]
@@ -849,6 +909,7 @@
     {
       "id": "cs061",
       "name": "Dordi EV Station",
+      "company": "Independent",
       "location": {
         "address": "Dordi, Lamjung",
         "coordinates": [28.2000, 84.3333]
@@ -864,6 +925,7 @@
     {
       "id": "cs062",
       "name": "Butwal EV Station",
+      "company": "Independent",
       "location": {
         "address": "Butwal, Rupandehi",
         "coordinates": [27.6875, 83.4417]
@@ -879,6 +941,7 @@
     {
       "id": "cs063",
       "name": "Nepalgunj EV Station",
+      "company": "Independent",
       "location": {
         "address": "Nepalgunj, Banke",
         "coordinates": [28.0167, 81.6167]
@@ -894,6 +957,7 @@
     {
       "id": "cs064",
       "name": "Dhangadhi EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Dhangadhi, Kailali, Sudurpashchim",
         "coordinates": [28.7070, 80.5940]
@@ -909,6 +973,7 @@
     {
   "id": "cs065",
   "name": "Dhangadhi EV Hub",
+  "company": "Independent",
   "location": {
     "address": "Dhangadhi, Kailali, Sudurpashchim",
     "coordinates": [28.7010, 80.5910]
@@ -925,6 +990,7 @@
     {
       "id": "cs066",
       "name": "Bajura EV Station",
+      "company": "Independent",
       "location": {
         "address": "Bajura, Sudurpashchim",
         "coordinates": [29.4170, 81.3170]
@@ -940,6 +1006,7 @@
     {
       "id": "cs067",
       "name": "Baitadi EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Baitadi, Sudurpashchim",
         "coordinates": [29.5920, 80.6110]
@@ -955,6 +1022,7 @@
     {
       "id": "cs068",
       "name": "Dadeldhura EV Station",
+      "company": "Independent",
       "location": {
         "address": "Dadeldhura, Sudurpashchim",
         "coordinates": [29.2780, 80.5830]
@@ -970,6 +1038,7 @@
     {
       "id": "cs069",
       "name": "Jajarkot EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Jajarkot, Karnali Province",
         "coordinates": [28.65, 82.2]
@@ -985,6 +1054,7 @@
     {
       "id": "cs070",
       "name": "Dailekh EV Station",
+      "company": "Independent",
       "location": {
         "address": "Dailekh, Karnali Province",
         "coordinates": [28.9, 81.65]
@@ -1000,6 +1070,7 @@
     {
       "id": "cs071",
       "name": "Surkhet EV Station",
+      "company": "Independent",
       "location": {
         "address": "Surkhet, Karnali Province",
         "coordinates": [28.6167, 81.6]
@@ -1015,6 +1086,7 @@
     {
       "id": "cs072",
       "name": "Jumla EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Jumla, Karnali Province",
         "coordinates": [29.28, 82.18]
@@ -1030,6 +1102,7 @@
     {
       "id": "cs073",
       "name": "Rukum EV Station",
+      "company": "Independent",
       "location": {
         "address": "Rukum West, Karnali Province",
         "coordinates": [28.667, 82.267]
@@ -1045,6 +1118,7 @@
     {
       "id": "cs074",
       "name": "Rolpa EV Station",
+      "company": "Independent",
       "location": {
         "address": "Rolpa, Lumbini Province",
         "coordinates": [28.533, 82.2]
@@ -1060,6 +1134,7 @@
     {
       "id": "cs075",
       "name": "Kapilvastu EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Kapilvastu, Lumbini Province",
         "coordinates": [27.5333, 83.0333]
@@ -1075,6 +1150,7 @@
     {
       "id": "cs076",
       "name": "Dang EV Station",
+      "company": "Independent",
       "location": {
         "address": "Dang, Lumbini Province",
         "coordinates": [27.9667, 82.5667]
@@ -1090,6 +1166,7 @@
     {
       "id": "cs077",
       "name": "Tulsipur EV Station",
+      "company": "Independent",
       "location": {
         "address": "Tulsipur, Dang, Lumbini Province",
         "coordinates": [28.0667, 82.5667]
@@ -1105,6 +1182,7 @@
     {
       "id": "cs078",
       "name": "Bhairahawa EV Station",
+      "company": "Independent",
       "location": {
         "address": "Bhairahawa, Rupandehi, Lumbini Province",
         "coordinates": [27.5, 83.45]
@@ -1120,6 +1198,7 @@
     {
       "id": "cs079",
       "name": "Gulmi EV Hub",
+      "company": "Independent",
       "location": {
         "address": "Gulmi, Lumbini Province",
         "coordinates": [28.1167, 83.1333]
@@ -1135,6 +1214,7 @@
     {
       "id": "cs080",
       "name": "Palpa EV Station",
+      "company": "Independent",
       "location": {
         "address": "Palpa, Lumbini Province",
         "coordinates": [27.9167, 83.5667]
@@ -1150,6 +1230,7 @@
     {
   "id": "cs081",
   "name": "Biratnagar EV Hub",
+  "company": "Independent",
   "location": {
     "address": "Biratnagar, Morang, Province 1",
     "coordinates": [26.4525, 87.2718]
@@ -1166,6 +1247,7 @@
 {
   "id": "cs082",
   "name": "Dharan City EV Stop",
+  "company": "Independent",
   "location": {
     "address": "Dharan, Sunsari, Province 1",
     "coordinates": [26.8120, 87.2836]
@@ -1181,6 +1263,7 @@
 {
   "id": "cs083",
   "name": "Ilam EV Hub",
+  "company": "Independent",
   "location": {
     "address": "Ilam Bazar, Ilam, Province 1",
     "coordinates": [26.8996, 87.9274]
@@ -1196,6 +1279,7 @@
 {
   "id": "cs084",
   "name": "Sunsari Highway EV Stop",
+  "company": "Independent",
   "location": {
     "address": "Sunsari, Koshi Pradesh",
     "coordinates": [26.6550, 87.2550]
@@ -1212,6 +1296,7 @@
 {
   "id": "cs085",
   "name": "Koshi Tappu EV Plaza",
+  "company": "Independent",
   "location": {
     "address": "Koshi Tappu, Sunsari, Province 1",
     "coordinates": [26.6000, 87.1200]
