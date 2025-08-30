@@ -1,18 +1,23 @@
 import { MapContainer as LeafletMap, TileLayer, useMap } from "react-leaflet";
-import { userLocationIcon, stationIcon, recommendedStationIcon, topRecommendationIcon } from "../../utils/mapIcons";
+import {
+  userLocationIcon,
+  stationIcon,
+  recommendedStationIcon,
+  topRecommendationIcon,
+} from "../../utils/mapIcons";
 
-const MapContainer = ({ 
-  center, 
-  zoom, 
+const MapContainer = ({
+  center,
+  zoom,
   children,
-  className = "h-96 w-full rounded-lg"
+  className = "h-96 w-full rounded-lg",
 }) => {
   return (
     <LeafletMap
       center={center}
       zoom={zoom}
       className={className}
-      style={{ height: "400px", width: "100%" }}
+      style={{ height: "100%", width: "100%" }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -23,4 +28,4 @@ const MapContainer = ({
   );
 };
 
-export default MapContainer; 
+export default MapContainer;

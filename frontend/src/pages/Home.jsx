@@ -7,10 +7,10 @@ import { Link } from "react-router-dom";
 // Responsive Container Component
 const Container = ({ children, className = "" }) => {
   return (
-    <div className={`w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 ${className}`}>
-      <div className="max-w-7xl mx-auto">
-        {children}
-      </div>
+    <div
+      className={`w-full mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16 ${className}`}
+    >
+      <div className="max-w-7xl mx-auto">{children}</div>
     </div>
   );
 };
@@ -129,14 +129,15 @@ export default function EVConnectNepal() {
                     Browse Stations
                   </Link>
                 </Button>
-                <Button
+                <Link
+                  to="/recommendations"
                   size="lg"
                   variant="outline"
-                  className="border-2 border-green-500 text-green-400 hover:bg-green-500 hover:text-white px-5 sm:px-6 lg:px-8 py-2.5 sm:py-3 lg:py-4 rounded-lg font-bold text-sm sm:text-base lg:text-lg transform hover:scale-105 transition-all duration-300 bg-transparent backdrop-blur-sm"
+                  className="flex items-center border-2 border-green-500 text-green-400 hover:bg-green-500 hover:text-white px-5 sm:px-6 lg:px-8 py-2.5 sm:py-2 lg:py-1 rounded-lg font-bold text-sm sm:text-base lg:text-lg transform hover:scale-105 transition-all duration-300 bg-transparent backdrop-blur-sm"
                 >
                   <Zap className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2 sm:mr-3" />
                   Smart Recommendations
-                </Button>
+                </Link>
               </div>
             </div>
 
@@ -533,7 +534,10 @@ export default function EVConnectNepal() {
                     </g>
                   </g>
                   <g className="side-panels">
-                    <g transform="translate(50, 150)" className="pointer-events-none">
+                    <g
+                      transform="translate(50, 150)"
+                      className="pointer-events-none"
+                    >
                       <rect
                         x="0"
                         y="0"
@@ -603,7 +607,10 @@ export default function EVConnectNepal() {
                         )
                       )}
                     </g>
-                    <g transform="translate(470, 180)" className="pointer-events-none">
+                    <g
+                      transform="translate(470, 180)"
+                      className="pointer-events-none"
+                    >
                       <rect
                         x="0"
                         y="0"
@@ -854,14 +861,14 @@ export default function EVConnectNepal() {
                     className={`absolute inset-0 bg-gradient-to-br from-${stat.color}-500/5 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
                   ></div>
                   <div className="relative z-10">
-                                         <div
-                       className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-3 bg-gradient-to-r from-${stat.color}-400 to-${stat.color}-600 bg-clip-text text-transparent`}
-                     >
-                       {stat.number}
-                     </div>
-                     <div className="text-gray-400 font-semibold text-xs sm:text-sm lg:text-base">
-                       {stat.label}
-                     </div>
+                    <div
+                      className={`text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-3 bg-gradient-to-r from-${stat.color}-400 to-${stat.color}-600 bg-clip-text text-transparent`}
+                    >
+                      {stat.number}
+                    </div>
+                    <div className="text-gray-400 font-semibold text-xs sm:text-sm lg:text-base">
+                      {stat.label}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -874,25 +881,28 @@ export default function EVConnectNepal() {
       <footer className="py-12 sm:py-16 border-t border-gray-800/50">
         <Container>
           <div className="text-center">
-                         <div className="flex items-center justify-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
-               <div className="w-7 h-7 sm:w-9 sm:h-9 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-lg flex items-center justify-center">
-                 <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-               </div>
-               <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                 EVConnectNepal
-               </span>
-             </div>
-             <p className="text-gray-400 mb-6 sm:mb-8 text-sm sm:text-base">
-               Powering Nepal's sustainable future, one charge at a time.
-             </p>
-             <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-gray-500">
+            <div className="flex items-center justify-center space-x-3 sm:space-x-4 mb-6 sm:mb-8">
+              <div className="w-7 h-7 sm:w-9 sm:h-9 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-lg flex items-center justify-center">
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </div>
+              <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                EVConnectNepal
+              </span>
+            </div>
+            <p className="text-gray-400 mb-6 sm:mb-8 text-sm sm:text-base">
+              Powering Nepal's sustainable future, one charge at a time.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 sm:gap-6 lg:gap-8 text-xs sm:text-sm text-gray-500">
               <Link
                 to="/privacy"
                 className="hover:text-cyan-400 transition-colors"
               >
                 Privacy Policy
               </Link>
-              <Link to="/terms" className="hover:text-cyan-400 transition-colors">
+              <Link
+                to="/terms"
+                className="hover:text-cyan-400 transition-colors"
+              >
                 Terms of Service
               </Link>
               <Link
@@ -908,9 +918,9 @@ export default function EVConnectNepal() {
                 Support
               </Link>
             </div>
-                         <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-gray-800/50 text-gray-500 text-xs sm:text-sm">
-               © 2024 EVConnectNepal. All rights reserved.
-             </div>
+            <div className="mt-8 sm:mt-10 pt-8 sm:pt-10 border-t border-gray-800/50 text-gray-500 text-xs sm:text-sm">
+              © 2024 EVConnectNepal. All rights reserved.
+            </div>
           </div>
         </Container>
       </footer>

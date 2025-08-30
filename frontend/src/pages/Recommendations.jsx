@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+  useMap,
+} from "react-leaflet";
 import { useNavigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -7,7 +14,11 @@ import RecommendationForm from "../components/RecommendationForm";
 import RecommendationResults from "../components/RecommendationResults";
 import { useAuth } from "../context/useAuth";
 import axios from "../api/axios";
-import { userLocationIcon, recommendedStationIcon, topRecommendationIcon } from "../utils/mapIcons";
+import {
+  userLocationIcon,
+  recommendedStationIcon,
+  topRecommendationIcon,
+} from "../utils/mapIcons";
 
 // Fix for the default marker icon issue in react-leaflet
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -33,9 +44,9 @@ const MapController = ({ userLocation, recommendations, routeData }) => {
       // Create bounds that include user location and all recommended stations
       const allPoints = [
         userLocation,
-        ...recommendations.map(rec => rec.location)
+        ...recommendations.map((rec) => rec.location),
       ];
-      
+
       const bounds = L.latLngBounds(allPoints);
       map.fitBounds(bounds, { padding: [20, 20] });
     } else if (userLocation) {
@@ -49,7 +60,7 @@ const MapController = ({ userLocation, recommendations, routeData }) => {
 const Recommendations = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
-  
+
   const [userLocation, setUserLocation] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
@@ -65,7 +76,7 @@ const Recommendations = () => {
   // Redirect if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      navigate('/login');
+      navigate("/login");
     }
   }, [isAuthenticated, isLoading, navigate]);
 
@@ -101,34 +112,34 @@ const Recommendations = () => {
 
   const loadUserBookings = async () => {
     try {
-      const response = await axios.get('/recommendations/my-bookings');
+      const response = await axios.get("/recommendations/my-bookings");
       if (response.data.success) {
         setUserBookings(response.data.bookings);
       }
     } catch (err) {
-      console.error('Error loading bookings:', err);
+      console.error("Error loading bookings:", err);
     }
   };
 
   const handleRecommendations = async (formData) => {
-    console.log('Form data received:', formData);
-    
+    console.log("Form data received:", formData);
+
     setLoadingRecommendations(true);
     setError(null);
-    
+
     try {
       // Choose the appropriate endpoint based on whether destination is set
-      const endpoint = formData.destination_city 
-        ? '/recommendations/route-to-city'
-        : '/recommendations/enhanced';
-      
-      console.log('Sending request to:', endpoint);
-      console.log('Request data:', formData);
-      
+      const endpoint = formData.destination_city
+        ? "/recommendations/route-to-city"
+        : "/recommendations/enhanced";
+
+      console.log("Sending request to:", endpoint);
+      console.log("Request data:", formData);
+
       const response = await axios.post(endpoint, formData);
-      
-      console.log('Response received:', response.data);
-      
+
+      console.log("Response received:", response.data);
+
       if (response.data && response.data.success !== false) {
         setRecommendations(response.data);
         setSelectedStation(null);
@@ -138,12 +149,12 @@ const Recommendations = () => {
         // Reload bookings to get any new auto-bookings
         loadUserBookings();
       } else {
-        console.error('Recommendation error:', response.data);
-        setError(response.data.error || 'Failed to get recommendations');
+        console.error("Recommendation error:", response.data);
+        setError(response.data.error || "Failed to get recommendations");
       }
     } catch (error) {
-      console.error('Error getting recommendations:', error);
-      setError('Failed to get recommendations. Please try again.');
+      console.error("Error getting recommendations:", error);
+      setError("Failed to get recommendations. Please try again.");
     } finally {
       setLoadingRecommendations(false);
     }
@@ -152,10 +163,13 @@ const Recommendations = () => {
   // Helper function to get station coordinates
   const getStationCoordinates = (station) => {
     if (!station.location) return null;
-    
+
     if (Array.isArray(station.location)) {
       return station.location;
-    } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+    } else if (
+      station.location.coordinates &&
+      Array.isArray(station.location.coordinates)
+    ) {
       return station.location.coordinates;
     }
     return null;
@@ -175,7 +189,7 @@ const Recommendations = () => {
 
   const handleShowRoute = async (station) => {
     if (!userLocation) {
-      setError('User location not available');
+      setError("User location not available");
       return;
     }
 
@@ -185,15 +199,15 @@ const Recommendations = () => {
     try {
       const stationCoords = getStationCoordinates(station);
       if (!stationCoords) {
-        setError('Invalid station location format');
+        setError("Invalid station location format");
         setLoadingRoute(false);
         return;
       }
 
-      const response = await axios.post('/recommendations/route-to-station', {
+      const response = await axios.post("/recommendations/route-to-station", {
         user_location: userLocation,
         station_location: stationCoords,
-        booking_id: findBookingForStation(station.id)?.booking_id
+        booking_id: findBookingForStation(station.id)?.booking_id,
       });
 
       if (response.data.success) {
@@ -201,40 +215,44 @@ const Recommendations = () => {
         setShowRoute(true);
         setSelectedStation(station);
       } else {
-        setError(response.data.error || 'Failed to calculate route');
+        setError(response.data.error || "Failed to calculate route");
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Error calculating route');
+      setError(err.response?.data?.error || "Error calculating route");
     } finally {
       setLoadingRoute(false);
     }
   };
 
   const findBookingForStation = (stationId) => {
-    return userBookings.find(booking => booking.station_id === stationId);
+    return userBookings.find((booking) => booking.station_id === stationId);
   };
 
   const handleCancelBooking = async (bookingId) => {
     try {
-      const response = await axios.delete(`/recommendations/cancel-booking/${bookingId}`);
+      const response = await axios.delete(
+        `/recommendations/cancel-booking/${bookingId}`
+      );
       if (response.data.success) {
         loadUserBookings(); // Reload bookings
-        alert('Booking cancelled successfully');
+        alert("Booking cancelled successfully");
       } else {
-        alert(response.data.error || 'Failed to cancel booking');
+        alert(response.data.error || "Failed to cancel booking");
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Error cancelling booking');
+      alert(err.response?.data?.error || "Error cancelling booking");
     }
   };
 
   const handleAutoBook = (booking) => {
     // Add the auto-booking to the userBookings state
-    setUserBookings(prev => [...prev, booking]);
-    
+    setUserBookings((prev) => [...prev, booking]);
+
     // Show success message with details
-    alert(`Auto-booking successful!\nStation: ${booking.station_details?.name}\nBooking ID: ${booking.booking_id}`);
-    
+    alert(
+      `Auto-booking successful!\nStation: ${booking.station_details?.name}\nBooking ID: ${booking.booking_id}`
+    );
+
     // Reload recommendations to update availability
     if (recommendations) {
       handleRecommendations(recommendations);
@@ -256,12 +274,17 @@ const Recommendations = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 mt-15">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Smart Charging Station Recommendations</h1>
-          <p className="text-gray-600">Find the best charging stations based on your location, battery level, and urgency.</p>
-          
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            Smart Charging Station Recommendations
+          </h1>
+          <p className="text-gray-600">
+            Find the best charging stations based on your location, battery
+            level, and urgency.
+          </p>
+
           {error && (
             <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
               {error}
@@ -273,7 +296,7 @@ const Recommendations = () => {
           {/* Left Column - Form and Results */}
           <div className="space-y-6">
             {/* Recommendation Form */}
-            <RecommendationForm 
+            <RecommendationForm
               onSubmit={handleRecommendations}
               loading={loadingRecommendations}
             />
@@ -281,29 +304,38 @@ const Recommendations = () => {
             {/* User Bookings */}
             {userBookings.length > 0 && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">Your Bookings</h3>
+                <h3 className="text-xl font-bold mb-4 text-gray-800">
+                  Your Bookings
+                </h3>
                 <div className="space-y-3">
                   {userBookings.slice(0, 3).map((booking) => (
-                    <div key={booking._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div
+                      key={booking._id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    >
                       <div>
                         <div className="font-medium text-gray-800">
-                          {booking.station_details?.name || 'Unknown Station'}
+                          {booking.station_details?.name || "Unknown Station"}
                         </div>
                         <div className="text-sm text-gray-600">
                           {booking.charger_type} • {booking.status}
-                          {booking.auto_booked && ' (Auto-booked)'}
+                          {booking.auto_booked && " (Auto-booked)"}
                         </div>
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => handleShowRoute(booking.station_details)}
+                          onClick={() =>
+                            handleShowRoute(booking.station_details)
+                          }
                           disabled={loadingRoute}
                           className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
                         >
-                          {loadingRoute ? 'Loading...' : 'Show Route'}
+                          {loadingRoute ? "Loading..." : "Show Route"}
                         </button>
                         <button
-                          onClick={() => handleCancelBooking(booking.booking_id)}
+                          onClick={() =>
+                            handleCancelBooking(booking.booking_id)
+                          }
                           className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
                         >
                           Cancel
@@ -324,13 +356,21 @@ const Recommendations = () => {
 
             {/* Recommendation Results */}
             {recommendations && (
-              <RecommendationResults 
-                recommendations={Array.isArray(recommendations.recommendations) ? recommendations.recommendations : (Array.isArray(recommendations) ? recommendations : [])}
+              <RecommendationResults
+                recommendations={
+                  Array.isArray(recommendations.recommendations)
+                    ? recommendations.recommendations
+                    : Array.isArray(recommendations)
+                    ? recommendations
+                    : []
+                }
                 onStationSelect={handleStationSelect}
                 onShowRoute={handleShowRoute}
                 userBookings={userBookings}
                 loadingRoute={loadingRoute}
-                metadata={recommendations.algorithm_info || recommendations.metadata}
+                metadata={
+                  recommendations.algorithm_info || recommendations.metadata
+                }
                 autoBookings={recommendations.auto_bookings || []}
                 data={recommendations}
                 onAutoBook={handleAutoBook}
@@ -340,20 +380,32 @@ const Recommendations = () => {
             {/* Route Information */}
             {showRoute && routeData && (
               <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">Route Information</h3>
+                <h3 className="text-xl font-bold mb-4 text-gray-800">
+                  Route Information
+                </h3>
                 <div className="grid grid-cols-2 gap-4 mb-4">
                   <div>
-                    <span className="text-sm text-gray-500">Total Distance</span>
-                    <div className="font-medium text-gray-800">{routeData.metrics.total_distance} km</div>
+                    <span className="text-sm text-gray-500">
+                      Total Distance
+                    </span>
+                    <div className="font-medium text-gray-800">
+                      {routeData.metrics.total_distance} km
+                    </div>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-500">Estimated Time</span>
-                    <div className="font-medium text-gray-800">{routeData.metrics.estimated_time}</div>
+                    <span className="text-sm text-gray-500">
+                      Estimated Time
+                    </span>
+                    <div className="font-medium text-gray-800">
+                      {routeData.metrics.estimated_time}
+                    </div>
                   </div>
                 </div>
-                
+
                 <div className="mb-4">
-                  <span className="text-sm text-gray-500 block mb-2">Route Instructions</span>
+                  <span className="text-sm text-gray-500 block mb-2">
+                    Route Instructions
+                  </span>
                   <ol className="text-sm text-gray-700 space-y-1">
                     {routeData.instructions.map((instruction, index) => (
                       <li key={index} className="flex items-start gap-2">
@@ -367,7 +419,8 @@ const Recommendations = () => {
                 </div>
 
                 <div className="text-xs text-gray-500">
-                  Algorithm: {routeData.algorithm_used} • {routeData.metrics.waypoint_count} waypoints
+                  Algorithm: {routeData.algorithm_used} •{" "}
+                  {routeData.metrics.waypoint_count} waypoints
                 </div>
               </div>
             )}
@@ -378,11 +431,14 @@ const Recommendations = () => {
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="p-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-800">
-                  {showRoute ? 'Route to Station' : 
-                   recommendations ? 'Recommended Stations Map' : 'Your Location'}
+                  {showRoute
+                    ? "Route to Station"
+                    : recommendations
+                    ? "Recommended Stations Map"
+                    : "Your Location"}
                 </h3>
               </div>
-              
+
               <div className="h-96 lg:h-[600px]">
                 <MapContainer
                   center={mapCenter}
@@ -396,7 +452,7 @@ const Recommendations = () => {
                   />
 
                   {/* Map Controller */}
-                  <MapController 
+                  <MapController
                     userLocation={userLocation}
                     recommendations={recommendations?.recommendations}
                     routeData={routeData}
@@ -419,7 +475,8 @@ const Recommendations = () => {
                         <div className="text-center">
                           <strong>Your Location</strong>
                           <br />
-                          {userLocation[0].toFixed(4)}, {userLocation[1].toFixed(4)}
+                          {userLocation[0].toFixed(4)},{" "}
+                          {userLocation[1].toFixed(4)}
                         </div>
                       </Popup>
                     </Marker>
@@ -428,9 +485,12 @@ const Recommendations = () => {
                   {/* Recommended Station Markers */}
                   {recommendations?.recommendations?.map((rec, index) => {
                     const station = rec; // rec itself contains the station data, not rec.station
-                    const icon = index === 0 ? topRecommendationIcon : recommendedStationIcon;
+                    const icon =
+                      index === 0
+                        ? topRecommendationIcon
+                        : recommendedStationIcon;
                     const hasBooking = findBookingForStation(station.id);
-                    
+
                     return (
                       <Marker
                         key={station.id}
@@ -445,16 +505,30 @@ const Recommendations = () => {
                               </div>
                               <strong>{station.name}</strong>
                             </div>
-                            
+
                             <div className="space-y-1 text-sm">
-                              <div>📍 {station.location?.address || (() => {
-                  const coords = getStationCoordinates(station);
-                  return coords ? `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}` : 'Location data unavailable';
-                })()}</div>
+                              <div>
+                                📍{" "}
+                                {station.location?.address ||
+                                  (() => {
+                                    const coords =
+                                      getStationCoordinates(station);
+                                    return coords
+                                      ? `${coords[0].toFixed(
+                                          4
+                                        )}, ${coords[1].toFixed(4)}`
+                                      : "Location data unavailable";
+                                  })()}
+                              </div>
                               <div>🚗 {rec.distance} km away</div>
                               <div>⭐ Score: {rec.score}</div>
-                              <div>🔌 {station.availability || 0}/{station.total_slots || 0} available</div>
-                              <div>💰 Rs. {station.pricing || 'N/A'} per kWh</div>
+                              <div>
+                                🔌 {station.availability || 0}/
+                                {station.total_slots || 0} available
+                              </div>
+                              <div>
+                                💰 Rs. {station.pricing || "N/A"} per kWh
+                              </div>
                               <div>⚡ Rating: {station.rating}/5</div>
                             </div>
 
@@ -486,7 +560,7 @@ const Recommendations = () => {
                                 disabled={loadingRoute}
                                 className="flex-1 px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
                               >
-                                {loadingRoute ? 'Loading...' : 'Show Route'}
+                                {loadingRoute ? "Loading..." : "Show Route"}
                               </button>
                             </div>
                           </div>
@@ -535,4 +609,4 @@ const Recommendations = () => {
   );
 };
 
-export default Recommendations; 
+export default Recommendations;
