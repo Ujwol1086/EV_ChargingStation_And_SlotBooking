@@ -46,7 +46,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen relative bg-gradient-to-br from-black via-slate-950 to-gray-950 flex flex-col justify-center py-16 px-6">
+    <div className="min-h-screen relative bg-gradient-to-br from-black via-slate-950 to-gray-950 flex flex-col justify-center py-8 px-6">
       {/* Background decoration to match Home */}
       <div className="absolute inset-0 opacity-40 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/15 via-purple-600/15 to-green-600/15 animate-pulse" />
@@ -57,15 +57,8 @@ export default function Register() {
       </div>
 
       <div className="relative sm:mx-auto sm:w-full sm:max-w-md">
-        {/* Logo and Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-              </svg>
-            </div>
-          </div>
+        {/* Header */}
+        <div className="text-center mb-6">
           <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
             Join EVConnectNepal
           </h2>
@@ -75,11 +68,11 @@ export default function Register() {
         </div>
 
         {/* Registration Form */}
-        <div className="bg-gray-900/70 backdrop-blur-xl py-8 px-6 shadow-2xl rounded-2xl border border-gray-800/40">
+        <div className="bg-gray-900/70 backdrop-blur-xl py-6 px-6 shadow-2xl rounded-2xl border border-gray-800/40">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-6">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 mb-4">
               <div className="flex items-center">
-                <svg className="w-5 h-5 text-red-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <p className="text-sm text-red-300">{error}</p>
@@ -87,7 +80,7 @@ export default function Register() {
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <FormInput
               id="username"
               type="text"
@@ -159,7 +152,7 @@ export default function Register() {
           </form>
 
           {/* Divider */}
-          <div className="mt-6 mb-6">
+          <div className="mt-4 mb-4">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-800"></div>
@@ -185,7 +178,7 @@ export default function Register() {
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center">
+        <div className="mt-6 text-center">
           <p className="text-sm text-gray-400">
             By creating an account, you agree to our terms and privacy policy
           </p>
