@@ -1,32 +1,35 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { loginSchema } from "../utils/validationSchemas";
+import FormInput from "../components/ui/FormInput";
+import { EmailIcon, PasswordIcon } from "../components/ui/icons";
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const navigate = useNavigate();
   const { login, googleLogin } = useAuth();
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isValid },
+    setValue,
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+    mode: "onChange",
+  });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     setError("");
     setIsLoading(true);
 
     try {
-      const result = await login(formData);
+      const result = await login(data);
 
       if (result.success) {
         // Redirect based on user role
@@ -113,61 +116,33 @@ export default function Login() {
             </div>
           )}
 
-          {/* Removed the extra divider text; Google button moved below the form */}
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            <FormInput
+              id="email"
+              type="email"
+              label="Email Address"
+              placeholder="Enter your email"
+              autoComplete="email"
+              icon={EmailIcon}
+              error={errors.email?.message}
+              {...register("email")}
+            />
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-gray-300 mb-2">
-                Email Address
-              </label>
-              <div className="relative p-[1.5px] rounded-xl bg-gray-700 focus-within:bg-gradient-to-r focus-within:from-cyan-500 focus-within:to-purple-600 transition-colors">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                  </svg>
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border-0 rounded-[10px] bg-gray-800/60 placeholder-gray-400 text-gray-100 focus:outline-none focus:ring-0 transition-all duration-300"
-                  placeholder="Enter your email"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-gray-300 mb-2">
-                Password
-              </label>
-              <div className="relative p-[1.5px] rounded-xl bg-gray-700 focus-within:bg-gradient-to-r focus-within:from-cyan-500 focus-within:to-purple-600 transition-colors">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="block w-full pl-10 pr-3 py-3 border-0 rounded-[10px] bg-gray-800/60 placeholder-gray-400 text-gray-100 focus:outline-none focus:ring-0 transition-all duration-300"
-                  placeholder="Enter your password"
-                />
-              </div>
-            </div>
+            <FormInput
+              id="password"
+              type="password"
+              label="Password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              icon={PasswordIcon}
+              error={errors.password?.message}
+              {...register("password")}
+            />
 
             <div>
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !isValid}
                 className="group relative w-full flex justify-center py-3 px-4 border border-transparent rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:-translate-y-0.5 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25"
               >
                 {isLoading ? (
