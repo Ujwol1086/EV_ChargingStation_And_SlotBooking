@@ -11,6 +11,7 @@ import AdminUsers from "./admin/pages/AdminUsers";
 import AdminBookings from "./admin/pages/AdminBookings";
 import AdminAnalytics from "./admin/pages/AdminAnalytics";
 import AdminChargingManagement from "./admin/pages/AdminChargingManagement";
+import AdminReports from "./admin/pages/AdminReports";
 
 // Pages
 import Home from "./pages/Home";
@@ -182,6 +183,16 @@ const App = () => {
                   <ProtectedAdminRoute>
                     <AdminLayout>
                       <AdminChargingManagement />
+                    </AdminLayout>
+                  </ProtectedAdminRoute>
+                }
+              />
+              <Route
+                path="/admin/reports"
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminLayout>
+                      <AdminReports />
                     </AdminLayout>
                   </ProtectedAdminRoute>
                 }
