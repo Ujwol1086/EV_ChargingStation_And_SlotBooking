@@ -115,11 +115,13 @@ const StationsList = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 ">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading charging stations...</p>
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+              <p className="text-gray-300">Loading charging stations...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -128,94 +130,98 @@ const StationsList = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-red-800 mb-2">
-            Error Loading Stations
-          </h2>
-          <p className="text-red-600 mb-4">{error}</p>
-          <button
-            onClick={fetchStations}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-          >
-            Try Again
-          </button>
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
+        <div className="container mx-auto px-4 py-8">
+          <div className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 rounded-3xl p-6 text-center backdrop-blur-sm">
+            <h2 className="text-xl font-bold text-red-300 mb-2">
+              Error Loading Stations
+            </h2>
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={fetchStations}
+              className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-2xl hover:from-red-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-red-500/25"
+            >
+              Try Again
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 mt-15">
-      {/* Header */}
-      <div className="mb-8 ">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-          ⚡ Charging Stations
-        </h1>
-        <p className="text-gray-600">
-          Browse all available charging stations. Find the perfect spot for your
-          electric vehicle.
-        </p>
-      </div>
-
-      {/* Search + Sort + Filter Section (same as before) */}
-      {/* ... your existing stats + controls code ... */}
-
-      {/* Stations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {currentStations.map((station) => (
-          <StationCard
-            key={station.id}
-            station={station}
-            onStationClick={handleStationClick}
-          />
-        ))}
-      </div>
-
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center mt-8 space-x-2">
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300 transition-colors"
-          >
-            Prev
-          </button>
-
-          {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i + 1}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                currentPage === i + 1
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 disabled:opacity-50 hover:bg-gray-300 transition-colors"
-          >
-            Next
-          </button>
+    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+            Charging Stations
+          </h1>
+          <p className="text-gray-300 text-lg">
+            Browse all available charging stations. Find the perfect spot for your
+            electric vehicle.
+          </p>
         </div>
-      )}
 
-      {/* Booking Modal */}
-      {showBookingModal && selectedStation && (
-        <StationBookingModal
-          station={selectedStation}
-          userLocation={[27.7172, 85.324]} // Default to Kathmandu
-          onClose={handleCloseBookingModal}
-          onBookingSuccess={handleBookingSuccess}
-        />
-      )}
+        {/* Search + Sort + Filter Section (same as before) */}
+        {/* ... your existing stats + controls code ... */}
+
+        {/* Stations Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {currentStations.map((station) => (
+            <StationCard
+              key={station.id}
+              station={station}
+              onStationClick={handleStationClick}
+            />
+          ))}
+        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center mt-8 space-x-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              className="px-4 py-2 rounded-2xl bg-gray-700/50 text-gray-300 disabled:opacity-50 hover:bg-gray-600/50 transition-all duration-300 border border-gray-600/50"
+            >
+              Prev
+            </button>
+
+            {[...Array(totalPages)].map((_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-4 py-2 rounded-2xl transition-all duration-300 ${
+                  currentPage === i + 1
+                    ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-2xl shadow-cyan-500/25"
+                    : "bg-gray-700/50 text-gray-300 hover:bg-gray-600/50 border border-gray-600/50"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
+
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              className="px-4 py-2 rounded-2xl bg-gray-700/50 text-gray-300 disabled:opacity-50 hover:bg-gray-600/50 transition-all duration-300 border border-gray-600/50"
+            >
+              Next
+            </button>
+          </div>
+        )}
+
+        {/* Booking Modal */}
+        {showBookingModal && selectedStation && (
+          <StationBookingModal
+            station={selectedStation}
+            userLocation={[27.7172, 85.324]} // Default to Kathmandu
+            onClose={handleCloseBookingModal}
+            onBookingSuccess={handleBookingSuccess}
+          />
+        )}
+      </div>
     </div>
   );
 };
