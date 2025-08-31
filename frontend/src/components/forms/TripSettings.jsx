@@ -11,16 +11,16 @@ const TripSettings = ({
   onDrivingModeChange
 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {/* Urgency Level */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          ⚡ Urgency Level
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-300">
+          Urgency Level
         </label>
         <select
           value={urgencyLevel}
           onChange={(e) => onUrgencyChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white transition-all duration-300 hover:border-gray-500"
         >
           <option value="low">Low - I can wait</option>
           <option value="medium">Medium - Normal trip</option>
@@ -30,14 +30,14 @@ const TripSettings = ({
       </div>
 
       {/* Terrain */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          🏔️ Terrain Type
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-300">
+          Terrain Type
         </label>
         <select
           value={terrain}
           onChange={(e) => onTerrainChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white transition-all duration-300 hover:border-gray-500"
         >
           <option value="flat">Flat - City/Highway</option>
           <option value="hilly">Hilly - Moderate elevation</option>
@@ -46,14 +46,14 @@ const TripSettings = ({
       </div>
 
       {/* Traffic Condition */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          🚦 Traffic Condition
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-300">
+          Traffic Condition
         </label>
         <select
           value={trafficCondition}
           onChange={(e) => onTrafficConditionChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white transition-all duration-300 hover:border-gray-500"
         >
           <option value="light">Light - Free flowing</option>
           <option value="moderate">Moderate - Some delays</option>
@@ -63,14 +63,14 @@ const TripSettings = ({
       </div>
 
       {/* Weather */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          🌤️ Weather Condition
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-300">
+          Weather Condition
         </label>
         <select
           value={weather}
           onChange={(e) => onWeatherChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white transition-all duration-300 hover:border-gray-500"
         >
           <option value="clear">Clear - Sunny</option>
           <option value="cloudy">Cloudy - Overcast</option>
@@ -80,14 +80,14 @@ const TripSettings = ({
       </div>
 
       {/* Driving Mode */}
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">
-          🚗 Driving Mode
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-gray-300">
+          Driving Mode
         </label>
         <select
           value={drivingMode}
           onChange={(e) => onDrivingModeChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white transition-all duration-300 hover:border-gray-500"
         >
           <option value="eco">Eco - Energy efficient</option>
           <option value="normal">Normal - Balanced</option>

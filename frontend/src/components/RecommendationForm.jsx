@@ -63,14 +63,16 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">
-        🚗 Smart Charging Station Recommendations
+    <form onSubmit={handleSubmit} className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-8 hover:border-cyan-500/50 transition-all duration-500">
+      <h2 className="text-3xl font-bold text-white mb-8 text-center bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+        Smart Charging Station Recommendations
       </h2>
 
       {/* Location Section */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">📍 Location & Destination</h3>
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold text-cyan-400 mb-4">
+          Location & Destination
+        </h3>
         <LocationInput
           location={location}
           onLocationChange={setLocation}
@@ -78,23 +80,25 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
           isGettingLocation={isGettingLocation}
         />
         
-        <div className="mt-4 space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            🎯 Destination City (Optional)
+        <div className="mt-6 space-y-3">
+          <label className="block text-sm font-medium text-gray-300">
+            Destination City (Optional)
           </label>
           <input
             type="text"
             value={destinationCity}
             onChange={(e) => setDestinationCity(e.target.value)}
             placeholder="e.g., Pokhara, Chitwan"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white placeholder-gray-400 transition-all duration-300 hover:border-gray-500"
           />
         </div>
       </div>
 
       {/* Vehicle Settings */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">🚙 Vehicle Settings</h3>
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold text-cyan-400 mb-4">
+          Vehicle Settings
+        </h3>
         <VehicleSettings
           batteryPercentage={batteryPercentage}
           onBatteryChange={setBatteryPercentage}
@@ -108,8 +112,10 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
       </div>
 
       {/* Trip Settings */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">🗺️ Trip Conditions</h3>
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold text-cyan-400 mb-4">
+          Trip Conditions
+        </h3>
         <TripSettings
           urgencyLevel={urgencyLevel}
           onUrgencyChange={setUrgencyLevel}
@@ -125,20 +131,21 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
       </div>
 
       {/* Advanced Settings */}
-      <div className="mb-6">
+      <div className="mb-8">
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center text-blue-600 hover:text-blue-800 font-medium"
+          className="flex items-center text-cyan-400 hover:text-cyan-300 font-medium transition-colors duration-300"
         >
-          {showAdvanced ? "▼" : "▶"} Advanced Settings
+          <span className="mr-2">{showAdvanced ? "▼" : "▶"}</span>
+          Advanced Settings
         </button>
         
         {showAdvanced && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                🛣️ Maximum Detour Distance (km)
+          <div className="mt-6 p-6 bg-gray-800/30 border border-gray-600/50 rounded-2xl backdrop-blur-sm">
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-300">
+                Maximum Detour Distance (km)
               </label>
               <input
                 type="range"
@@ -146,11 +153,11 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
                 max="50"
                 value={maxDetourKm}
                 onChange={(e) => setMaxDetourKm(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                className="w-full h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
               />
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex justify-between text-sm text-gray-400">
                 <span>5 km</span>
-                <span className="font-medium text-blue-600">{maxDetourKm} km</span>
+                <span className="font-medium text-cyan-400">{maxDetourKm} km</span>
                 <span>50 km</span>
               </div>
             </div>
@@ -163,7 +170,7 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
         <button
           type="submit"
           disabled={loading}
-          className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-10 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-2xl hover:from-cyan-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25"
         >
           {loading ? (
             <span className="flex items-center">
@@ -174,19 +181,33 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
               Finding Recommendations...
             </span>
           ) : (
-            "🔍 Get Smart Recommendations"
+            "Get Smart Recommendations"
           )}
         </button>
       </div>
 
       {/* Quick Tips */}
-      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-        <h4 className="font-medium text-blue-800 mb-2">💡 Quick Tips:</h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li>• Higher urgency levels prioritize closer stations</li>
-          <li>• AC usage and passengers increase energy consumption</li>
-          <li>• Hilly terrain requires more energy</li>
-          <li>• Set destination for route-based recommendations</li>
+      <div className="mt-8 p-6 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 rounded-2xl backdrop-blur-sm">
+        <h4 className="font-medium text-cyan-400 mb-3">
+          Quick Tips:
+        </h4>
+        <ul className="text-sm text-gray-300 space-y-2">
+          <li className="flex items-start gap-2">
+            <span className="text-cyan-400 mt-1">•</span>
+            <span>Higher urgency levels prioritize closer stations</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-cyan-400 mt-1">•</span>
+            <span>AC usage and passengers increase energy consumption</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-cyan-400 mt-1">•</span>
+            <span>Hilly terrain requires more energy</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-cyan-400 mt-1">•</span>
+            <span>Set destination for route-based recommendations</span>
+          </li>
         </ul>
       </div>
     </form>

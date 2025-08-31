@@ -29,26 +29,26 @@ const RecommendationResults = ({
 
   if (!recommendations?.length) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-xl font-bold mb-4 text-gray-800">No Recommendations</h3>
-        <p className="text-gray-600">
+      <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-8">
+        <h3 className="text-2xl font-bold mb-6 text-white">No Recommendations</h3>
+        <p className="text-gray-300">
           {routeInfo 
             ? `No charging stations found along the route to ${routeInfo.destination_city}.`
             : 'No charging stations found matching your criteria.'
           }
         </p>
-        <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
-          <p>Debug info:</p>
-          <p>Recommendations type: {typeof recommendations}</p>
-          <p>Recommendations length: {recommendations?.length}</p>
-          <p>Data keys: {data ? Object.keys(data).join(', ') : 'No data'}</p>
+        <div className="mt-6 p-4 bg-gray-800/30 border border-gray-600/50 rounded-2xl text-sm">
+          <p className="text-gray-400">Debug info:</p>
+          <p className="text-gray-300">Recommendations type: {typeof recommendations}</p>
+          <p className="text-gray-300">Recommendations length: {recommendations?.length}</p>
+          <p className="text-gray-300">Data keys: {data ? Object.keys(data).join(', ') : 'No data'}</p>
           {data?.algorithm_info && (
-            <div className="mt-2">
-              <p><strong>Algorithm Info:</strong></p>
-              <p>Algorithm: {data.algorithm_info.algorithm_used}</p>
-              <p>Total stations processed: {data.algorithm_info.total_stations_processed}</p>
-              <p>Route filtered: {data.algorithm_info.route_filtered || 0}</p>
-              <p>Destination city: {data.algorithm_info.destination_city || 'None'}</p>
+            <div className="mt-4">
+              <p className="text-gray-400"><strong>Algorithm Info:</strong></p>
+              <p className="text-gray-300">Algorithm: {data.algorithm_info.algorithm_used}</p>
+              <p className="text-gray-300">Total stations processed: {data.algorithm_info.total_stations_processed}</p>
+              <p className="text-gray-300">Route filtered: {data.algorithm_info.route_filtered || 0}</p>
+              <p className="text-gray-300">Destination city: {data.algorithm_info.destination_city || 'None'}</p>
             </div>
           )}
         </div>
@@ -162,43 +162,45 @@ const RecommendationResults = ({
 
     const { energy_analysis } = station;
     return (
-      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <h5 className="font-semibold text-blue-800 mb-2">⚡ Energy Analysis</h5>
+      <div className="mb-6 p-4 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl backdrop-blur-sm">
+        <h5 className="font-semibold text-cyan-400 mb-3">
+          Energy Analysis
+        </h5>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-blue-700">
-              <strong>Energy Needed:</strong> {energy_analysis.total_consumption_kwh} kWh
+            <p className="text-gray-300">
+              <strong className="text-cyan-300">Energy Needed:</strong> {energy_analysis.total_consumption_kwh} kWh
             </p>
-            <p className="text-blue-700">
-              <strong>Available Energy:</strong> {energy_analysis.usable_energy_kwh} kWh
+            <p className="text-gray-300">
+              <strong className="text-cyan-300">Available Energy:</strong> {energy_analysis.usable_energy_kwh} kWh
             </p>
           </div>
           <div>
-            <p className={`font-medium ${energy_analysis.is_reachable ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`font-medium ${energy_analysis.is_reachable ? 'text-green-400' : 'text-red-400'}`}>
               {energy_analysis.is_reachable ? '✅ Reachable' : '❌ May not be reachable'}
             </p>
-            <p className="text-blue-700">
-              <strong>Efficiency Score:</strong> {(energy_analysis.energy_efficiency_score * 100).toFixed(0)}%
+            <p className="text-gray-300">
+              <strong className="text-cyan-300">Efficiency Score:</strong> {(energy_analysis.energy_efficiency_score * 100).toFixed(0)}%
             </p>
           </div>
         </div>
         
         {(energy_analysis.ac_penalty_kwh > 0 || energy_analysis.passenger_penalty_kwh > 0 || energy_analysis.terrain_penalty_kwh > 0) && (
-          <div className="mt-2 pt-2 border-t border-blue-300">
-            <p className="text-xs text-blue-600 font-medium">Impact Factors:</p>
-            <div className="flex flex-wrap gap-2 mt-1">
+          <div className="mt-4 pt-4 border-t border-cyan-500/30">
+            <p className="text-xs text-cyan-400 font-medium mb-2">Impact Factors:</p>
+            <div className="flex flex-wrap gap-2">
               {energy_analysis.ac_penalty_kwh > 0 && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full border border-cyan-500/30">
                   AC: +{energy_analysis.ac_penalty_kwh} kWh
                 </span>
               )}
               {energy_analysis.passenger_penalty_kwh > 0 && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full border border-cyan-500/30">
                   Passengers: +{energy_analysis.passenger_penalty_kwh} kWh
                 </span>
               )}
               {energy_analysis.terrain_penalty_kwh > 0 && (
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full border border-cyan-500/30">
                   Terrain: +{energy_analysis.terrain_penalty_kwh} kWh
                 </span>
               )}
@@ -214,38 +216,40 @@ const RecommendationResults = ({
 
     const { eta_analysis } = station;
     return (
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-        <h5 className="font-semibold text-green-800 mb-2">⏱️ ETA Analysis</h5>
+      <div className="mb-6 p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-2xl backdrop-blur-sm">
+        <h5 className="font-semibold text-green-400 mb-3">
+          ETA Analysis
+        </h5>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <p className="text-green-700">
-              <strong>Travel Time:</strong> {eta_analysis.eta_string}
+            <p className="text-gray-300">
+              <strong className="text-green-300">Travel Time:</strong> {eta_analysis.eta_string}
             </p>
-            <p className="text-green-700">
-              <strong>Arrival Time:</strong> {eta_analysis.arrival_time}
+            <p className="text-gray-300">
+              <strong className="text-green-300">Arrival Time:</strong> {eta_analysis.arrival_time}
             </p>
           </div>
           <div>
-            <p className="text-green-700">
-              <strong>Effective Speed:</strong> {eta_analysis.effective_speed_kmh} km/h
+            <p className="text-gray-300">
+              <strong className="text-green-300">Effective Speed:</strong> {eta_analysis.effective_speed_kmh} km/h
             </p>
-            <p className="text-green-700">
-              <strong>Distance:</strong> {eta_analysis.distance_km} km
+            <p className="text-gray-300">
+              <strong className="text-green-300">Distance:</strong> {eta_analysis.distance_km} km
             </p>
           </div>
         </div>
         
         {eta_analysis.factors_applied && (
-          <div className="mt-2 pt-2 border-t border-green-300">
-            <p className="text-xs text-green-600 font-medium">Applied Factors:</p>
-            <div className="flex flex-wrap gap-2 mt-1">
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+          <div className="mt-4 pt-4 border-t border-green-500/30">
+            <p className="text-xs text-green-400 font-medium mb-2">Applied Factors:</p>
+            <div className="flex flex-wrap gap-2">
+              <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs rounded-full border border-green-500/30">
                 {eta_analysis.factors_applied.driving_mode}
               </span>
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+              <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs rounded-full border border-green-500/30">
                 {eta_analysis.factors_applied.traffic_condition} traffic
               </span>
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+              <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs rounded-full border border-green-500/30">
                 {eta_analysis.factors_applied.weather}
               </span>
             </div>
@@ -260,15 +264,17 @@ const RecommendationResults = ({
 
     const { score_breakdown } = station;
     return (
-      <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-        <h5 className="font-semibold text-gray-800 mb-2">📊 Score Breakdown</h5>
-        <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="mb-6 p-4 bg-gradient-to-r from-gray-500/10 to-gray-600/10 border border-gray-500/20 rounded-2xl backdrop-blur-sm">
+        <h5 className="font-semibold text-gray-300 mb-3">
+          Score Breakdown
+        </h5>
+        <div className="grid grid-cols-2 gap-3 text-sm">
           {Object.entries(score_breakdown).map(([factor, score]) => (
             <div key={factor} className="flex justify-between">
-              <span className="text-gray-600 capitalize">
+              <span className="text-gray-400 capitalize">
                 {factor.replace('_', ' ')}:
               </span>
-              <span className="font-medium text-gray-800">
+              <span className="font-medium text-gray-200">
                 {(score * 100).toFixed(0)}%
               </span>
             </div>
@@ -279,86 +285,86 @@ const RecommendationResults = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-8 hover:border-cyan-500/50 transition-all duration-500">
       {/* Route Information Section */}
       {routeInfo && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
-          <h2 className="text-xl font-bold text-blue-800 mb-3 flex items-center">
-            🗺️ Route Planning Information
+        <div className="mb-8 p-6 bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border border-cyan-500/20 rounded-2xl backdrop-blur-sm">
+          <h2 className="text-2xl font-bold text-cyan-400 mb-4">
+            Route Planning Information
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-              <div className="text-sm text-gray-600">Origin</div>
-              <div className="font-semibold text-gray-800">
+            <div className="text-center p-4 bg-gray-800/30 rounded-2xl border border-gray-600/50">
+              <div className="text-sm text-gray-400">Origin</div>
+              <div className="font-semibold text-gray-200">
                 {routeInfo.origin[0].toFixed(4)}, {routeInfo.origin[1].toFixed(4)}
               </div>
             </div>
-            <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-              <div className="text-sm text-gray-600">Destination</div>
-              <div className="font-semibold text-blue-600 text-lg">
-                📍 {routeInfo.destination_city}
+            <div className="text-center p-4 bg-gray-800/30 rounded-2xl border border-gray-600/50">
+              <div className="text-sm text-gray-400">Destination</div>
+              <div className="font-semibold text-cyan-400 text-lg">
+                {routeInfo.destination_city}
               </div>
             </div>
-            <div className="text-center p-3 bg-white rounded-lg shadow-sm">
-              <div className="text-sm text-gray-600">Direct Distance</div>
-              <div className="font-semibold text-green-600">
+            <div className="text-center p-4 bg-gray-800/30 rounded-2xl border border-gray-600/50">
+              <div className="text-sm text-gray-400">Direct Distance</div>
+              <div className="font-semibold text-green-400">
                 {routeInfo.direct_distance_km} km
               </div>
             </div>
           </div>
           
           {userContext?.max_detour_km && (
-            <div className="mt-3 text-center">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
-                ⚠️ Max detour: {userContext.max_detour_km} km
+            <div className="mt-4 text-center">
+              <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                Max detour: {userContext.max_detour_km} km
               </span>
             </div>
           )}
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-800">
-          {routeInfo ? '🛣️ Route Charging Stations' : '🎯 Smart Recommendations'} ({recommendations.length})
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-2xl font-bold text-white">
+          {routeInfo ? 'Route Charging Stations' : 'Smart Recommendations'} ({recommendations.length})
         </h3>
         <div className="text-right">
           {/* Enhanced Context Display */}
           {userContext && (
-            <div className="flex flex-wrap justify-end gap-1 mb-2">
+            <div className="flex flex-wrap justify-end gap-2 mb-3">
               {userContext.battery_percentage && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  🔋 {userContext.battery_percentage}%
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300 border border-green-500/30">
+                  {userContext.battery_percentage}%
                 </span>
               )}
               {userContext.ac_status && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  ❄️ AC On
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  AC On
                 </span>
               )}
               {userContext.passengers > 1 && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  👥 {userContext.passengers} passengers
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                  {userContext.passengers} passengers
                 </span>
               )}
               {userContext.terrain !== 'flat' && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  🏔️ {userContext.terrain} terrain
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-500/20 text-orange-300 border border-orange-500/30">
+                  {userContext.terrain} terrain
                 </span>
               )}
               {userContext.urgency && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  ⚡ {userContext.urgency} urgency
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+                  {userContext.urgency} urgency
                 </span>
               )}
               {userContext.route_mode && (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                  🗺️ Route Mode
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                  Route Mode
                 </span>
               )}
             </div>
           )}
           {(metadata || algorithmInfo) && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-gray-400">
               <div>Algorithm: {algorithmInfo?.algorithm_used || metadata?.type || 'hybrid'}</div>
               {(algorithmInfo?.factors_considered || metadata?.factors_considered) && (
                 <div className="text-xs text-gray-500">
@@ -371,20 +377,22 @@ const RecommendationResults = ({
       </div>
 
       {autoBookings.length > 0 && (
-        <div className="mb-4 p-3 bg-green-100 border border-green-400 rounded">
-          <h4 className="font-medium text-green-800 mb-1">✅ Auto-Booked!</h4>
-          <p className="text-sm text-green-700">
+        <div className="mb-6 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl backdrop-blur-sm">
+          <h4 className="font-medium text-green-300 mb-2">
+            Auto-Booked!
+          </h4>
+          <p className="text-sm text-green-200">
             High urgency detected. We've automatically booked the top station for you.
           </p>
           {autoBookings.map((booking, index) => (
-            <div key={index} className="text-xs text-green-600 mt-1">
+            <div key={index} className="text-xs text-green-300 mt-2">
               Booking ID: {booking.booking_id} • Station: {booking.station_name}
             </div>
           ))}
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {recommendations.map((rec, index) => {
           const station = rec;
           const hasBooking = findBookingForStation(station.id);
