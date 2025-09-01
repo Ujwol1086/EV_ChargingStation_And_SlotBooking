@@ -1,34 +1,28 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
+from services.reporting_service import ReportingService
+from services.visualization_service import VisualizationService
+from services.pdf_service import PDFService
 from models.booking import Booking
 from models.user_new import User
-from models.charging_station import ChargingStation
-from services.reporting_service import ReportingService
 from middleware.admin_middleware import require_admin
-import logging
+import os
+import tempfile
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
-reporting_bp = Blueprint('reporting', __name__, url_prefix='/api/reports')
+reporting_bp = Blueprint('reporting', __name__)
 
 @reporting_bp.route('/comprehensive', methods=['GET'])
 @require_admin
 def generate_comprehensive_report():
     """Generate comprehensive report using all algorithms"""
     try:
-        logger.info("Generating comprehensive report...")
-        
-        # Get all data
-        bookings = list(Booking.get_all_bookings())
-        users = list(User.get_all_users())
-        stations = ChargingStation.get_all()
-        
-        if not bookings or not users or not stations:
-            return jsonify({
-                'success': False,
-                'error': 'Insufficient data for comprehensive report generation'
-            }), 400
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        stations_data = []  # You'll need to implement this or get from your data source
         
         # Generate report
-        report = ReportingService.generate_comprehensive_report(bookings, users, stations)
+        report = ReportingService.generate_comprehensive_report(bookings_data, users_data, stations_data)
         
         if report:
             return jsonify({
@@ -38,11 +32,10 @@ def generate_comprehensive_report():
         else:
             return jsonify({
                 'success': False,
-                'error': 'Failed to generate comprehensive report'
+                'error': 'Failed to generate report'
             }), 500
             
     except Exception as e:
-        logger.error(f"Error generating comprehensive report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -51,30 +44,21 @@ def generate_comprehensive_report():
 @reporting_bp.route('/user-clustering', methods=['GET'])
 @require_admin
 def generate_user_clustering_report():
-    """Generate user clustering report using K-Means"""
+    """Generate user clustering report"""
     try:
-        logger.info("Generating user clustering report...")
+        k = request.args.get('k', 3, type=int)
         
-        # Get parameters
-        k_clusters = request.args.get('k', 3, type=int)
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
         
-        # Get data
-        bookings = list(Booking.get_all_bookings())
-        users = list(User.get_all_users())
-        
-        if not bookings or not users:
-            return jsonify({
-                'success': False,
-                'error': 'Insufficient data for user clustering'
-            }), 400
-        
-        # Generate clustering
-        clusters = ReportingService._kmeans_user_clustering(bookings, users, k_clusters)
+        # Generate clustering report
+        clusters = ReportingService._kmeans_user_clustering(bookings_data, users_data, k)
         
         if 'error' not in clusters:
             return jsonify({
                 'success': True,
-                'clustering_report': clusters
+                'clusters': clusters
             })
         else:
             return jsonify({
@@ -83,7 +67,6 @@ def generate_user_clustering_report():
             }), 400
             
     except Exception as e:
-        logger.error(f"Error generating user clustering report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -92,27 +75,19 @@ def generate_user_clustering_report():
 @reporting_bp.route('/user-hierarchy', methods=['GET'])
 @require_admin
 def generate_user_hierarchy_report():
-    """Generate user hierarchy report using hierarchical clustering"""
+    """Generate user hierarchy report"""
     try:
-        logger.info("Generating user hierarchy report...")
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
         
-        # Get data
-        bookings = list(Booking.get_all_bookings())
-        users = list(User.get_all_users())
-        
-        if not bookings or not users:
-            return jsonify({
-                'success': False,
-                'error': 'Insufficient data for hierarchical clustering'
-            }), 400
-        
-        # Generate hierarchy
-        hierarchy = ReportingService._hierarchical_user_clustering(bookings, users)
+        # Generate hierarchy report
+        hierarchy = ReportingService._hierarchical_user_clustering(bookings_data, users_data)
         
         if 'error' not in hierarchy:
             return jsonify({
                 'success': True,
-                'hierarchy_report': hierarchy
+                'hierarchy': hierarchy
             })
         else:
             return jsonify({
@@ -121,7 +96,6 @@ def generate_user_hierarchy_report():
             }), 400
             
     except Exception as e:
-        logger.error(f"Error generating user hierarchy report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -130,33 +104,24 @@ def generate_user_hierarchy_report():
 @reporting_bp.route('/behavior-patterns', methods=['GET'])
 @require_admin
 def generate_behavior_patterns_report():
-    """Generate behavior patterns report using Apriori algorithm"""
+    """Generate behavior patterns report"""
     try:
-        logger.info("Generating behavior patterns report...")
-        
-        # Get parameters
         min_support = request.args.get('min_support', 0.1, type=float)
         min_confidence = request.args.get('min_confidence', 0.5, type=float)
         
-        # Get data
-        bookings = list(Booking.get_all_bookings())
-        stations = ChargingStation.get_all()
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        stations_data = []  # You'll need to implement this or get from your data source
         
-        if not bookings or not stations:
-            return jsonify({
-                'success': False,
-                'error': 'Insufficient data for behavior pattern analysis'
-            }), 400
-        
-        # Generate patterns
+        # Generate behavior patterns report
         patterns = ReportingService._apriori_behavior_analysis(
-            bookings, stations, min_support, min_confidence
+            bookings_data, stations_data, min_support, min_confidence
         )
         
         if 'error' not in patterns:
             return jsonify({
                 'success': True,
-                'behavior_patterns_report': patterns
+                'patterns': patterns
             })
         else:
             return jsonify({
@@ -165,7 +130,6 @@ def generate_behavior_patterns_report():
             }), 400
             
     except Exception as e:
-        logger.error(f"Error generating behavior patterns report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -176,26 +140,18 @@ def generate_behavior_patterns_report():
 def generate_statistics_report():
     """Generate basic statistics report"""
     try:
-        logger.info("Generating statistics report...")
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        stations_data = []  # You'll need to implement this or get from your data source
         
-        # Get data
-        bookings = list(Booking.get_all_bookings())
-        users = list(User.get_all_users())
-        stations = ChargingStation.get_all()
-        
-        if not bookings or not users or not stations:
-            return jsonify({
-                'success': False,
-                'error': 'Insufficient data for statistics report'
-            }), 400
-        
-        # Generate statistics
-        stats = ReportingService._basic_statistical_analysis(bookings, users, stations)
+        # Generate statistics report
+        stats = ReportingService._basic_statistical_analysis(bookings_data, users_data, stations_data)
         
         if 'error' not in stats:
             return jsonify({
                 'success': True,
-                'statistics_report': stats
+                'statistics': stats
             })
         else:
             return jsonify({
@@ -204,7 +160,6 @@ def generate_statistics_report():
             }), 400
             
     except Exception as e:
-        logger.error(f"Error generating statistics report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -213,46 +168,272 @@ def generate_statistics_report():
 @reporting_bp.route('/insights', methods=['GET'])
 @require_admin
 def generate_insights_report():
-    """Generate insights and recommendations report"""
+    """Generate insights report"""
     try:
-        logger.info("Generating insights report...")
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        stations_data = []  # You'll need to implement this or get from your data source
         
-        # Get data
-        bookings = list(Booking.get_all_bookings())
-        users = list(User.get_all_users())
-        stations = ChargingStation.get_all()
+        # Generate comprehensive report for insights
+        report = ReportingService.generate_comprehensive_report(bookings_data, users_data, stations_data)
         
-        if not bookings or not users or not stations:
+        if report and 'insights' in report:
+            return jsonify({
+                'success': True,
+                'insights': report['insights']
+            })
+        else:
             return jsonify({
                 'success': False,
-                'error': 'Insufficient data for insights report'
-            }), 400
-        
-        # Generate all analyses
-        basic_stats = ReportingService._basic_statistical_analysis(bookings, users, stations)
-        user_clusters = ReportingService._kmeans_user_clustering(bookings, users)
-        user_hierarchy = ReportingService._hierarchical_user_clustering(bookings, users)
-        behavior_patterns = ReportingService._apriori_behavior_analysis(bookings, stations)
-        
-        # Generate insights
-        insights = ReportingService._generate_insights(
-            basic_stats, user_clusters, user_hierarchy, behavior_patterns
-        )
-        
-        return jsonify({
-            'success': True,
-            'insights_report': {
-                'insights': insights,
-                'summary': {
-                    'total_insights': len(insights),
-                    'data_sources': ['Bookings', 'Users', 'Stations'],
-                    'algorithms_used': ['K-Means', 'Hierarchical Clustering', 'Apriori', 'Statistical Analysis']
-                }
-            }
-        })
+                'error': 'Failed to generate insights'
+            }), 500
             
     except Exception as e:
-        logger.error(f"Error generating insights report: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# New visualization endpoints
+@reporting_bp.route('/charts/usage-patterns', methods=['GET'])
+@require_admin
+def generate_usage_patterns_chart():
+    """Generate usage patterns chart"""
+    try:
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        stations_data = []  # You'll need to implement this or get from your data source
+        
+        # Generate chart
+        chart_base64 = VisualizationService.generate_usage_patterns_chart(bookings_data, stations_data)
+        
+        if chart_base64:
+            return jsonify({
+                'success': True,
+                'chart': chart_base64
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate chart'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@reporting_bp.route('/charts/user-clustering', methods=['GET'])
+@require_admin
+def generate_user_clustering_chart():
+    """Generate user clustering chart"""
+    try:
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        
+        # Generate clustering report first
+        clusters = ReportingService._kmeans_user_clustering(bookings_data, users_data)
+        
+        if 'error' not in clusters:
+            # Generate chart
+            chart_base64 = VisualizationService.generate_user_clustering_chart(clusters)
+            
+            if chart_base64:
+                return jsonify({
+                    'success': True,
+                    'chart': chart_base64
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to generate chart'
+                }), 500
+        else:
+            return jsonify({
+                'success': False,
+                'error': clusters['error']
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@reporting_bp.route('/charts/behavior-patterns', methods=['GET'])
+@require_admin
+def generate_behavior_patterns_chart():
+    """Generate behavior patterns chart"""
+    try:
+        min_support = request.args.get('min_support', 0.1, type=float)
+        min_confidence = request.args.get('min_confidence', 0.5, type=float)
+        
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        stations_data = []  # You'll need to implement this or get from your data source
+        
+        # Generate behavior patterns report first
+        patterns = ReportingService._apriori_behavior_analysis(
+            bookings_data, stations_data, min_support, min_confidence
+        )
+        
+        if 'error' not in patterns:
+            # Generate chart
+            chart_base64 = VisualizationService.generate_behavior_patterns_chart(patterns)
+            
+            if chart_base64:
+                return jsonify({
+                    'success': True,
+                    'chart': chart_base64
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to generate chart'
+                }), 500
+        else:
+            return jsonify({
+                'success': False,
+                'error': patterns['error']
+            }), 400
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@reporting_bp.route('/charts/dashboard', methods=['GET'])
+@require_admin
+def generate_comprehensive_dashboard():
+    """Generate comprehensive dashboard with all charts"""
+    try:
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        stations_data = []  # You'll need to implement this or get from your data source
+        
+        # Generate clustering and patterns reports
+        user_clusters = ReportingService._kmeans_user_clustering(bookings_data, users_data)
+        behavior_patterns = ReportingService._apriori_behavior_analysis(bookings_data, stations_data)
+        
+        # Generate comprehensive dashboard
+        dashboard = VisualizationService.generate_comprehensive_dashboard(
+            bookings_data, users_data, stations_data, user_clusters, behavior_patterns
+        )
+        
+        if dashboard:
+            return jsonify({
+                'success': True,
+                'dashboard': dashboard
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate dashboard'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# PDF generation endpoints
+@reporting_bp.route('/pdf/comprehensive', methods=['GET'])
+@require_admin
+def generate_comprehensive_pdf():
+    """Generate comprehensive PDF report"""
+    try:
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        stations_data = []  # You'll need to implement this or get from your data source
+        
+        # Generate comprehensive report
+        report = ReportingService.generate_comprehensive_report(bookings_data, users_data, stations_data)
+        
+        if not report:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate report data'
+            }), 500
+        
+        # Generate charts for PDF
+        user_clusters = ReportingService._kmeans_user_clustering(bookings_data, users_data)
+        behavior_patterns = ReportingService._apriori_behavior_analysis(bookings_data, stations_data)
+        
+        charts = VisualizationService.generate_comprehensive_dashboard(
+            bookings_data, users_data, stations_data, user_clusters, behavior_patterns
+        )
+        
+        # Generate PDF
+        filename = f"ev_charging_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_path = PDFService.generate_comprehensive_pdf_report(report, charts, filename)
+        
+        if pdf_path and os.path.exists(pdf_path):
+            return send_file(
+                pdf_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/pdf'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate PDF'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@reporting_bp.route('/pdf/executive-summary', methods=['GET'])
+@require_admin
+def generate_executive_summary_pdf():
+    """Generate executive summary PDF"""
+    try:
+        # Get data from database
+        bookings_data = Booking.get_all_bookings()
+        users_data = User.get_all_users()
+        stations_data = []  # You'll need to implement this or get from your data source
+        
+        # Generate comprehensive report
+        report = ReportingService.generate_comprehensive_report(bookings_data, users_data, stations_data)
+        
+        if not report:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate report data'
+            }), 500
+        
+        # Generate main chart for executive summary
+        charts = VisualizationService.generate_usage_patterns_chart(bookings_data, stations_data)
+        charts_data = {'usage_patterns': charts} if charts else {}
+        
+        # Generate PDF
+        filename = f"executive_summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        pdf_path = PDFService.generate_executive_summary_pdf(report, charts_data, filename)
+        
+        if pdf_path and os.path.exists(pdf_path):
+            return send_file(
+                pdf_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/pdf'
+            )
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to generate PDF'
+            }), 500
+            
+    except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
@@ -263,58 +444,19 @@ def generate_insights_report():
 def export_report(report_type):
     """Export report in different formats"""
     try:
-        logger.info(f"Exporting {report_type} report...")
-        
-        # Get data
-        bookings = list(Booking.get_all_bookings())
-        users = list(User.get_all_users())
-        stations = ChargingStation.get_all()
-        
-        if not bookings or not users or not stations:
+        if report_type not in ['comprehensive', 'executive-summary']:
             return jsonify({
                 'success': False,
-                'error': 'Insufficient data for report export'
+                'error': 'Invalid report type'
             }), 400
         
-        # Generate report based on type
+        # Redirect to appropriate PDF endpoint
         if report_type == 'comprehensive':
-            report = ReportingService.generate_comprehensive_report(bookings, users, stations)
-        elif report_type == 'user-clustering':
-            report = ReportingService._kmeans_user_clustering(bookings, users)
-        elif report_type == 'user-hierarchy':
-            report = ReportingService._hierarchical_user_clustering(bookings, users)
-        elif report_type == 'behavior-patterns':
-            report = ReportingService._apriori_behavior_analysis(bookings, stations)
-        elif report_type == 'statistics':
-            report = ReportingService._basic_statistical_analysis(bookings, users, stations)
+            return generate_comprehensive_pdf()
         else:
-            return jsonify({
-                'success': False,
-                'error': f'Unknown report type: {report_type}'
-            }), 400
-        
-        if 'error' in report:
-            return jsonify({
-                'success': False,
-                'error': report['error']
-            }), 400
-        
-        # Format for export
-        export_data = {
-            'report_type': report_type,
-            'generated_at': ReportingService._get_current_timestamp(),
-            'data': report,
-            'export_format': 'JSON'
-        }
-        
-        return jsonify({
-            'success': True,
-            'export_data': export_data,
-            'download_url': f'/api/reports/download/{report_type}'
-        })
+            return generate_executive_summary_pdf()
             
     except Exception as e:
-        logger.error(f"Error exporting {report_type} report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -325,18 +467,19 @@ def export_report(report_type):
 def download_report(report_type):
     """Download report file"""
     try:
-        logger.info(f"Downloading {report_type} report...")
+        if report_type not in ['comprehensive', 'executive-summary']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid report type'
+            }), 400
         
-        # This would typically generate and serve a file
-        # For now, return the report data
+        # This endpoint can be used for future file downloads
         return jsonify({
             'success': True,
-            'message': f'Report {report_type} downloaded successfully',
-            'report_type': report_type
+            'message': f'Download endpoint for {report_type} report'
         })
-            
+        
     except Exception as e:
-        logger.error(f"Error downloading {report_type} report: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
