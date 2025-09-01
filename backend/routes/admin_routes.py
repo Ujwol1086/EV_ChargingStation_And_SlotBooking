@@ -178,9 +178,17 @@ def get_admin_bookings():
             else:
                 created_at_str = datetime.utcnow().isoformat()
             
+            # Handle charging_completed_at datetime
+            charging_completed_at = booking.get('charging_completed_at')
+            if charging_completed_at and hasattr(charging_completed_at, 'isoformat'):
+                charging_completed_at_str = charging_completed_at.isoformat()
+            else:
+                charging_completed_at_str = None
+            
             formatted_booking = {
                 '_id': str(booking['_id']),
                 'booking_id': booking.get('booking_id', ''),
+                'user_id': str(booking.get('user_id', '')),
                 'user_details': user_details,
                 'station_details': station_details,
                 'status': booking.get('status', 'confirmed'),
@@ -189,6 +197,11 @@ def get_admin_bookings():
                 'booking_time': booking.get('booking_time', ''),
                 'booking_duration': booking.get('estimated_duration', 60),
                 'total_cost': booking.get('total_cost', 0),
+                'amount_npr': booking.get('amount_npr', 0),
+                'admin_amount_set': booking.get('admin_amount_set', False),
+                'charging_completed': booking.get('charging_completed', False),
+                'charging_completed_at': charging_completed_at_str,
+                'actual_charging_duration': booking.get('actual_charging_duration'),
                 'created_at': created_at_str,
                 'auto_booked': booking.get('auto_booked', False)
             }
@@ -237,10 +250,15 @@ def get_recent_bookings():
             formatted_booking = {
                 '_id': str(booking['_id']),
                 'booking_id': booking.get('booking_id', ''),
+                'user_id': str(booking.get('user_id', '')),
                 'user_details': user_details,
                 'station_details': station_details,
                 'status': booking.get('status', 'confirmed'),
+                'charger_type': booking.get('charger_type', ''),
                 'total_cost': booking.get('total_cost', 0),
+                'amount_npr': booking.get('amount_npr', 0),
+                'admin_amount_set': booking.get('admin_amount_set', False),
+                'charging_completed': booking.get('charging_completed', False),
                 'created_at': created_at_str
             }
             formatted_bookings.append(formatted_booking)
@@ -546,6 +564,10 @@ def get_completed_bookings():
     """Get all completed bookings that need admin review for amount setting"""
     try:
         bookings = Booking.get_completed_bookings_for_admin()
+        
+        logger.info(f"Found {len(bookings)} completed bookings for admin")
+        if bookings:
+            logger.info(f"Sample booking data: {bookings[0] if len(bookings) > 0 else 'No bookings'}")
         
         return jsonify({
             'success': True,

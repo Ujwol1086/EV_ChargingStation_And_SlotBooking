@@ -32,10 +32,12 @@ const AdminChargingManagement = () => {
       const completedBookingsResponse = await axios.get('/admin/bookings/completed');
 
       if (allBookingsResponse.data.success) {
+        console.log('All bookings data:', allBookingsResponse.data.bookings);
         setAllBookings(allBookingsResponse.data.bookings || []);
       }
 
       if (completedBookingsResponse.data.success) {
+        console.log('Completed bookings data:', completedBookingsResponse.data.bookings);
         setCompletedBookings(completedBookingsResponse.data.bookings || []);
       }
 
@@ -391,7 +393,12 @@ const AdminChargingManagement = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         <p className="font-medium text-gray-900">#{booking.booking_id}</p>
-                        <p className="text-gray-500">User: {booking.user_id}</p>
+                        <p className="text-gray-500">
+                          User: {booking.user_details?.username || booking.user_id || 'Unknown User'}
+                        </p>
+                        <p className="text-gray-500">
+                          Email: {booking.user_details?.email || 'No email'}
+                        </p>
                         <p className="text-gray-500">Charger: {booking.charger_type}</p>
                       </div>
                     </td>
@@ -447,7 +454,13 @@ const AdminChargingManagement = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-sm">Not set</span>
+                        <div className="text-sm">
+                          <span className="text-gray-400">Not set</span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Debug: amount_npr={JSON.stringify(booking.amount_npr)}, 
+                            admin_amount_set={JSON.stringify(booking.admin_amount_set)}
+                          </p>
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm space-y-2">
@@ -530,7 +543,10 @@ const AdminChargingManagement = () => {
                   <strong>Charger Type:</strong> {selectedBooking.charger_type}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>User ID:</strong> {selectedBooking.user_id}
+                  <strong>User:</strong> {selectedBooking.user_details?.username || selectedBooking.user_id || 'Unknown User'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>User Email:</strong> {selectedBooking.user_details?.email || 'No email'}
                 </p>
               </div>
 
