@@ -274,19 +274,19 @@ const Recommendations = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 mt-15">
+    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
             Smart Charging Station Recommendations
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-300 text-lg">
             Find the best charging stations based on your location, battery
             level, and urgency.
           </p>
 
           {error && (
-            <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <div className="mt-6 p-4 bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-500/30 text-red-300 rounded-2xl backdrop-blur-sm">
               {error}
             </div>
           )}
@@ -294,7 +294,7 @@ const Recommendations = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Form and Results */}
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Recommendation Form */}
             <RecommendationForm
               onSubmit={handleRecommendations}
@@ -303,32 +303,32 @@ const Recommendations = () => {
 
             {/* User Bookings */}
             {userBookings.length > 0 && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">
+              <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-8 hover:border-cyan-500/50 transition-all duration-500">
+                <h3 className="text-2xl font-bold mb-6 text-white">
                   Your Bookings
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {userBookings.slice(0, 3).map((booking) => (
                     <div
                       key={booking._id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-gray-800/30 rounded-2xl border border-gray-600/50 backdrop-blur-sm"
                     >
                       <div>
-                        <div className="font-medium text-gray-800">
+                        <div className="font-medium text-white">
                           {booking.station_details?.name || "Unknown Station"}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-gray-300">
                           {booking.charger_type} • {booking.status}
                           {booking.auto_booked && " (Auto-booked)"}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-3">
                         <button
                           onClick={() =>
                             handleShowRoute(booking.station_details)
                           }
                           disabled={loadingRoute}
-                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:opacity-50"
+                          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm rounded-xl hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25"
                         >
                           {loadingRoute ? "Loading..." : "Show Route"}
                         </button>
@@ -336,7 +336,7 @@ const Recommendations = () => {
                           onClick={() =>
                             handleCancelBooking(booking.booking_id)
                           }
-                          className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                          className="px-4 py-2 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm rounded-xl hover:from-red-600 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/25"
                         >
                           Cancel
                         </button>
@@ -345,8 +345,8 @@ const Recommendations = () => {
                   ))}
                 </div>
                 {userBookings.length > 3 && (
-                  <div className="text-center mt-3">
-                    <span className="text-sm text-gray-500">
+                  <div className="text-center mt-4">
+                    <span className="text-sm text-gray-400">
                       +{userBookings.length - 3} more bookings
                     </span>
                   </div>
@@ -379,37 +379,37 @@ const Recommendations = () => {
 
             {/* Route Information */}
             {showRoute && routeData && (
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-bold mb-4 text-gray-800">
+              <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-8 hover:border-cyan-500/50 transition-all duration-500">
+                <h3 className="text-2xl font-bold mb-6 text-white">
                   Route Information
                 </h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <span className="text-sm text-gray-500">
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="text-center p-4 bg-gray-800/30 rounded-2xl border border-gray-600/50">
+                    <span className="text-sm text-gray-400 block mb-2">
                       Total Distance
                     </span>
-                    <div className="font-medium text-gray-800">
+                    <div className="font-medium text-cyan-400 text-lg">
                       {routeData.metrics.total_distance} km
                     </div>
                   </div>
-                  <div>
-                    <span className="text-sm text-gray-500">
+                  <div className="text-center p-4 bg-gray-800/30 rounded-2xl border border-gray-600/50">
+                    <span className="text-sm text-gray-400 block mb-2">
                       Estimated Time
                     </span>
-                    <div className="font-medium text-gray-800">
+                    <div className="font-medium text-green-400 text-lg">
                       {routeData.metrics.estimated_time}
                     </div>
                   </div>
                 </div>
 
-                <div className="mb-4">
-                  <span className="text-sm text-gray-500 block mb-2">
+                <div className="mb-6">
+                  <span className="text-sm text-gray-400 block mb-3">
                     Route Instructions
                   </span>
-                  <ol className="text-sm text-gray-700 space-y-1">
+                  <ol className="text-sm text-gray-300 space-y-2">
                     {routeData.instructions.map((instruction, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
+                      <li key={index} className="flex items-start gap-3">
+                        <span className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
                           {index + 1}
                         </span>
                         {instruction}
@@ -418,7 +418,7 @@ const Recommendations = () => {
                   </ol>
                 </div>
 
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-400">
                   Algorithm: {routeData.algorithm_used} •{" "}
                   {routeData.metrics.waypoint_count} waypoints
                 </div>
@@ -428,9 +428,9 @@ const Recommendations = () => {
 
           {/* Right Column - Map */}
           <div className="lg:sticky lg:top-8">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
-              <div className="p-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-800">
+            <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl overflow-hidden hover:border-cyan-500/50 transition-all duration-500">
+              <div className="p-6 border-b border-gray-600/50">
+                <h3 className="text-xl font-semibold text-white">
                   {showRoute
                     ? "Route to Station"
                     : recommendations
@@ -462,9 +462,9 @@ const Recommendations = () => {
                   {showRoute && routeData?.waypoints && (
                     <Polyline
                       positions={routeData.waypoints}
-                      color="blue"
+                      color="#06b6d4"
                       weight={4}
-                      opacity={0.7}
+                      opacity={0.8}
                     />
                   )}
 
@@ -499,16 +499,15 @@ const Recommendations = () => {
                       >
                         <Popup>
                           <div className="min-w-[250px]">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs font-bold">
                                 {index + 1}
                               </div>
-                              <strong>{station.name}</strong>
+                              <strong className="text-gray-800">{station.name}</strong>
                             </div>
 
-                            <div className="space-y-1 text-sm">
+                            <div className="space-y-2 text-sm text-gray-700">
                               <div>
-                                📍{" "}
                                 {station.location?.address ||
                                   (() => {
                                     const coords =
@@ -520,45 +519,45 @@ const Recommendations = () => {
                                       : "Location data unavailable";
                                   })()}
                               </div>
-                              <div>🚗 {rec.distance} km away</div>
-                              <div>⭐ Score: {rec.score}</div>
+                              <div>{rec.distance} km away</div>
+                              <div>Score: {rec.score}</div>
                               <div>
-                                🔌 {station.availability || 0}/
+                                {station.availability || 0}/
                                 {station.total_slots || 0} available
                               </div>
                               <div>
-                                💰 Rs. {station.pricing || "N/A"} per kWh
+                                Rs. {station.pricing || "N/A"} per kWh
                               </div>
-                              <div>⚡ Rating: {station.rating}/5</div>
+                              <div>Rating: {station.rating}/5</div>
                             </div>
 
                             {rec.auto_booking?.auto_booked && (
-                              <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded text-xs">
-                                <strong>✅ Auto-booked!</strong>
+                              <div className="mt-3 p-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl text-xs backdrop-blur-sm">
+                                <strong className="text-green-800">Auto-booked!</strong>
                                 <br />
-                                ID: {rec.auto_booking.booking_id}
+                                <span className="text-green-700">ID: {rec.auto_booking.booking_id}</span>
                               </div>
                             )}
 
                             {hasBooking && (
-                              <div className="mt-2 p-2 bg-blue-100 border border-blue-300 rounded text-xs">
-                                <strong>📋 You have a booking here</strong>
+                              <div className="mt-3 p-3 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-xl text-xs backdrop-blur-sm">
+                                <strong className="text-cyan-800">You have a booking here</strong>
                                 <br />
-                                Status: {hasBooking.status}
+                                <span className="text-cyan-700">Status: {hasBooking.status}</span>
                               </div>
                             )}
 
-                            <div className="mt-2 flex gap-2">
+                            <div className="mt-3 flex gap-2">
                               <button
                                 onClick={() => handleStationSelect(station)}
-                                className="flex-1 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+                                className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs rounded-xl hover:from-cyan-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25"
                               >
                                 View Details
                               </button>
                               <button
                                 onClick={() => handleShowRoute(station)}
                                 disabled={loadingRoute}
-                                className="flex-1 px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-50"
+                                className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-green-500/25"
                               >
                                 {loadingRoute ? "Loading..." : "Show Route"}
                               </button>
@@ -574,28 +573,30 @@ const Recommendations = () => {
 
             {/* Map Legend */}
             {(recommendations || showRoute) && (
-              <div className="mt-4 bg-white rounded-lg shadow-md p-4">
-                <h4 className="font-semibold text-gray-800 mb-2">Map Legend</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+              <div className="mt-6 bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-6 hover:border-cyan-500/50 transition-all duration-500">
+                <h4 className="font-semibold text-white mb-4">
+                  Map Legend
+                </h4>
+                <div className="space-y-3 text-sm text-gray-300">
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full"></div>
                     <span>Your Location</span>
                   </div>
                   {recommendations && (
                     <>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-yellow-500 rounded-full"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full"></div>
                         <span>Top Recommendation</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
                         <span>Recommended Stations</span>
                       </div>
                     </>
                   )}
                   {showRoute && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-1 bg-blue-500"></div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-4 h-1 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full"></div>
                       <span>Route to Station</span>
                     </div>
                   )}

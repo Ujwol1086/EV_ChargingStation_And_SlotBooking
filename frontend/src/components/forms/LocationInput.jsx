@@ -27,29 +27,29 @@ const LocationInput = ({
   };
 
   return (
-    <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-700">
-        📍 Current Location
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-300">
+        Current Location
       </label>
-      <div className="flex gap-2">
+      <div className="flex gap-3">
         <input
           type="text"
           value={locationInput}
           onChange={handleLocationInputChange}
           onBlur={handleLocationInputBlur}
           placeholder="Latitude, Longitude (e.g., 27.7172, 85.3240)"
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="flex-1 px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white placeholder-gray-400 transition-all duration-300 hover:border-gray-500"
         />
         <button
           type="button"
           onClick={onGetCurrentLocation}
           disabled={isGettingLocation}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl hover:from-cyan-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 font-medium"
         >
           {isGettingLocation ? "Getting..." : "Get Current"}
         </button>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-gray-400">
         Enter coordinates or use your current location
       </p>
     </div>

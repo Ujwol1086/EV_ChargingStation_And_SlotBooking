@@ -122,35 +122,37 @@ const RecommendationCard = ({
 
   return (
     <div 
-      className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
-        index === 0 ? 'border-yellow-400 bg-yellow-50' : 'border-gray-200'
-      }`}
+      className={`border rounded-3xl p-6 hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-1 ${
+        index === 0 
+          ? 'border-yellow-500/50 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-sm' 
+          : 'border-gray-600/50 bg-gradient-to-br from-gray-800/30 to-gray-700/30 backdrop-blur-sm'
+      } hover:border-cyan-500/50`}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between mb-6">
+        <div className="flex items-center gap-4">
           <div className={`
-            w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm
-            ${index === 0 ? 'bg-yellow-500' : 'bg-blue-600'}
+            w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-white text-lg shadow-lg
+            ${index === 0 ? 'bg-gradient-to-br from-yellow-500 to-orange-500' : 'bg-gradient-to-br from-cyan-500 to-blue-600'}
           `}>
             {index + 1}
           </div>
           <div>
-            <h4 className="font-bold text-gray-800 text-lg">{station.name}</h4>
-            <div className="flex items-center gap-2 mt-1">
+            <h4 className="font-bold text-white text-xl">{station.name}</h4>
+            <div className="flex items-center gap-3 mt-2">
               {index === 0 && (
-                <span className="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                  🏆 Top Recommendation
+                <span className="inline-block px-3 py-1 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 text-xs font-medium rounded-full border border-yellow-500/30">
+                  Top Recommendation
                 </span>
               )}
               {isEnhanced && (
-                <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                  🧠 Smart Analysis
+                <span className="inline-block px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 text-xs font-medium rounded-full border border-cyan-500/30">
+                  Smart Analysis
                 </span>
               )}
               {station.is_reachable === false && (
-                <span className="inline-block px-2 py-1 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-                  ⚠️ Low Battery Warning
+                <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-500/20 to-pink-500/20 text-red-300 text-xs font-medium rounded-full border border-red-500/30">
+                  Low Battery Warning
                 </span>
               )}
             </div>
@@ -158,16 +160,16 @@ const RecommendationCard = ({
         </div>
         
         <div className="text-right">
-          <div className="text-lg font-bold text-blue-600">
-            Score: {(station.score * 100).toFixed(0)}%
+          <div className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+            {(station.score * 100).toFixed(0)}%
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-400">
             {station.distance} km away
           </div>
           {isEnhanced && (
             <button
               onClick={toggleScoreBreakdown}
-              className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+              className="text-xs text-cyan-400 hover:text-cyan-300 mt-2 transition-colors duration-300"
             >
               {expandedScores ? '▼ Hide Details' : '▶ Show Details'}
             </button>
@@ -184,42 +186,42 @@ const RecommendationCard = ({
       />
 
       {/* Station Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">📍</span>
-            <span className="text-sm text-gray-700">{formatLocationDisplay(station)}</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-cyan-400 text-lg">📍</span>
+            <span className="text-sm text-gray-300">{formatLocationDisplay(station)}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">💰</span>
-            <span className="text-sm text-gray-700">Rs. {station.pricing || 'N/A'} per kWh</span>
+          <div className="flex items-center gap-3">
+            <span className="text-green-400 text-lg">💰</span>
+            <span className="text-sm text-gray-300">Rs. {station.pricing || 'N/A'} per kWh</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">⭐</span>
-            <span className="text-sm text-gray-700">Rating: {station.rating}/5</span>
+          <div className="flex items-center gap-3">
+            <span className="text-yellow-400 text-lg">⭐</span>
+            <span className="text-sm text-gray-300">Rating: {station.rating}/5</span>
           </div>
         </div>
         
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">🔌</span>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="text-purple-400 text-lg">🔌</span>
             <span className={`text-sm font-medium ${
-              station.availability === 0 ? 'text-red-600' : 
-              station.availability < 3 ? 'text-orange-600' : 'text-green-600'
+              station.availability === 0 ? 'text-red-400' : 
+              station.availability < 3 ? 'text-orange-400' : 'text-green-400'
             }`}>
               {station.availability === 0 ? 'BOOKED' : 
                `${station.availability}/${station.total_slots || 0} available`}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">⚡</span>
-            <span className="text-sm text-gray-700">
+          <div className="flex items-center gap-3">
+            <span className="text-blue-400 text-lg">⚡</span>
+            <span className="text-sm text-gray-300">
               {station.connector_types?.join(', ') || 'Multiple types'}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">🏪</span>
-            <span className="text-sm text-gray-700">
+          <div className="flex items-center gap-3">
+            <span className="text-indigo-400 text-lg">🏪</span>
+            <span className="text-sm text-gray-300">
               {station.features?.slice(0, 2).join(', ') || 'Basic amenities'}
               {station.features?.length > 2 && ` +${station.features.length - 2} more`}
             </span>
@@ -229,25 +231,27 @@ const RecommendationCard = ({
 
       {/* Context Factors Display */}
       {station.context_factors && (
-        <div className="mb-4 p-2 bg-gray-50 rounded">
-          <p className="text-xs text-gray-600 font-medium mb-1">🚗 Trip Context Impact:</p>
-          <div className="flex flex-wrap gap-1">
+        <div className="mb-6 p-4 bg-gradient-to-r from-gray-700/30 to-gray-600/30 rounded-2xl border border-gray-600/50 backdrop-blur-sm">
+          <p className="text-xs text-gray-400 font-medium mb-2">
+            Trip Context Impact:
+          </p>
+          <div className="flex flex-wrap gap-2">
             {station.context_factors.ac_impact > 0 && (
-              <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">
+              <span className="px-3 py-1 bg-orange-500/20 text-orange-300 text-xs rounded-full border border-orange-500/30">
                 AC: +{station.context_factors.ac_impact} kWh
               </span>
             )}
             {station.context_factors.passenger_impact > 0 && (
-              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded">
+              <span className="px-3 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30">
                 Passengers: +{station.context_factors.passenger_impact} kWh
               </span>
             )}
             {station.context_factors.terrain_impact > 0 && (
-              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+              <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs rounded-full border border-green-500/30">
                 Terrain: +{station.context_factors.terrain_impact} kWh
               </span>
             )}
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+            <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full border border-cyan-500/30">
               Total: {station.context_factors.total_energy_needed} kWh
             </span>
           </div>
@@ -256,10 +260,12 @@ const RecommendationCard = ({
 
       {/* Auto-booking status */}
       {station.auto_booking?.auto_booked && (
-        <div className="mb-3 p-2 bg-green-100 border border-green-300 rounded text-sm">
-          <strong className="text-green-800">✅ Auto-booked for you!</strong>
+        <div className="mb-4 p-4 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl backdrop-blur-sm">
+          <strong className="text-green-300">
+            Auto-booked for you!
+          </strong>
           <br />
-          <span className="text-green-700">
+          <span className="text-green-200">
             Booking ID: {station.auto_booking.booking_id}
           </span>
         </div>
@@ -267,10 +273,12 @@ const RecommendationCard = ({
 
       {/* Existing booking status */}
       {hasBooking && (
-        <div className="mb-3 p-2 bg-blue-100 border border-blue-300 rounded text-sm">
-          <strong className="text-blue-800">📋 You have a booking here</strong>
+        <div className="mb-4 p-4 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 rounded-2xl backdrop-blur-sm">
+          <strong className="text-cyan-300">
+            You have a booking here
+          </strong>
           <br />
-          <span className="text-blue-700">
+          <span className="text-cyan-200">
             Status: {hasBooking.status} • Type: {hasBooking.charger_type}
             {hasBooking.auto_booked && ' (Auto-booked)'}
           </span>
@@ -278,10 +286,10 @@ const RecommendationCard = ({
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-3 flex-wrap">
         <button
           onClick={() => onStationSelect(station)}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+          className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-medium rounded-xl hover:from-cyan-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25"
         >
           View Details
         </button>
@@ -289,7 +297,7 @@ const RecommendationCard = ({
         <button
           onClick={() => onShowRoute(station)}
           disabled={loadingRoute}
-          className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-medium rounded-xl hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-green-500/25"
         >
           {loadingRoute ? 'Loading Route...' : 'Show Route'}
         </button>
@@ -300,14 +308,14 @@ const RecommendationCard = ({
               <button
                 onClick={handleBookSlot}
                 disabled={bookingLoading}
-                className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white text-sm font-medium rounded-xl hover:from-orange-600 hover:to-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-orange-500/25"
               >
                 {bookingLoading ? 'Booking...' : 'Book Now'}
               </button>
             ) : (
               <button
                 disabled
-                className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded opacity-50 cursor-not-allowed"
+                className="px-6 py-3 bg-red-500/50 text-white text-sm font-medium rounded-xl opacity-50 cursor-not-allowed"
               >
                 BOOKED OUT
               </button>
@@ -319,9 +327,9 @@ const RecommendationCard = ({
                 <button
                   onClick={handleAutoBookRecommendation}
                   disabled={bookingLoading}
-                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-pink-600 text-white text-sm font-medium rounded-xl hover:from-red-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-500/25"
                 >
-                  {bookingLoading ? 'Auto-booking...' : '⚡ Instant Book'}
+                  {bookingLoading ? 'Auto-booking...' : 'Instant Book'}
                 </button>
               )
             }
@@ -330,15 +338,15 @@ const RecommendationCard = ({
 
         {/* Display real-time availability info */}
         {station.charger_availability && (
-          <div className="mt-2 text-xs text-gray-600">
+          <div className="mt-4 text-xs text-gray-400">
             <div className="flex flex-wrap gap-2">
               {Object.entries(station.charger_availability).map(([chargerType, availability]) => (
                 <span 
                   key={chargerType}
-                  className={`px-2 py-1 rounded text-xs font-medium ${
+                  className={`px-3 py-1 rounded-full text-xs font-medium border ${
                     availability.available_slots > 0 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-red-100 text-red-700'
+                      ? 'bg-green-500/20 text-green-300 border-green-500/30' 
+                      : 'bg-red-500/20 text-red-300 border-red-500/30'
                   }`}
                 >
                   {chargerType}: {availability.available_slots}/{availability.total_slots}
