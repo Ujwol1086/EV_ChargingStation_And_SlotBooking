@@ -969,4 +969,35 @@ class Booking:
                 
         except Exception as e:
             logger.error(f"Error updating booking to pay later: {e}")
-            return False 
+            return False
+    
+    @staticmethod
+    def get_all_bookings():
+        """
+        Get all bookings from the database
+        
+        Returns:
+            list: All booking documents
+        """
+        try:
+            logger.info("Fetching all bookings for reporting")
+            
+            if mongo.db is None:
+                logger.error("Database connection not established")
+                return []
+            
+            # Get all bookings
+            bookings = list(mongo.db.bookings.find())
+            
+            # Convert ObjectIds to strings for JSON serialization
+            for booking in bookings:
+                booking["_id"] = str(booking["_id"])
+                if "user_id" in booking and booking["user_id"]:
+                    booking["user_id"] = str(booking["user_id"])
+            
+            logger.info(f"Retrieved {len(bookings)} bookings for reporting")
+            return bookings
+            
+        except Exception as e:
+            logger.error(f"Error fetching all bookings: {e}")
+            return [] 

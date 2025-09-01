@@ -90,3 +90,33 @@ class User:
         except Exception as e:
             logger.error(f"Error checking password: {e}")
             return False
+    
+    @staticmethod
+    def get_all_users():
+        """
+        Get all users from the database
+        
+        Returns:
+            list: All user documents (without passwords)
+        """
+        try:
+            logger.info("Fetching all users for reporting")
+            
+            if mongo.db is None:
+                logger.error("Database connection not established")
+                return []
+            
+            # Get all users
+            users = list(mongo.db.users.find())
+            
+            # Remove passwords and convert ObjectIds to strings
+            for user in users:
+                user.pop("password", None)
+                user["_id"] = str(user["_id"])
+            
+            logger.info(f"Retrieved {len(users)} users for reporting")
+            return users
+            
+        except Exception as e:
+            logger.error(f"Error fetching all users: {e}")
+            return []
