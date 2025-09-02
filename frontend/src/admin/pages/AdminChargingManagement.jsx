@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../../api/axios';
+import { useToast } from '../../context/ToastContext';
 
 const AdminChargingManagement = () => {
   const [completedBookings, setCompletedBookings] = useState([]);
@@ -32,10 +33,12 @@ const AdminChargingManagement = () => {
       const completedBookingsResponse = await axios.get('/admin/bookings/completed');
 
       if (allBookingsResponse.data.success) {
+        console.log('All bookings data:', allBookingsResponse.data.bookings);
         setAllBookings(allBookingsResponse.data.bookings || []);
       }
 
       if (completedBookingsResponse.data.success) {
+        console.log('Completed bookings data:', completedBookingsResponse.data.bookings);
         setCompletedBookings(completedBookingsResponse.data.bookings || []);
       }
 
@@ -60,7 +63,7 @@ const AdminChargingManagement = () => {
     e.preventDefault();
     
     if (!selectedBooking || !amountForm.amount_npr) {
-      alert('Please enter a valid amount');
+      showError('Please enter a valid amount');
       return;
     }
 
@@ -75,17 +78,17 @@ const AdminChargingManagement = () => {
       });
 
       if (response.data.success) {
-        alert('💰 Charging amount set successfully! The user will now see a payment notification in their dashboard and can pay with Khalti.');
+        showSuccess('💰 Charging amount set successfully! The user will now see a payment notification in their dashboard and can pay with Khalti.');
         setShowAmountModal(false);
         setSelectedBooking(null);
         // Refresh bookings
         fetchBookings();
       } else {
-        alert(response.data.error || 'Failed to set amount');
+        showError(response.data.error || 'Failed to set amount');
       }
 
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to set charging amount');
+      showError(err.response?.data?.error || 'Failed to set charging amount');
     } finally {
       setSettingAmount(false);
     }
@@ -96,15 +99,17 @@ const AdminChargingManagement = () => {
       const response = await axios.post(`/admin/bookings/${bookingId}/mark-completed`);
       
       if (response.data.success) {
-        alert('✅ Booking marked as completed! Status updated to "completed". Now you can set the charging amount.');
+        showSuccess('✅ Booking marked as completed! Status updated to "completed". Now you can set the charging amount.');
         fetchBookings();
       } else {
-        alert(response.data.error || 'Failed to mark as completed');
+        showError(response.data.error || 'Failed to mark as completed');
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to mark booking as completed');
+      showError(err.response?.data?.error || 'Failed to mark booking as completed');
     }
   };
+
+
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -142,12 +147,14 @@ const AdminChargingManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Charging Management</h1>
           <p className="text-gray-600">Manage charging sessions and set payment amounts</p>
         </div>
-        <button
-          onClick={fetchBookings}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={fetchBookings}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -391,7 +398,12 @@ const AdminChargingManagement = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         <p className="font-medium text-gray-900">#{booking.booking_id}</p>
-                        <p className="text-gray-500">User: {booking.user_id}</p>
+                        <p className="text-gray-500">
+                          User: {booking.user_details?.username || booking.user_id || 'Unknown User'}
+                        </p>
+                        <p className="text-gray-500">
+                          Email: {booking.user_details?.email || 'No email'}
+                        </p>
                         <p className="text-gray-500">Charger: {booking.charger_type}</p>
                       </div>
                     </td>
@@ -447,7 +459,13 @@ const AdminChargingManagement = () => {
                           )}
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-sm">Not set</span>
+                        <div className="text-sm">
+                          <span className="text-gray-400">Not set</span>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Debug: amount_npr={JSON.stringify(booking.amount_npr)}, 
+                            admin_amount_set={JSON.stringify(booking.admin_amount_set)}
+                          </p>
+                        </div>
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm space-y-2">
@@ -530,7 +548,10 @@ const AdminChargingManagement = () => {
                   <strong>Charger Type:</strong> {selectedBooking.charger_type}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <strong>User ID:</strong> {selectedBooking.user_id}
+                  <strong>User:</strong> {selectedBooking.user_details?.username || selectedBooking.user_id || 'Unknown User'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <strong>User Email:</strong> {selectedBooking.user_details?.email || 'No email'}
                 </p>
               </div>
 

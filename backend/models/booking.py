@@ -887,10 +887,37 @@ class Booking:
                 "admin_amount_set": False
             }))
             
-            # Convert ObjectId to string for JSON serialization
+            # Convert ObjectId to string for JSON serialization and populate user/station details
             for booking in bookings:
                 booking["_id"] = str(booking["_id"])
                 booking["user_id"] = str(booking["user_id"])
+                
+                # Get user details
+                user = mongo.db.users.find_one({"_id": ObjectId(booking["user_id"])})
+                if user:
+                    booking["user_details"] = {
+                        'username': user.get('username', 'Unknown'),
+                        'email': user.get('email', 'Unknown')
+                    }
+                else:
+                    booking["user_details"] = {
+                        'username': 'Unknown User',
+                        'email': 'Unknown Email'
+                    }
+                
+                # Get station details
+                from models.charging_station import ChargingStation
+                station = ChargingStation.get_by_id(booking.get('station_id'))
+                if station:
+                    booking["station_details"] = {
+                        'name': station.get('name', 'Unknown Station'),
+                        'address': station.get('address', 'Unknown Address')
+                    }
+                else:
+                    booking["station_details"] = {
+                        'name': 'Unknown Station',
+                        'address': 'Unknown Address'
+                    }
                 
             return bookings
             

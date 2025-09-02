@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
+import { useToast } from '../../context/ToastContext';
 
 const AdminStations = () => {
   const [stations, setStations] = useState([]);
@@ -9,6 +10,7 @@ const AdminStations = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     fetchStations();
@@ -19,11 +21,32 @@ const AdminStations = () => {
       setLoading(true);
       const response = await axios.get('/admin/stations');
       if (response.data.success) {
-        setStations(response.data.stations);
+        console.log('Raw API response:', response.data);
+        console.log('Fetched stations:', response.data.stations);
+        
+        // Ensure all stations have required fields with defaults
+        const processedStations = response.data.stations.map(station => ({
+          ...station,
+          available_slots: station.available_slots || 0,
+          total_slots: station.total_slots || 0,
+          pricing_per_kwh: station.pricing_per_kwh || 0,
+          rating: station.rating || 0,
+          status: station.status || 'active',
+          connector_types: Array.isArray(station.connector_types) ? station.connector_types : ['Type 2'],
+          features: Array.isArray(station.features) ? station.features : [],
+          operating_hours: station.operating_hours || '24/7'
+        }));
+        
+        console.log('Processed stations:', processedStations);
+        setStations(processedStations);
+      } else {
+        console.error('Failed to fetch stations:', response.data.error);
+        showError(`Failed to fetch stations: ${response.data.error}`);
+        setStations([]);
       }
     } catch (error) {
       console.error('Error fetching stations:', error);
-      // Show empty state instead of dummy data
+      showError(`Error fetching stations: ${error.response?.data?.error || error.message}`);
       setStations([]);
     } finally {
       setLoading(false);
@@ -34,11 +57,15 @@ const AdminStations = () => {
     try {
       const response = await axios.post('/admin/stations', stationData);
       if (response.data.success) {
+        showSuccess(`Station "${stationData.name}" created successfully!`);
         setShowAddModal(false);
         fetchStations();
+      } else {
+        showError(`Failed to create station: ${response.data.error}`);
       }
     } catch (error) {
       console.error('Error adding station:', error);
+      showError(`Error creating station: ${error.response?.data?.error || error.message}`);
     }
   };
 
@@ -46,24 +73,32 @@ const AdminStations = () => {
     try {
       const response = await axios.put(`/admin/stations/${stationId}`, stationData);
       if (response.data.success) {
+        showSuccess(`Station "${stationData.name}" updated successfully!`);
         setShowEditModal(false);
         setSelectedStation(null);
         fetchStations();
+      } else {
+        showError(`Failed to update station: ${response.data.error}`);
       }
     } catch (error) {
       console.error('Error updating station:', error);
+      showError(`Error updating station: ${error.response?.data?.error || error.message}`);
     }
   };
 
   const handleDeleteStation = async (stationId) => {
-    if (window.confirm('Are you sure you want to delete this station?')) {
+    if (window.confirm('⚠️ Are you sure you want to delete this station? This action cannot be undone and will affect all related data.')) {
       try {
         const response = await axios.delete(`/admin/stations/${stationId}`);
         if (response.data.success) {
+          showSuccess('Station deleted successfully!');
           fetchStations();
+        } else {
+          showError(`Failed to delete station: ${response.data.error}`);
         }
       } catch (error) {
         console.error('Error deleting station:', error);
+        showError(`Error deleting station: ${error.response?.data?.error || error.message}`);
       }
     }
   };
@@ -150,7 +185,9 @@ const AdminStations = () => {
 
       {/* Stations Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredStations.map((station) => (
+        {filteredStations.map((station) => {
+          console.log('Rendering station:', station);
+          return (
           <div key={station.id} className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
             {/* Station Header */}
             <div className="p-6 border-b border-gray-200">
@@ -229,7 +266,7 @@ const AdminStations = () => {
               <div>
                 <span className="text-sm text-gray-600">Connector Types</span>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {station.connector_types.map((type) => (
+                    {station.connector_types && station.connector_types.map((type) => (
                     <span key={type} className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
                       {type}
                     </span>
@@ -263,7 +300,8 @@ const AdminStations = () => {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {filteredStations.length === 0 && (
@@ -282,6 +320,7 @@ const AdminStations = () => {
         <AddStationModal
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddStation}
+          showError={showError}
         />
       )}
 
@@ -294,6 +333,7 @@ const AdminStations = () => {
             setSelectedStation(null);
           }}
           onEdit={handleEditStation}
+          showError={showError}
         />
       )}
     </div>
@@ -301,15 +341,16 @@ const AdminStations = () => {
 };
 
 // Add Station Modal Component
-const AddStationModal = ({ onClose, onAdd }) => {
+const AddStationModal = ({ onClose, onAdd, showError }) => {
   const [formData, setFormData] = useState({
     name: '',
+    company: 'Independent',
     address: '',
     latitude: '',
     longitude: '',
     total_slots: '',
     pricing_per_kwh: '',
-    connector_types: [],
+    connector_types: ['Type 2'],
     features: [],
     operating_hours: '24/7',
     status: 'active'
@@ -317,11 +358,39 @@ const AddStationModal = ({ onClose, onAdd }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name || !formData.address || !formData.latitude || !formData.longitude || !formData.total_slots || !formData.pricing_per_kwh) {
+      showError('❌ Please fill in all required fields');
+      return;
+    }
+    
+    // Validate coordinates
+    const lat = parseFloat(formData.latitude);
+    const lng = parseFloat(formData.longitude);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      showError('❌ Please enter valid coordinates (Latitude: -90 to 90, Longitude: -180 to 180)');
+      return;
+    }
+    
+    // Validate slots and pricing
+    const slots = parseInt(formData.total_slots);
+    const pricing = parseFloat(formData.pricing_per_kwh);
+    if (isNaN(slots) || slots <= 0) {
+      showError('❌ Total slots must be a positive number');
+      return;
+    }
+    if (isNaN(pricing) || pricing < 0) {
+      showError('❌ Price per kWh must be a non-negative number');
+      return;
+    }
+    
     onAdd({
       ...formData,
-      location: [parseFloat(formData.latitude), parseFloat(formData.longitude)],
-      total_slots: parseInt(formData.total_slots),
-      pricing_per_kwh: parseFloat(formData.pricing_per_kwh)
+      latitude: lat,
+      longitude: lng,
+      total_slots: slots,
+      pricing_per_kwh: pricing
     });
   };
 
@@ -340,6 +409,23 @@ const AddStationModal = ({ onClose, onAdd }) => {
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+              <select
+                value={formData.company}
+                onChange={(e) => setFormData({...formData, company: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="Independent">Independent</option>
+                <option value="HYUNDAI">HYUNDAI</option>
+                <option value="BYD">BYD</option>
+                <option value="TATA">TATA</option>
+                <option value="MG">MG</option>
+                <option value="KIA">KIA</option>
+                <option value="NEA">NEA</option>
+              </select>
             </div>
             
             <div>
@@ -402,6 +488,91 @@ const AddStationModal = ({ onClose, onAdd }) => {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Connector Types</label>
+              <div className="space-y-2">
+                {['Type 2', 'CCS', 'CHAdeMO', 'Type 1'].map((type) => (
+                  <label key={type} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.connector_types.includes(type)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            connector_types: [...formData.connector_types, type]
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            connector_types: formData.connector_types.filter(t => t !== type)
+                          });
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {type}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Features</label>
+              <div className="space-y-2">
+                {['WiFi', 'Cafe', 'Restroom', 'Parking', 'Security', '24/7 Access'].map((feature) => (
+                  <label key={feature} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.features.includes(feature)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            features: [...formData.features, feature]
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            features: formData.features.filter(f => f !== feature)
+                          });
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {feature}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Operating Hours</label>
+              <select
+                value={formData.operating_hours}
+                onChange={(e) => setFormData({...formData, operating_hours: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="24/7">24/7</option>
+                <option value="6:00 AM - 10:00 PM">6:00 AM - 10:00 PM</option>
+                <option value="8:00 AM - 8:00 PM">8:00 AM - 8:00 PM</option>
+                <option value="9:00 AM - 6:00 PM">9:00 AM - 6:00 PM</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="maintenance">Maintenance</option>
+              </select>
+            </div>
+
             <div className="flex gap-4 pt-4">
               <button
                 type="button"
@@ -425,19 +596,65 @@ const AddStationModal = ({ onClose, onAdd }) => {
 };
 
 // Edit Station Modal Component
-const EditStationModal = ({ station, onClose, onEdit }) => {
+const EditStationModal = ({ station, onClose, onEdit, showError }) => {
   const [formData, setFormData] = useState({
     name: station.name,
+    company: station.company || 'Independent',
     address: station.address,
+    latitude: station.latitude,
+    longitude: station.longitude,
     total_slots: station.total_slots,
     pricing_per_kwh: station.pricing_per_kwh,
     status: station.status,
-    operating_hours: station.operating_hours
+    operating_hours: station.operating_hours,
+    connector_types: station.connector_types || ['Type 2'],
+    features: station.features || []
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onEdit(station.id, formData);
+    
+    // Validate required fields
+    if (!formData.name || !formData.address || !formData.latitude || !formData.longitude || !formData.total_slots || !formData.pricing_per_kwh) {
+      showError('Please fill in all required fields');
+      return;
+    }
+    
+    // Validate coordinates
+    const lat = parseFloat(formData.latitude);
+    const lng = parseFloat(formData.longitude);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      showError('Please enter valid coordinates (Latitude: -90 to 90, Longitude: -180 to 180)');
+      return;
+    }
+    
+    // Validate slots and pricing
+    const slots = parseInt(formData.total_slots);
+    const pricing = parseFloat(formData.pricing_per_kwh);
+    if (isNaN(slots) || slots <= 0) {
+      showError('Total slots must be a positive number');
+      return;
+    }
+    if (isNaN(pricing) || pricing < 0) {
+      showError('Price per kWh must be a non-negative number');
+      return;
+    }
+    
+    // Ensure connector_types and features are arrays
+    if (!Array.isArray(formData.connector_types)) {
+      formData.connector_types = ['Type 2'];
+    }
+    if (!Array.isArray(formData.features)) {
+      formData.features = [];
+    }
+    
+    onEdit(station.id, {
+      ...formData,
+      latitude: lat,
+      longitude: lng,
+      total_slots: slots,
+      pricing_per_kwh: pricing
+    });
   };
 
   return (
@@ -458,6 +675,23 @@ const EditStationModal = ({ station, onClose, onEdit }) => {
             </div>
             
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+              <select
+                value={formData.company}
+                onChange={(e) => setFormData({...formData, company: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="Independent">Independent</option>
+                <option value="HYUNDAI">HYUNDAI</option>
+                <option value="BYD">BYD</option>
+                <option value="TATA">TATA</option>
+                <option value="MG">MG</option>
+                <option value="KIA">KIA</option>
+                <option value="NEA">NEA</option>
+              </select>
+            </div>
+            
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
               <input
                 type="text"
@@ -466,6 +700,31 @@ const EditStationModal = ({ station, onClose, onEdit }) => {
                 onChange={(e) => setFormData({...formData, address: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Latitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  required
+                  value={formData.latitude}
+                  onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Longitude</label>
+                <input
+                  type="number"
+                  step="any"
+                  required
+                  value={formData.longitude}
+                  onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -507,12 +766,74 @@ const EditStationModal = ({ station, onClose, onEdit }) => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Operating Hours</label>
-                <input
-                  type="text"
+                <select
                   value={formData.operating_hours}
                   onChange={(e) => setFormData({...formData, operating_hours: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                >
+                  <option value="24/7">24/7</option>
+                  <option value="6:00 AM - 10:00 PM">6:00 AM - 10:00 PM</option>
+                  <option value="8:00 AM - 8:00 PM">8:00 AM - 8:00 PM</option>
+                  <option value="9:00 AM - 6:00 PM">9:00 AM - 6:00 PM</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Connector Types</label>
+              <div className="space-y-2">
+                {['Type 2', 'CCS', 'CHAdeMO', 'Type 1'].map((type) => (
+                  <label key={type} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.connector_types.includes(type)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            connector_types: [...formData.connector_types, type]
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            connector_types: formData.connector_types.filter(t => t !== type)
+                          });
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {type}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Features</label>
+              <div className="space-y-2">
+                {['WiFi', 'Cafe', 'Restroom', 'Parking', 'Security', '24/7 Access'].map((feature) => (
+                  <label key={feature} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.features.includes(feature)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setFormData({
+                            ...formData,
+                            features: [...formData.features, feature]
+                          });
+                        } else {
+                          setFormData({
+                            ...formData,
+                            features: formData.features.filter(f => f !== feature)
+                          });
+                        }
+                      }}
+                      className="mr-2"
+                    />
+                    {feature}
+                  </label>
+                ))}
               </div>
             </div>
 
