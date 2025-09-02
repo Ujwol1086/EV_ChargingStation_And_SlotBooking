@@ -71,13 +71,15 @@ def get_admin_stations():
             formatted_station = {
                 'id': station.get('id'),
                 'name': station.get('name'),
-                'location': [station.get('latitude', 0), station.get('longitude', 0)],
+                'company': station.get('company', 'Independent'),
+                'latitude': station.get('latitude', 0),
+                'longitude': station.get('longitude', 0),
                 'address': station.get('address', ''),
                 'available_slots': station.get('available_slots', 0),
                 'total_slots': station.get('total_slots', 0),
                 'pricing_per_kwh': station.get('pricing_per_kwh', 0),
                 'rating': station.get('rating', 0),
-                'status': 'active',  # Default status
+                'status': station.get('status', 'active'),
                 'connector_types': station.get('connector_types', []),
                 'features': station.get('features', []),
                 'operating_hours': station.get('operating_hours', '24/7')
@@ -91,6 +93,72 @@ def get_admin_stations():
     except Exception as e:
         logger.error(f"Error getting admin stations: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/stations', methods=['POST'])
+@require_admin
+def create_station():
+    """Create a new charging station"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Validate required fields
+        required_fields = ['name', 'address', 'latitude', 'longitude', 'total_slots', 'pricing_per_kwh']
+        for field in required_fields:
+            if not data.get(field):
+                return jsonify({'success': False, 'error': f'{field} is required'}), 400
+        
+        # Format station data
+        station_data = {
+            'id': f"cs{str(mongo.db.charging_stations.count_documents({}) + 1).zfill(3)}",
+            'name': data['name'],
+            'company': data.get('company', 'Independent'),
+            'latitude': float(data['latitude']),
+            'longitude': float(data['longitude']),
+            'address': data['address'],
+            'total_slots': int(data['total_slots']),
+            'available_slots': int(data['total_slots']),  # Initially all slots are available
+            'pricing_per_kwh': float(data['pricing_per_kwh']),
+            'connector_types': data.get('connector_types', ['Type 2']),
+            'features': data.get('features', []),
+            'operating_hours': data.get('operating_hours', '24/7'),
+            'status': data.get('status', 'active'),
+            'rating': 4.0,  # Default rating
+            'chargers': [],
+            'photos': [],
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+        
+        # Create chargers based on total slots
+        for i in range(int(data['total_slots'])):
+            station_data['chargers'].append({
+                'type': data.get('connector_types', ['Type 2'])[0] if data.get('connector_types') else 'Type 2',
+                'power': '22kW',  # Default power
+                'available': True,
+                'connector_id': f"{station_data['id']}_charger_{i+1}"
+            })
+        
+        # Insert into database
+        result = mongo.db.charging_stations.insert_one(station_data)
+        
+        if result.inserted_id:
+            logger.info(f"Created new station: {station_data['name']} with ID: {station_data['id']}")
+            return jsonify({
+                'success': True,
+                'message': 'Station created successfully',
+                'station_id': station_data['id']
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to create station'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error creating station: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 
 @admin_bp.route('/users', methods=['GET'])
 @require_admin
@@ -438,12 +506,56 @@ def update_station(station_id):
     """Update a charging station"""
     try:
         data = request.get_json()
-        result = ChargingStation.update_station(station_id, data)
         
-        if result:
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Prepare update data
+        update_data = {}
+        
+        if 'name' in data:
+            update_data['name'] = data['name']
+        if 'company' in data:
+            update_data['company'] = data['company']
+        if 'address' in data:
+            update_data['address'] = data['address']
+        if 'total_slots' in data:
+            update_data['total_slots'] = int(data['total_slots'])
+            # Update available slots proportionally
+            current_station = mongo.db.charging_stations.find_one({'id': station_id})
+            if current_station:
+                current_available = current_station.get('available_slots', 0)
+                current_total = current_station.get('total_slots', 1)
+                if current_total > 0:
+                    ratio = current_available / current_total
+                    update_data['available_slots'] = max(0, int(int(data['total_slots']) * ratio))
+                else:
+                    update_data['available_slots'] = int(data['total_slots'])
+        if 'pricing_per_kwh' in data:
+            update_data['pricing_per_kwh'] = float(data['pricing_per_kwh'])
+        if 'status' in data:
+            update_data['status'] = data['status']
+        if 'operating_hours' in data:
+            update_data['operating_hours'] = data['operating_hours']
+        if 'connector_types' in data:
+            update_data['connector_types'] = data['connector_types']
+        if 'features' in data:
+            update_data['features'] = data['features']
+        
+        update_data['updated_at'] = datetime.utcnow()
+        
+        # Update in database
+        result = mongo.db.charging_stations.update_one(
+            {'id': station_id},
+            {'$set': update_data}
+        )
+        
+        if result.modified_count > 0:
+            logger.info(f"Updated station: {station_id}")
             return jsonify({'success': True, 'message': 'Station updated successfully'})
         else:
-            return jsonify({'success': False, 'error': 'Failed to update station'}), 400
+            return jsonify({'success': False, 'error': 'Station not found or no changes made'}), 404
+            
     except Exception as e:
         logger.error(f"Error updating station: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -453,12 +565,32 @@ def update_station(station_id):
 def delete_station(station_id):
     """Delete a charging station"""
     try:
-        result = ChargingStation.delete_station(station_id)
+        # Check if station exists
+        station = mongo.db.charging_stations.find_one({'id': station_id})
+        if not station:
+            return jsonify({'success': False, 'error': 'Station not found'}), 404
         
-        if result:
+        # Check if station has active bookings
+        active_bookings = mongo.db.bookings.count_documents({
+            'station_id': station_id,
+            'status': {'$in': ['confirmed', 'in_progress']}
+        })
+        
+        if active_bookings > 0:
+            return jsonify({
+                'success': False, 
+                'error': f'Cannot delete station with {active_bookings} active bookings'
+            }), 400
+        
+        # Delete the station
+        result = mongo.db.charging_stations.delete_one({'id': station_id})
+        
+        if result.deleted_count > 0:
+            logger.info(f"Deleted station: {station_id}")
             return jsonify({'success': True, 'message': 'Station deleted successfully'})
         else:
-            return jsonify({'success': False, 'error': 'Failed to delete station'}), 400
+            return jsonify({'success': False, 'error': 'Failed to delete station'}), 500
+            
     except Exception as e:
         logger.error(f"Error deleting station: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

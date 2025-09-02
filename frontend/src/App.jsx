@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
 import DashboardRouter from "./components/DashboardRouter";
@@ -31,8 +32,9 @@ import GoogleOAuthCallback from "./components/GoogleOAuthCallback";
 const App = () => {
   return (
     <AuthProvider>
-      <Router>
-        <div className="min-h-screen flex flex-col">
+      <ToastProvider>
+        <Router>
+          <div className="min-h-screen flex flex-col">
           {/* Conditionally render Navbar only for non-admin routes */}
           <Routes>
             {/* Admin routes - no navbar */}
@@ -221,6 +223,7 @@ const App = () => {
           </Routes>
         </div>
       </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
+import { useToast } from '../../context/ToastContext';
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
@@ -8,6 +9,7 @@ const AdminUsers = () => {
   const [filterRole, setFilterRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     fetchUsers();
@@ -19,16 +21,15 @@ const AdminUsers = () => {
       const response = await axios.get('/admin/users');
       if (response.data.success) {
         setUsers(response.data.users);
+        console.log('Fetched users:', response.data.users);
       } else {
         console.error('Failed to fetch users:', response.data.error);
-        // Show error message to user
-        alert('Failed to fetch users. Please try again.');
+        showError(`Failed to fetch users: ${response.data.error}`);
+        setUsers([]);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      // Show error message to user
-      alert('Failed to fetch users. Please check your connection and try again.');
-      // Show empty state instead of dummy data
+      showError(`Error fetching users: ${error.response?.data?.error || error.message}`);
       setUsers([]);
     } finally {
       setLoading(false);
@@ -39,22 +40,30 @@ const AdminUsers = () => {
     try {
       const response = await axios.put(`/admin/users/${userId}/status`, { status: newStatus });
       if (response.data.success) {
+        showSuccess(`User status updated to ${newStatus} successfully!`);
         fetchUsers();
+      } else {
+        showError(`Failed to update user status: ${response.data.error}`);
       }
     } catch (error) {
       console.error('Error updating user status:', error);
+      showError(`Error updating user status: ${error.response?.data?.error || error.message}`);
     }
   };
 
   const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (window.confirm('⚠️ Are you sure you want to delete this user? This action cannot be undone and will affect all related data.')) {
       try {
         const response = await axios.delete(`/admin/users/${userId}`);
         if (response.data.success) {
+          showSuccess('User deleted successfully!');
           fetchUsers();
+        } else {
+          showError(`Failed to delete user: ${response.data.error}`);
         }
       } catch (error) {
         console.error('Error deleting user:', error);
+        showError(`Error deleting user: ${error.response?.data?.error || error.message}`);
       }
     }
   };
