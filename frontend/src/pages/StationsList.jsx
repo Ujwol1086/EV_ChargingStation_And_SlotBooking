@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import axios from "../api/axios";
 import StationBookingModal from "../components/StationBookingModal";
 import StationCard from "../components/StationCard";
+import StationFilterDropdown from "../components/StationFilterDropdown";
+import StationsMap from "../components/StationsMap";
 
 const StationsList = () => {
   const [stations, setStations] = useState([]);
   const [filteredStations, setFilteredStations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [selectedStation, setSelectedStation] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [sortBy, setSortBy] = useState("name");
-  const [filterBy, setFilterBy] = useState("all");
+  const [filters, setFilters] = useState({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [userLocation, setUserLocation] = useState([27.7172, 85.324]); // Default Kathmandu
+  const [showMap, setShowMap] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -20,19 +24,22 @@ const StationsList = () => {
 
   useEffect(() => {
     fetchStations();
+    getCurrentLocation();
   }, []);
 
   useEffect(() => {
     filterAndSortStations();
     setCurrentPage(1); // reset to first page when filters/search change
-  }, [stations, searchTerm, sortBy, filterBy]);
+  }, [stations, filters, sortBy]);
 
   const fetchStations = async () => {
     try {
       setLoading(true);
       const response = await axios.get("/stations");
       if (response.data.success) {
-        setStations(response.data.stations || []);
+        const stationsWithAvailability = response.data.stations || [];
+        setStations(stationsWithAvailability);
+        console.log(`Loaded ${stationsWithAvailability.length} stations with real-time availability`);
       } else {
         setError("Failed to fetch stations");
       }
@@ -44,55 +51,68 @@ const StationsList = () => {
     }
   };
 
-  const filterAndSortStations = () => {
-    let filtered = [...stations];
+  const filterAndSortStations = async () => {
+    try {
+      // Build query parameters for the search API
+      const queryParams = new URLSearchParams();
+      
+      // Add filters to query params
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value && value !== '' && value !== false) {
+          queryParams.append(key, value);
+        }
+      });
 
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (station) =>
-          station.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          station.location?.address
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          station.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          station.province?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Apply availability filter
-    if (filterBy !== "all") {
-      if (filterBy === "available") {
-        filtered = filtered.filter((station) => station.available_slots > 0);
-      } else if (filterBy === "full") {
-        filtered = filtered.filter((station) => station.available_slots === 0);
+      // Use the search API if filters are applied, otherwise use all stations
+      let stationsToFilter = stations;
+      
+      if (Object.keys(filters).some(key => filters[key] && filters[key] !== '' && filters[key] !== false)) {
+        const response = await axios.get(`/stations/search?${queryParams.toString()}`);
+        if (response.data.success) {
+          stationsToFilter = response.data.stations;
+        }
       }
+
+      // Apply sorting
+      const sorted = [...stationsToFilter].sort((a, b) => {
+        switch (sortBy) {
+          case "name":
+            return a.name.localeCompare(b.name);
+          case "availability":
+            return b.available_slots - a.available_slots;
+          case "price":
+            const priceA = parseFloat(a.pricing_per_kwh) || 0;
+            const priceB = parseFloat(b.pricing_per_kwh) || 0;
+            return priceA - priceB;
+          case "rating":
+            return (b.rating || 0) - (a.rating || 0);
+          default:
+            return 0;
+        }
+      });
+
+      setFilteredStations(sorted);
+    } catch (error) {
+      console.error('Error filtering stations:', error);
+      setFilteredStations(stations);
     }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "availability":
-          return b.available_slots - a.available_slots;
-        case "price":
-          const priceA = parseFloat(a.pricing) || 0;
-          const priceB = parseFloat(b.pricing) || 0;
-          return priceA - priceB;
-        case "rating":
-          return (b.rating || 0) - (a.rating || 0);
-        default:
-          return 0;
-      }
-    });
-
-    setFilteredStations(filtered);
   };
 
   const handleStationClick = (station) => {
     setSelectedStation(station);
     setShowBookingModal(true);
+  };
+
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(coords);
+        },
+        (error) => console.error("Error getting location:", error)
+      );
+    }
   };
 
   const handleCloseBookingModal = () => {
@@ -103,6 +123,18 @@ const StationsList = () => {
   const handleBookingSuccess = () => {
     fetchStations();
     handleCloseBookingModal();
+  };
+
+  const refreshStations = () => {
+    fetchStations();
+  };
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleSearchChange = (searchValue) => {
+    setSearchTerm(searchValue);
   };
 
   // Pagination calculations
@@ -154,17 +186,96 @@ const StationsList = () => {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            Charging Stations
-          </h1>
-          <p className="text-gray-300 text-lg">
-            Browse all available charging stations. Find the perfect spot for your
-            electric vehicle.
-          </p>
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <h1 className="text-4xl font-bold mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+                Charging Stations
+              </h1>
+              <p className="text-gray-300 text-lg">
+                Browse all available charging stations. Find the perfect spot for your
+                electric vehicle.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowMap(!showMap)}
+                className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center gap-2"
+              >
+                <svg 
+                  className="w-4 h-4" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+                {showMap ? 'Hide Map' : 'Show Map'}
+              </button>
+              <button
+                onClick={refreshStations}
+                disabled={loading}
+                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-2xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-cyan-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <svg 
+                  className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Search + Sort + Filter Section (same as before) */}
-        {/* ... your existing stats + controls code ... */}
+        {/* Filter Dropdown */}
+        <StationFilterDropdown 
+          onFiltersChange={handleFiltersChange}
+          onSearchChange={handleSearchChange}
+        />
+
+        {/* Map Component */}
+        {showMap && (
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-6">
+              <h3 className="text-xl font-bold text-white mb-4">Interactive Map</h3>
+              <div className="h-96 w-full">
+                <StationsMap
+                  stations={filteredStations}
+                  selectedStation={selectedStation}
+                  onStationClick={handleStationClick}
+                  userLocation={userLocation}
+                  className="h-full w-full rounded-2xl"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sort Controls */}
+        <div className="mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <span className="text-gray-300 text-sm">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all duration-300"
+              >
+                <option value="name">Name</option>
+                <option value="availability">Availability</option>
+                <option value="price">Price</option>
+                <option value="rating">Rating</option>
+              </select>
+            </div>
+            
+            <div className="text-gray-300 text-sm">
+              Showing {filteredStations.length} of {stations.length} stations
+            </div>
+          </div>
+        </div>
 
         {/* Stations Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

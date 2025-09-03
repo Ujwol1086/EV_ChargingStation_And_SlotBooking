@@ -21,18 +21,44 @@ export const deg2rad = (deg) => {
 
 // Helper function to get station coordinates
 export const getStationCoordinates = (station) => {
-  if (!station.location) return null;
-  
-  if (Array.isArray(station.location)) {
-    return station.location;
-  } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
-    return station.location.coordinates;
+  if (!station) {
+    console.warn('getStationCoordinates: station is null or undefined');
+    return null;
   }
+
+  // Check for direct latitude/longitude fields
+  if (station.latitude !== undefined && station.longitude !== undefined && 
+      station.latitude !== null && station.longitude !== null &&
+      station.latitude !== 0 && station.longitude !== 0) {
+    const lat = parseFloat(station.latitude);
+    const lng = parseFloat(station.longitude);
+    
+    // Validate that coordinates are reasonable (not 0,0 and within valid ranges)
+    if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+      return [lat, lng];
+    }
+  }
+  
+  // Fallback for old data structure
+  if (station.location) {
+    if (Array.isArray(station.location)) {
+      return station.location;
+    } else if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
+      return station.location.coordinates;
+    }
+  }
+  
+  console.warn('getStationCoordinates: No valid coordinates found for station:', station);
   return null;
 };
 
 // Helper function to format location display
 export const formatLocationDisplay = (station) => {
+  if (station.address) {
+    return station.address;
+  }
+  
+  // Fallback for old data structure
   if (station.location?.address) {
     return station.location.address;
   }

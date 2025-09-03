@@ -233,28 +233,40 @@ class Booking:
                 return {'available_slots': 0, 'total_slots': 0}
             
             # Count active bookings for this station and charger type
-            query = {
+            # For real-time availability, we need to check bookings that are currently active
+            # This includes both confirmed bookings that haven't started yet and in-progress bookings
+            
+            # First, get all confirmed/in-progress bookings for this station
+            base_query = {
                 "station_id": station_id,
-                "status": {"$in": ["confirmed", "in_progress"]},
-                # Check if booking is currently active (within the estimated duration)
-                "$expr": {
-                    "$and": [
-                        # Booking datetime exists
-                        {"$ne": ["$booking_datetime", None]},
-                        # Current time is after booking start
-                        {"$gte": [current_time, "$booking_datetime"]},
-                        # Current time is before booking end (booking_datetime + estimated_duration)
-                        {"$lte": [current_time, {
-                            "$add": ["$booking_datetime", {"$multiply": ["$estimated_duration", 60000]}]  # Convert minutes to milliseconds
-                        }]}
-                    ]
-                }
+                "status": {"$in": ["confirmed", "in_progress"]}
             }
             
             if charger_type:
-                query["charger_type"] = charger_type
+                base_query["charger_type"] = charger_type
             
-            active_bookings = mongo.db.bookings.count_documents(query)
+            # Get all bookings and filter in Python for more accurate time calculations
+            all_bookings = list(mongo.db.bookings.find(base_query))
+            
+            active_bookings = 0
+            for booking in all_bookings:
+                booking_datetime = booking.get('booking_datetime')
+                estimated_duration = booking.get('estimated_duration', 60)  # Default 60 minutes
+                
+                if booking_datetime:
+                    # Calculate booking end time
+                    from datetime import timedelta
+                    booking_end = booking_datetime + timedelta(minutes=estimated_duration)
+                    
+                    # Check if current time is within the booking window
+                    if current_time >= booking_datetime and current_time <= booking_end:
+                        active_bookings += 1
+                else:
+                    # If no booking_datetime, consider it active if status is confirmed/in_progress
+                    # This handles legacy bookings without specific datetime
+                    if booking.get('status') in ['confirmed', 'in_progress']:
+                        active_bookings += 1
+            
             available_slots = max(0, total_slots - active_bookings)
             
             logger.info(f"Station {station_id} ({charger_type or 'all types'}): {available_slots}/{total_slots} slots available")

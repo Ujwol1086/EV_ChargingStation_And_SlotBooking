@@ -1,6 +1,7 @@
 import math
 import logging
 import heapq
+from .AprioriAlgorithm import AprioriAlgorithm
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ class HybridAlgorithm:
     """
     
     def __init__(self):
+        # Initialize Apriori algorithm for association rule mining
+        self.apriori_algorithm = AprioriAlgorithm(min_support=0.1, min_confidence=0.5)
+        
         # Enhanced weights for scoring algorithm with new context factors
         # Dynamic weights that adapt based on user context
         self.base_weights = {
@@ -141,7 +145,7 @@ class HybridAlgorithm:
             "Dadeldhura": (29.3000, 80.5833)
         }
     
-    def calculate_energy_consumption(self, distance_km, ac_status=False, passengers=1, terrain='flat', battery_percentage=100):
+    def calculate_energy_consumption(self, distance_km, ac_status=False, passengers=1, terrain='flat', battery_percentage=100, user_context=None):
         """
         Calculate estimated energy consumption based on context factors
         
@@ -174,9 +178,9 @@ class HybridAlgorithm:
         total_consumption = base_consumption + ac_penalty + passenger_penalty + terrain_penalty
         
         # Calculate if destination is reachable with current battery
-        # Assuming average EV has 60kWh battery capacity
-        estimated_battery_capacity = 60  # kWh
-        available_energy = (battery_percentage / 100) * estimated_battery_capacity
+        # Use vehicle battery capacity from context if available
+        vehicle_battery_capacity = user_context.get('vehicle_battery_capacity', 60) if user_context else 60
+        available_energy = (battery_percentage / 100) * vehicle_battery_capacity
         
         # Keep 20% buffer for safety
         usable_energy = available_energy * 0.8
@@ -381,6 +385,7 @@ class HybridAlgorithm:
         terrain = user_context.get('terrain', 'flat')
         plug_type = user_context.get('plug_type', '')
         urgency = user_context.get('urgency', 'medium')
+        vehicle_battery_capacity = user_context.get('vehicle_battery_capacity', 60)
         
         # Ensure battery_percentage is a number and within valid range
         try:
@@ -397,6 +402,14 @@ class HybridAlgorithm:
         except (ValueError, TypeError):
             passengers = 1
             logger.warning(f"Invalid passengers value in calculate_enhanced_score: {user_context.get('passengers')}, using default 1")
+        
+        # Ensure vehicle_battery_capacity is a number
+        try:
+            vehicle_battery_capacity = float(vehicle_battery_capacity) if vehicle_battery_capacity is not None else 60.0
+            vehicle_battery_capacity = max(10, min(200, vehicle_battery_capacity))  # Clamp between 10 and 200 kWh
+        except (ValueError, TypeError):
+            vehicle_battery_capacity = 60.0
+            logger.warning(f"Invalid vehicle_battery_capacity value in calculate_enhanced_score: {user_context.get('vehicle_battery_capacity')}, using default 60 kWh")
         
         # 1. Distance score (closer is better, max distance considered is 50km)
         max_distance = 50
@@ -418,7 +431,7 @@ class HybridAlgorithm:
         
         # 3. Enhanced Energy Efficiency Score
         energy_analysis = self.calculate_energy_consumption(
-            distance, ac_status, passengers, terrain, battery_percentage
+            distance, ac_status, passengers, terrain, battery_percentage, user_context
         )
         energy_efficiency_score = energy_analysis['energy_efficiency_score']
         
@@ -531,7 +544,11 @@ class HybridAlgorithm:
         
         rating_score = rating / 5.0
         
-        # 9. ETA score (shorter travel time is better)
+        # 9. Vehicle Range Compatibility Score (NEW: based on vehicle battery capacity and range)
+        # Calculate how well the station matches the vehicle's range and charging needs
+        vehicle_range_score = self.calculate_vehicle_range_compatibility(station, vehicle_battery_capacity, battery_percentage, distance, user_context)
+        
+        # 10. ETA score (shorter travel time is better)
         # Convert travel time to a score (0-1, where 1 is best)
         max_expected_time = 120  # 2 hours max expected travel time
         eta_score = max(0, 1 - (eta_analysis['travel_time_minutes'] / max_expected_time))
@@ -577,7 +594,12 @@ class HybridAlgorithm:
             weights = self.base_weights.copy()
             logger.warning(f"Weight normalization failed for battery {battery_percentage}%, using base weights")
         
-        # Calculate composite score with dynamic weights
+        # Get Apriori algorithm insights
+        apriori_insights = self.get_apriori_insights(station, user_context)
+        apriori_score = apriori_insights['apriori_score']
+        apriori_boost = apriori_insights['confidence_boost'] * 0.05  # 5% boost from confidence
+        
+        # Calculate composite score with dynamic weights including Apriori insights
         composite_score = (
             weights['distance'] * distance_score +
             weights['availability'] * availability_score +
@@ -586,7 +608,10 @@ class HybridAlgorithm:
             weights['price'] * price_score +
             weights['plug_compatibility'] * plug_compatibility_score +
             weights['rating'] * rating_score +
-            eta_score * 0.10  # Add ETA as 10% weight
+            eta_score * 0.10 +  # Add ETA as 10% weight
+            vehicle_range_score * 0.12 +  # Add vehicle range compatibility as 12% weight
+            apriori_score * 0.15 +  # Add Apriori insights as 15% weight
+            apriori_boost  # Add confidence boost
         )
         
         return {
@@ -599,12 +624,16 @@ class HybridAlgorithm:
                 'price_score': round(price_score, 3),
                 'plug_compatibility_score': round(plug_compatibility_score, 3),
                 'rating_score': round(rating_score, 3),
-                'eta_score': round(eta_score, 3)
+                'vehicle_range_score': round(vehicle_range_score, 3),
+                'eta_score': round(eta_score, 3),
+                'apriori_score': round(apriori_score, 3),
+                'apriori_boost': round(apriori_boost, 3)
             },
             'energy_analysis': energy_analysis,
             'eta_analysis': eta_analysis,
             'is_reachable': energy_analysis['is_reachable'],
-            'weights_used': weights
+            'weights_used': weights,
+            'apriori_insights': apriori_insights
         }
 
     def get_enhanced_recommendations(self, user_location, stations, user_context=None, max_recommendations=8):
@@ -1738,4 +1767,190 @@ class HybridAlgorithm:
         bearing = math.degrees(bearing)
         bearing = (bearing + 360) % 360
         
-        return bearing 
+        return bearing
+    
+    def calculate_vehicle_range_compatibility(self, station, vehicle_battery_capacity, battery_percentage, distance, user_context):
+        """
+        Calculate vehicle range compatibility score based on vehicle battery capacity and range.
+        Considers how well the station matches the vehicle's range capabilities and charging needs.
+        
+        Args:
+            station: Station data dictionary
+            vehicle_battery_capacity: Vehicle's total battery capacity in kWh
+            battery_percentage: Current battery level (0-100)
+            distance: Distance to station in km
+            user_context: User context dictionary
+            
+        Returns:
+            Score between 0 and 1 (higher is better)
+        """
+        try:
+            # Calculate vehicle's current range and total range
+            # Typical EV efficiency: 5-6 km per kWh (varies by vehicle type and conditions)
+            base_efficiency = 5.5  # km per kWh (average)
+            
+            # Adjust efficiency based on context factors
+            efficiency_multiplier = 1.0
+            
+            # AC usage reduces efficiency
+            if user_context.get('ac_status', False):
+                efficiency_multiplier *= 0.9  # 10% reduction
+            
+            # Additional passengers reduce efficiency
+            passengers = user_context.get('passengers', 1)
+            if passengers > 1:
+                efficiency_multiplier *= (1.0 - (passengers - 1) * 0.05)  # 5% per additional passenger
+            
+            # Terrain affects efficiency
+            terrain = user_context.get('terrain', 'flat')
+            if terrain == 'hilly':
+                efficiency_multiplier *= 0.8  # 20% reduction
+            elif terrain == 'steep':
+                efficiency_multiplier *= 0.6  # 40% reduction
+            
+            # Calculate effective efficiency
+            effective_efficiency = base_efficiency * efficiency_multiplier
+            
+            # Calculate current and total range
+            current_energy = (battery_percentage / 100) * vehicle_battery_capacity
+            current_range = current_energy * effective_efficiency
+            total_range = vehicle_battery_capacity * effective_efficiency
+            
+            # Calculate energy needed to reach station
+            energy_to_station = distance / effective_efficiency
+            
+            # Calculate remaining energy after reaching station
+            remaining_energy = current_energy - energy_to_station
+            remaining_range = remaining_energy * effective_efficiency
+            
+            # Base score starts at 1.0
+            score = 1.0
+            
+            # 1. Range Safety Score (can we reach the station?)
+            if energy_to_station > current_energy:
+                # Cannot reach station with current battery
+                return 0.0  # Completely incompatible
+            
+            # 2. Range Buffer Score (how much range do we have left?)
+            range_buffer_percentage = (remaining_range / total_range) * 100
+            
+            if range_buffer_percentage >= 30:
+                # Good buffer (30%+ range remaining)
+                score *= 1.0
+            elif range_buffer_percentage >= 20:
+                # Adequate buffer (20-30% range remaining)
+                score *= 0.9
+            elif range_buffer_percentage >= 10:
+                # Low buffer (10-20% range remaining)
+                score *= 0.7
+            else:
+                # Very low buffer (<10% range remaining)
+                score *= 0.4
+            
+            # 3. Vehicle Size Compatibility Score
+            # Larger vehicles (higher battery capacity) should prioritize faster charging
+            connector_types = station.get('connector_types', [])
+            
+            # Define charging speed categories
+            charging_speeds = {
+                'Ultra-fast': 150,  # 150kW+
+                'Rapid': 50,        # 50-150kW
+                'Fast': 22,         # 22-50kW
+                'Standard': 7       # 7-22kW
+            }
+            
+            # Find the fastest charging type available
+            max_power = 0
+            for connector in connector_types:
+                if connector in charging_speeds:
+                    max_power = max(max_power, charging_speeds[connector])
+            
+            if max_power == 0:
+                max_power = charging_speeds['Standard']
+            
+            # Calculate charging time for a typical charging session (20-80% of battery)
+            typical_charging_kwh = vehicle_battery_capacity * 0.6  # 60% of battery
+            charging_efficiency = 0.9
+            charging_time_hours = (typical_charging_kwh / charging_efficiency) / max_power
+            
+            # Score based on vehicle size and charging time
+            if vehicle_battery_capacity >= 80:  # Large vehicle (Tesla Model S, etc.)
+                if charging_time_hours <= 0.5:
+                    score *= 1.0  # Perfect for large vehicles
+                elif charging_time_hours <= 1.0:
+                    score *= 0.9  # Good for large vehicles
+                elif charging_time_hours <= 2.0:
+                    score *= 0.6  # Acceptable for large vehicles
+                else:
+                    score *= 0.3  # Poor for large vehicles
+                    
+            elif vehicle_battery_capacity >= 50:  # Medium vehicle (Tesla Model 3, etc.)
+                if charging_time_hours <= 1.0:
+                    score *= 1.0  # Perfect for medium vehicles
+                elif charging_time_hours <= 2.0:
+                    score *= 0.9  # Good for medium vehicles
+                elif charging_time_hours <= 3.0:
+                    score *= 0.7  # Acceptable for medium vehicles
+                else:
+                    score *= 0.4  # Poor for medium vehicles
+                    
+            else:  # Small vehicle (Nissan Leaf, etc.)
+                if charging_time_hours <= 2.0:
+                    score *= 1.0  # Perfect for small vehicles
+                elif charging_time_hours <= 3.0:
+                    score *= 0.9  # Good for small vehicles
+                elif charging_time_hours <= 4.0:
+                    score *= 0.8  # Acceptable for small vehicles
+                else:
+                    score *= 0.6  # Still acceptable for small vehicles
+            
+            # 4. Distance-based scoring
+            # Closer stations are generally better, but this is already handled by distance_score
+            # Here we just ensure the station is within reasonable range
+            if distance > total_range * 0.8:  # Station is more than 80% of total range away
+                score *= 0.5  # Penalty for very far stations
+            
+            return max(0.0, min(1.0, score))
+            
+        except Exception as e:
+            logger.warning(f"Error calculating vehicle range compatibility: {e}")
+            return 0.5  # Neutral score as fallback
+    
+    def get_apriori_insights(self, station, user_context):
+        """
+        Get Apriori algorithm insights for a station based on user context.
+        
+        Args:
+            station: Station data dictionary
+            user_context: User context dictionary
+            
+        Returns:
+            Dictionary with Apriori insights and recommendation boost
+        """
+        try:
+            # Convert station data to feature format for Apriori
+            station_features = {
+                'pricing': station.get('pricing', 20),
+                'connector_types': station.get('connector_types', []),
+                'features': station.get('features', []),
+                'near_highway': station.get('near_highway', False)
+            }
+            
+            # Get insights from Apriori algorithm
+            insights = self.apriori_algorithm.get_recommendation_insights(user_context, station_features)
+            
+            return {
+                'apriori_score': insights['recommendation_score'],
+                'confidence_boost': insights['confidence_boost'],
+                'applicable_rules': insights['applicable_rules'],
+                'explanation': self.apriori_algorithm.explain_recommendation(user_context, station_features)
+            }
+            
+        except Exception as e:
+            logger.warning(f"Error getting Apriori insights: {e}")
+            return {
+                'apriori_score': 0.5,  # Neutral score as fallback
+                'confidence_boost': 0,
+                'applicable_rules': 0,
+                'explanation': 'Apriori analysis unavailable'
+            } 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import axios from '../api/axios';
+import { formatLocationDisplay } from '../utils/mapHelpers';
 
 const PaymentSuccessPage = () => {
   const location = useLocation();
@@ -478,14 +479,7 @@ const PaymentSuccessPage = () => {
               <div className="flex justify-between">
                 <span className="text-gray-600">Address:</span>
                 <span className="font-medium text-gray-800">
-                  {station ? (
-                    station.location?.address || 
-                    (station.location?.coordinates ? 
-                     `${station.location.coordinates[0].toFixed(4)}, ${station.location.coordinates[1].toFixed(4)}` : 
-                     'Address not available')
-                  ) : (
-                    'Station details loading...'
-                  )}
+                  {station ? formatLocationDisplay(station) : 'Station details loading...'}
                 </span>
               </div>
               <div className="flex justify-between">

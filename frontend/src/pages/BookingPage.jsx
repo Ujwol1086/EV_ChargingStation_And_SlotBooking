@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import axios from '../api/axios';
+import { formatLocationDisplay } from '../utils/mapHelpers';
 
 const BookingPage = () => {
   const { stationId } = useParams();
@@ -272,14 +273,7 @@ const BookingPage = () => {
                   <span className="text-gray-500">📍</span>
                   <div>
                     <p className="text-sm text-gray-600">Location</p>
-                    <p className="font-medium">{station.location?.address || (() => {
-                      if (Array.isArray(station.location)) {
-                        return `${station.location[0].toFixed(4)}, ${station.location[1].toFixed(4)}`;
-                      } else if (station.location?.coordinates && Array.isArray(station.location.coordinates)) {
-                        return `${station.location.coordinates[0].toFixed(4)}, ${station.location.coordinates[1].toFixed(4)}`;
-                      }
-                      return 'Location data unavailable';
-                    })()}</p>
+                    <p className="font-medium">{formatLocationDisplay(station)}</p>
                   </div>
                 </div>
                 

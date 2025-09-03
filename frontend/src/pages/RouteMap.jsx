@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet"
 import "leaflet/dist/leaflet.css";
 import axios from "../api/axios";
 import L from "leaflet";
+import { getStationCoordinates } from "../utils/mapHelpers";
 
 // Fix for the default marker icon issue in react-leaflet
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -135,13 +136,9 @@ const RouteMap = () => {
           setStation(stationData);
 
           // Handle location coordinates correctly based on backend format
-          let stationLocation;
-          if (stationData.location && stationData.location.coordinates) {
-            stationLocation = stationData.location.coordinates;
-          } else if (Array.isArray(stationData.location)) {
-            stationLocation = stationData.location;
-          } else {
-            console.error('Invalid station location format:', stationData.location);
+          const stationLocation = getStationCoordinates(stationData);
+          if (!stationLocation) {
+            console.error('Invalid station location format:', stationData);
             setError("Invalid station location format");
             return;
           }
@@ -280,17 +277,7 @@ const RouteMap = () => {
     }
   };
 
-  // Helper function to get station coordinates
-  const getStationCoordinates = (station) => {
-    if (!station || !station.location) return null;
-    
-    if (station.location.coordinates && Array.isArray(station.location.coordinates)) {
-      return station.location.coordinates;
-    } else if (Array.isArray(station.location)) {
-      return station.location;
-    }
-    return null;
-  };
+
 
   // Update ETA information during live tracking
   const updateETA = () => {
@@ -549,7 +536,10 @@ const RouteMap = () => {
             <div>
               <h2 className="text-lg font-bold text-gray-800">{station.name}</h2>
               <p className="text-sm text-gray-600">
-                📍 {station.location?.address || `${station.location.coordinates ? station.location.coordinates[0].toFixed(4) : station.location[0].toFixed(4)}, ${station.location.coordinates ? station.location.coordinates[1].toFixed(4) : station.location[1].toFixed(4)}`}
+                📍 {station.address || (() => {
+                  const coords = getStationCoordinates(station);
+                  return coords ? `${coords[0].toFixed(4)}, ${coords[1].toFixed(4)}` : 'Location not available';
+                })()}
               </p>
               <p className="text-sm text-gray-600">
                 💰 Rs. {station.pricing || 'N/A'} per kWh
