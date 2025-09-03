@@ -16,14 +16,19 @@ const AdminChargingManagement = () => {
     notes: ''
   });
   const [settingAmount, setSettingAmount] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchBookings();
   }, []);
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (showRefreshIndicator = false) => {
     try {
-      setLoading(true);
+      if (showRefreshIndicator) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError('');
 
       // Fetch all bookings
@@ -45,7 +50,11 @@ const AdminChargingManagement = () => {
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to fetch bookings');
     } finally {
-      setLoading(false);
+      if (showRefreshIndicator) {
+        setRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
@@ -149,10 +158,23 @@ const AdminChargingManagement = () => {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={fetchBookings}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => fetchBookings(true)}
+            disabled={refreshing}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Refresh
+            {refreshing ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Refresh
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -449,9 +471,17 @@ const AdminChargingManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      {booking.amount_npr ? (
+                      {booking.admin_amount_set && booking.amount_npr > 0 ? (
                         <div className="text-sm">
-                          <p className="font-semibold text-green-600">Rs. {booking.amount_npr}</p>
+                          {booking.payment_status === 'paid' ? (
+                            <p className="font-semibold text-green-600">
+                              Paid (Rs. {booking.amount_npr})
+                            </p>
+                          ) : (
+                            <p className="font-semibold text-orange-600">
+                              Unpaid (Rs. {booking.amount_npr})
+                            </p>
+                          )}
                           {booking.actual_charging_duration && (
                             <p className="text-xs text-gray-500">
                               Duration: {booking.actual_charging_duration}min

@@ -271,7 +271,9 @@ def get_admin_bookings():
                 'charging_completed_at': charging_completed_at_str,
                 'actual_charging_duration': booking.get('actual_charging_duration'),
                 'created_at': created_at_str,
-                'auto_booked': booking.get('auto_booked', False)
+                'auto_booked': booking.get('auto_booked', False),
+                'payment_status': booking.get('payment_status', 'none'),
+                'requires_payment': booking.get('requires_payment', False)
             }
             formatted_bookings.append(formatted_booking)
         
@@ -327,7 +329,9 @@ def get_recent_bookings():
                 'amount_npr': booking.get('amount_npr', 0),
                 'admin_amount_set': booking.get('admin_amount_set', False),
                 'charging_completed': booking.get('charging_completed', False),
-                'created_at': created_at_str
+                'created_at': created_at_str,
+                'payment_status': booking.get('payment_status', 'none'),
+                'requires_payment': booking.get('requires_payment', False)
             }
             formatted_bookings.append(formatted_booking)
         

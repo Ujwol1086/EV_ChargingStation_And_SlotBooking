@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
 import Notification from '../../components/Notification';
+import { useToast } from '../../context/ToastContext';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -18,6 +19,7 @@ const AdminBookings = () => {
     notes: ''
   });
   const [settingAmount, setSettingAmount] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     fetchBookings();
@@ -139,7 +141,7 @@ const AdminBookings = () => {
     e.preventDefault();
     
     if (!selectedBooking || !amountForm.amount_npr) {
-      alert('Please enter a valid amount');
+      showError('Please enter a valid amount');
       return;
     }
 
@@ -154,17 +156,17 @@ const AdminBookings = () => {
       });
 
       if (response.data.success) {
-        alert('Charging amount set successfully! User will be notified.');
+        showSuccess('Charging amount set successfully! User will be notified.');
         setShowAmountModal(false);
         setSelectedBooking(null);
         // Refresh bookings
         fetchBookings();
       } else {
-        alert(response.data.error || 'Failed to set amount');
+        showError(response.data.error || 'Failed to set amount');
       }
 
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to set charging amount');
+      showError(err.response?.data?.error || 'Failed to set charging amount');
     } finally {
       setSettingAmount(false);
     }
@@ -466,7 +468,17 @@ const AdminBookings = () => {
                     <div>
                       <div>{booking.booking_date} at {booking.booking_time}</div>
                       <div>{booking.booking_duration} min • {booking.charger_type}</div>
-                      <div className="font-medium">{formatCurrency(booking.total_cost)}</div>
+                      {booking.admin_amount_set && booking.amount_npr > 0 ? (
+                        <div className="font-medium">
+                          {booking.payment_status === 'paid' ? (
+                            <span className="text-green-600">Paid (Rs. {booking.amount_npr})</span>
+                          ) : (
+                            <span className="text-orange-600">Unpaid (Rs. {booking.amount_npr})</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="font-medium text-gray-400">Not set</div>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
