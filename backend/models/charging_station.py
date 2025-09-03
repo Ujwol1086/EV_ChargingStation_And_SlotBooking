@@ -59,8 +59,6 @@ class ChargingStation:
             logger.error(f"Error fetching charging station {station_id}: {e}")
             return None
     
-
-    
     @staticmethod
     def _format_station_from_db(station_data):
         """Format station data from database to consistent structure"""
@@ -70,12 +68,19 @@ class ChargingStation:
                 station_data['_id'] = str(station_data['_id'])
             
             # Ensure required fields exist with defaults
+            latitude = station_data.get('latitude')
+            longitude = station_data.get('longitude')
+            
+            # Only include coordinates if they are valid numbers
+            if latitude is None or longitude is None or latitude == 0 or longitude == 0:
+                logger.warning(f"Station {station_data.get('id', 'unknown')} has invalid coordinates: lat={latitude}, lng={longitude}")
+            
             return {
                 'id': station_data.get('id'),
                 'name': station_data.get('name'),
                 'company': station_data.get('company', 'Independent'),
-                'latitude': station_data.get('latitude', 0),
-                'longitude': station_data.get('longitude', 0),
+                'latitude': latitude,
+                'longitude': longitude,
                 'address': station_data.get('address', ''),
                 'available_slots': station_data.get('available_slots', 0),
                 'total_slots': station_data.get('total_slots', 0),
@@ -169,5 +174,3 @@ class ChargingStation:
         except Exception as e:
             logger.error(f"Error deleting charging station: {e}")
             return False
-    
- 

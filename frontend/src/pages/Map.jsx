@@ -38,8 +38,8 @@ const Map = ({ selectedStationType }) => {
 
   // Update map center when a station is selected
   useEffect(() => {
-    if (selectedStation) {
-      setMapCenter(selectedStation.location.coordinates);
+    if (selectedStation && selectedStation.latitude && selectedStation.longitude) {
+      setMapCenter([selectedStation.latitude, selectedStation.longitude]);
     }
   }, [selectedStation]);
 
@@ -182,18 +182,20 @@ const Map = ({ selectedStationType }) => {
               </div>
               <p className="text-gray-600 text-sm">
                 Chargers:{" "}
-                {station.chargers
-                  .map((c) => (c.type ?? "Unknown").toString().toUpperCase())
-                  .join(", ")}
+                {station.chargers && station.chargers.length > 0
+                  ? station.chargers
+                      .map((c) => (c.type ?? "Unknown").toString().toUpperCase())
+                      .join(", ")
+                  : "No chargers available"}
               </p>
               <p className="text-gray-600 text-sm">
-                Available: {station.chargers.filter((c) => c.available).length} /{" "}
-                {station.chargers.length}
+                Available: {station.chargers ? station.chargers.filter((c) => c.available).length : 0} /{" "}
+                {station.chargers ? station.chargers.length : 0}
               </p>
               <p className="text-gray-600 text-sm">
-                Address: {station.location.address}
+                Address: {station.address || 'Address not available'}
               </p>
-              {station.amenities.length > 0 && (
+              {station.amenities && station.amenities.length > 0 && (
                 <p className="text-gray-500 text-xs">
                   Amenities: {station.amenities.join(", ")}
                 </p>

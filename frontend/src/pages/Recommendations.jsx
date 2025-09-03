@@ -8,6 +8,7 @@ import {
   useMap,
 } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
+import { getStationCoordinates } from "../utils/mapHelpers";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import RecommendationForm from "../components/RecommendationForm";
@@ -160,20 +161,7 @@ const Recommendations = () => {
     }
   };
 
-  // Helper function to get station coordinates
-  const getStationCoordinates = (station) => {
-    if (!station.location) return null;
 
-    if (Array.isArray(station.location)) {
-      return station.location;
-    } else if (
-      station.location.coordinates &&
-      Array.isArray(station.location.coordinates)
-    ) {
-      return station.location.coordinates;
-    }
-    return null;
-  };
 
   const handleStationSelect = (station) => {
     setSelectedStation(station);

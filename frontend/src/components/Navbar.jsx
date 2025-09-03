@@ -74,7 +74,7 @@ export default function Navbar() {
               </button>
 
               {isStationsOpen && (
-                <div className="absolute left-0 mt-2 w-[250px] bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-50">
+                <div className="absolute left-0 mt-2 w-[250px] bg-gray-900 border border-gray-700 rounded-lg shadow-lg z-[9999]">
                   {stationItems.map((item, idx) => (
                     <Link
                       key={idx}
