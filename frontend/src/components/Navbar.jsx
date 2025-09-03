@@ -19,6 +19,8 @@ export default function Navbar() {
     { name: "HYUNDAI Charging Stations", path: "/map/hyundai" },
     { name: "TATA Charging Stations", path: "/map/tata" },
     { name: "MG Charging Stations", path: "/map/mg" },
+    { name: "CG Charging Stations", path: "/map/cg" },
+    { name: "Independent Charging Stations", path: "/map/independent" },
   ];
 
   return (

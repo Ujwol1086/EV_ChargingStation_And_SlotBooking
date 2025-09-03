@@ -12,7 +12,7 @@ import AdminUsers from "./admin/pages/AdminUsers";
 import AdminBookings from "./admin/pages/AdminBookings";
 import AdminAnalytics from "./admin/pages/AdminAnalytics";
 import AdminChargingManagement from "./admin/pages/AdminChargingManagement";
-import AdminReports from "./admin/pages/AdminReports";
+
 
 // Pages
 import Home from "./pages/Home";
@@ -102,16 +102,7 @@ const App = () => {
                       </ProtectedAdminRoute>
                     }
                   />
-                  <Route
-                    path="/reports"
-                    element={
-                      <ProtectedAdminRoute>
-                        <AdminLayout>
-                          <AdminReports />
-                        </AdminLayout>
-                      </ProtectedAdminRoute>
-                    }
-                  />
+
                 </Routes>
               }
             />

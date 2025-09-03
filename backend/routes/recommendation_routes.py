@@ -47,6 +47,7 @@ def get_recommendations():
         ac_status = data.get('ac_status', False)
         passengers = data.get('passengers', 1)
         terrain = data.get('terrain', 'flat')
+        vehicle_battery_capacity = data.get('vehicle_battery_capacity', 60)  # Vehicle's battery capacity in kWh
         
         # NEW: Destination-based filtering
         destination_city = data.get('destination_city')
@@ -66,7 +67,8 @@ def get_recommendations():
             'passengers': passengers,
             'terrain': terrain,
             'destination_city': destination_city,
-            'max_detour_km': max_detour_km
+            'max_detour_km': max_detour_km,
+            'vehicle_battery_capacity': vehicle_battery_capacity
         }
         
         # Only add non-None values
@@ -121,6 +123,15 @@ def get_recommendations():
         
         if terrain and terrain.lower() not in ['flat', 'hilly', 'steep']:
             return jsonify({'error': 'Terrain must be one of: flat, hilly, steep'}), 400
+        
+        if vehicle_battery_capacity is not None:
+            try:
+                vehicle_battery_capacity = float(vehicle_battery_capacity)
+                if not (10 <= vehicle_battery_capacity <= 200):
+                    return jsonify({'error': 'Vehicle battery capacity must be between 10 and 200 kWh'}), 400
+                user_context['vehicle_battery_capacity'] = vehicle_battery_capacity
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Vehicle battery capacity must be a valid number'}), 400
         
         # Validate destination city if provided
         if destination_city:
@@ -483,6 +494,21 @@ def book_charging_slot():
         preferred_time = data.get('preferred_time')
         
         if preferred_date and preferred_time:
+            # CRITICAL: Check slot availability BEFORE creating booking
+            availability_check = Booking.check_slot_availability(
+                data['station_id'], 
+                data['charger_type'], 
+                preferred_date, 
+                preferred_time
+            )
+            
+            if not availability_check['available']:
+                return jsonify({
+                    'success': False,
+                    'error': f'No slots available for {preferred_date} at {preferred_time}. Only {availability_check["available_slots"]} slots available.',
+                    'availability': availability_check
+                }), 400
+            
             # Use time-based booking
             booking_data = {
                 'booking_id': f"TIMED_{data['station_id']}_{user_id}_{int(time.time())}",
@@ -494,7 +520,9 @@ def book_charging_slot():
                 'user_location': data.get('user_location', []),
                 'distance_to_station': 0,
                 'urgency_level': data.get('urgency_level', 'medium'),
-                'plug_type': data.get('plug_type', data['charger_type'])
+                'plug_type': data.get('plug_type', data['charger_type']),
+                'booking_date': preferred_date,
+                'booking_time': preferred_time
             }
             
             # ALWAYS fetch fresh station details from database to ensure consistency
@@ -653,12 +681,12 @@ def book_charging_slot():
                     'booking_time': booking['booking_time'].isoformat() if 'booking_time' in booking else None,
                     'estimated_duration': booking_data['booking_duration'],
                     'distance_to_station': booking_data['distance_to_station'],
-                    'amount_npr': payment_calculation['amount_npr'],
-                    'amount_paisa': payment_calculation['amount_paisa'],
+                    'amount_npr': 0,  # Will be set by admin after charging
+                    'amount_paisa': 0,  # Will be set by admin after charging
                     'user_id': user_id
                 },
-                'payment_required': True,
-                'payment_amount': payment_calculation
+                'payment_required': False,  # No upfront payment required
+                'message': 'Booking confirmed! You will pay at the station based on actual usage.'
             }
             
             logger.info(f"Manual booking created for user {user_id}: {booking_id}")
@@ -933,6 +961,7 @@ def get_route_recommendations():
         urgency_level = data.get('urgency_level', 'medium')
         ac_status = data.get('ac_status', True)  # Default AC on for long trips
         passengers = data.get('passengers', 2)   # Default 2 passengers for trips
+        vehicle_battery_capacity = data.get('vehicle_battery_capacity', 60)  # Default battery capacity for route travel
         
         # Build user context for route-based recommendations
         user_context = {
@@ -943,6 +972,7 @@ def get_route_recommendations():
             'passengers': passengers,
             'terrain': terrain,
             'max_detour_km': max_detour_km,
+            'vehicle_battery_capacity': vehicle_battery_capacity,
             'route_mode': True  # Flag to indicate this is route-based
         }
         

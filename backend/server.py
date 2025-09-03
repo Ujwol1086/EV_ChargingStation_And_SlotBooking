@@ -7,7 +7,7 @@ from routes.recommendation_routes import recommendation_bp
 from routes.admin_routes import admin_bp
 from routes.payment_routes import payment_bp
 from routes.booking_routes import booking_bp
-from routes.reporting_routes import reporting_bp
+
 import logging
 import threading
 import time
@@ -57,7 +57,7 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(payment_bp, url_prefix='/api/payments')
     app.register_blueprint(booking_bp, url_prefix='/api/bookings')
-    app.register_blueprint(reporting_bp, url_prefix='/api/reports')
+
     
     # Test route
     @app.route("/")

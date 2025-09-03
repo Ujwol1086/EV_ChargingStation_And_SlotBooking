@@ -17,6 +17,7 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
   const [drivingMode, setDrivingMode] = useState("random");
   const [destinationCity, setDestinationCity] = useState("");
   const [maxDetourKm, setMaxDetourKm] = useState(20);
+  const [vehicleBatteryCapacity, setVehicleBatteryCapacity] = useState(60); // Vehicle's battery capacity in kWh
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -56,7 +57,8 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
       weather,
       driving_mode: drivingMode,
       destination_city: destinationCity,
-      max_detour_km: maxDetourKm
+      max_detour_km: maxDetourKm,
+      vehicle_battery_capacity: vehicleBatteryCapacity
     };
 
     onSubmit(formData);
@@ -64,7 +66,7 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
 
   return (
     <form onSubmit={handleSubmit} className="bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-xl border border-gray-700/50 rounded-3xl shadow-2xl p-8 hover:border-cyan-500/50 transition-all duration-500">
-      <h2 className="text-3xl font-bold text-white mb-8 text-center bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+      <h2 className="text-3xl font-bold mb-8 text-center bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
         Smart Charging Station Recommendations
       </h2>
 
@@ -109,6 +111,45 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
           passengers={passengers}
           onPassengersChange={setPassengers}
         />
+        
+        {/* Vehicle Battery Capacity Input */}
+        <div className="mt-6 space-y-3">
+          <label className="block text-sm font-medium text-gray-300">
+            Vehicle Battery Capacity (kWh)
+          </label>
+          <div className="flex items-center space-x-4">
+            <input
+              type="range"
+              min="20"
+              max="150"
+              value={vehicleBatteryCapacity}
+              onChange={(e) => setVehicleBatteryCapacity(parseInt(e.target.value))}
+              className="flex-1 h-3 bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+            />
+            <div className="w-20 text-center">
+              <span className="text-cyan-400 font-bold text-lg">{vehicleBatteryCapacity}</span>
+              <span className="text-gray-400 text-sm ml-1">kWh</span>
+            </div>
+          </div>
+          <div className="flex justify-between text-sm text-gray-400">
+            <span>20 kWh</span>
+            <span className="text-gray-500">Typical: 40-80 kWh</span>
+            <span>150 kWh</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            Your vehicle's total battery capacity. Used to calculate range and charging needs.
+          </p>
+          {/* Range Display */}
+          <div className="mt-2 p-3 bg-gray-800/30 border border-gray-600/50 rounded-lg">
+            <div className="text-sm text-gray-300">
+              <span className="text-cyan-400">Estimated Range:</span>
+              <span className="ml-2 font-medium">
+                {Math.round(vehicleBatteryCapacity * 5)} - {Math.round(vehicleBatteryCapacity * 6)} km
+              </span>
+              <span className="text-gray-500 text-xs ml-2">(at current battery level)</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Trip Settings */}
@@ -203,6 +244,10 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
           <li className="flex items-start gap-2">
             <span className="text-cyan-400 mt-1">•</span>
             <span>Hilly terrain requires more energy</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-cyan-400 mt-1">•</span>
+            <span>Larger battery capacity affects range calculations and charging recommendations</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-cyan-400 mt-1">•</span>
