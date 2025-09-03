@@ -43,3 +43,27 @@ def get_charging_stations():
     except Exception as e:
         logger.error(f"Error fetching stations: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@stations_bp.route('/<station_id>', methods=['GET'])
+def get_station_by_id(station_id):
+    """Get a specific charging station by ID"""
+    try:
+        from models.charging_station import ChargingStation
+        
+        # Get station from database
+        station = ChargingStation.get_by_id(station_id)
+        
+        if not station:
+            return jsonify({
+                'success': False,
+                'error': 'Station not found'
+            }), 404
+        
+        return jsonify({
+            'success': True,
+            'station': station
+        })
+    except Exception as e:
+        logger.error(f"Error fetching station {station_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

@@ -75,10 +75,6 @@ const RecommendationCard = ({
       if (response.data.success) {
         alert(`Instant booking successful! Booking ID: ${response.data.booking.booking_id}`);
         onAutoBook(response.data.booking);
-        // Trigger refresh of recommendations/bookings
-        if (window.location.pathname.includes('recommendations')) {
-          window.location.reload();
-        }
       } else {
         alert(`Instant booking failed: ${response.data.error}`);
       }
