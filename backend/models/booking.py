@@ -27,6 +27,20 @@ class Booking:
                 logger.error("Database connection not established")
                 return None
             
+            # Check if this is a timed booking
+            booking_date = booking_data.get('booking_date')
+            booking_time = booking_data.get('booking_time')
+            booking_datetime = None
+            
+            if booking_date and booking_time:
+                # Parse the booking datetime for timed bookings
+                from datetime import datetime
+                try:
+                    booking_datetime = datetime.strptime(f"{booking_date} {booking_time}", "%Y-%m-%d %H:%M")
+                except ValueError as e:
+                    logger.error(f"Invalid booking date/time format: {e}")
+                    return None
+            
             # Create booking document
             booking = {
                 "user_id": ObjectId(user_id),
@@ -51,6 +65,12 @@ class Booking:
                 "amount_paisa": booking_data.get('amount_paisa', 0),
                 "requires_payment": booking_data.get('requires_payment', True)
             }
+            
+            # Add datetime fields for timed bookings
+            if booking_datetime:
+                booking["booking_datetime"] = booking_datetime
+                booking["booking_date"] = booking_date
+                booking["booking_time"] = booking_time
             
             # Insert booking into database
             result = mongo.db.bookings.insert_one(booking)
@@ -324,11 +344,22 @@ class Booking:
                 }
             
             # Count existing bookings for this time slot
+            # Check both booking_datetime (for timed bookings) and booking_date + booking_time (for legacy bookings)
             existing_bookings = mongo.db.bookings.count_documents({
                 "station_id": station_id,
                 "charger_type": charger_type,
                 "status": {"$in": ["confirmed", "in_progress"]},
-                "booking_datetime": {"$gte": slot_start, "$lt": slot_end}
+                "$or": [
+                    # New timed bookings with booking_datetime
+                    {
+                        "booking_datetime": {"$gte": slot_start, "$lt": slot_end}
+                    },
+                    # Legacy bookings with separate date and time fields
+                    {
+                        "booking_date": booking_date,
+                        "booking_time": booking_time
+                    }
+                ]
             })
             
             available_slots = total_slots - existing_bookings
@@ -381,6 +412,7 @@ class Booking:
                     'available': availability['available'],
                     'available_slots': availability['available_slots'],
                     'total_slots': availability['total_slots'],
+                    'existing_bookings': availability['existing_bookings'],
                     'display_time': f"{hour % 12 if hour % 12 != 0 else 12}:00 {'AM' if hour < 12 else 'PM'}"
                 })
             
