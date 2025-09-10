@@ -633,7 +633,10 @@ def book_charging_slot():
                 'charging_completed': False,
                 'status': 'confirmed',
                 'payment_status': 'none',
-                'payment_method': 'pay_at_station'
+                'payment_method': 'pay_at_station',
+                # Add date and time fields for timed bookings
+                'booking_date': data.get('preferred_date'),
+                'booking_time': data.get('preferred_time')
             }
             
             # ALWAYS fetch fresh station details from database to ensure consistency
