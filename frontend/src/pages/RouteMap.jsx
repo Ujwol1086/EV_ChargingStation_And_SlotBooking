@@ -680,63 +680,6 @@ const RouteMap = () => {
         </div>
       )}
 
-      {/* ETA Settings Panel */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">⚙️ ETA Calculation Settings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Driving Mode</label>
-              <select
-                value={etaSettings.drivingMode}
-                onChange={(e) => setEtaSettings({...etaSettings, drivingMode: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="economy">Economy (30 km/h)</option>
-                <option value="sports">Sports (60 km/h)</option>
-                <option value="random">Random (45 km/h)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Traffic</label>
-              <select
-                value={etaSettings.trafficCondition}
-                onChange={(e) => setEtaSettings({...etaSettings, trafficCondition: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="light">Light</option>
-                <option value="medium">Medium</option>
-                <option value="heavy">Heavy</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Weather</label>
-              <select
-                value={etaSettings.weather}
-                onChange={(e) => setEtaSettings({...etaSettings, weather: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="clear">Clear</option>
-                <option value="rain">Rain</option>
-                <option value="fog">Fog</option>
-                <option value="snow">Snow</option>
-              </select>
-            </div>
-            
-
-          </div>
-          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <span className="font-medium">💡 ETA Info:</span> {' '}
-              Real-time ETA is calculated using your current speed when available, otherwise uses the driving mode speed above.
-              Traffic conditions already consider time of day patterns (peak hours, off-peak, night).
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Map */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="bg-white rounded-lg shadow-md overflow-hidden" style={{ height: "600px" }}>
