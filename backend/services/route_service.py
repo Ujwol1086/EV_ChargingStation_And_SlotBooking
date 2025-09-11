@@ -35,7 +35,7 @@ class RouteService:
     
     def get_osrm_route(self, start_coords, end_coords):
         """
-        Get route from OSRM API using real road data
+        Get optimized route from OSRM API using real road data with multiple route options
         
         Args:
             start_coords: [lat, lon] of start point
@@ -51,23 +51,27 @@ class RouteService:
             # OSRM expects coordinates in lon,lat format
             coordinates = f"{start_lon},{start_lat};{end_lon},{end_lat}"
             
-            # Try primary OSRM server first
+            # Try primary OSRM server first with optimization parameters
             url = f"{self.osrm_base_url}/route/v1/driving/{coordinates}"
             params = {
                 'overview': 'full',
                 'geometries': 'geojson',
                 'steps': 'true',
-                'annotations': 'true'
+                'annotations': 'true',
+                'alternatives': 'true',  # Get alternative routes
+                'continue_straight': 'false',  # Allow route optimization
+                'overview': 'full'  # Get full geometry
             }
             
-            logger.info(f"Requesting OSRM route from {start_coords} to {end_coords}")
+            logger.info(f"Requesting optimized OSRM route from {start_coords} to {end_coords}")
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=15)
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get('code') == 'Ok' and data.get('routes'):
-                    return self.process_osrm_response(data)
+                    # Process and select the best route from alternatives
+                    return self.process_osrm_response_optimized(data)
                 else:
                     logger.warning(f"OSRM returned no routes: {data.get('message', 'Unknown error')}")
             else:
@@ -83,18 +87,46 @@ class RouteService:
         # Try backup server
         try:
             backup_url = f"{self.backup_osrm_url}/route/v1/driving/{coordinates}"
-            response = requests.get(backup_url, params=params, timeout=10)
+            response = requests.get(backup_url, params=params, timeout=15)
             
             if response.status_code == 200:
                 data = response.json()
                 if data.get('code') == 'Ok' and data.get('routes'):
                     logger.info("Successfully got route from backup OSRM server")
-                    return self.process_osrm_response(data)
+                    return self.process_osrm_response_optimized(data)
                     
         except Exception as e:
             logger.warning(f"Backup OSRM server also failed: {e}")
             
         return None
+    
+    def process_osrm_response_optimized(self, osrm_data):
+        """
+        Process OSRM API response with multiple route alternatives and select the optimal one
+        
+        Args:
+            osrm_data: Response from OSRM API with alternatives
+            
+        Returns:
+            Dict with processed route data for the optimal route
+        """
+        try:
+            routes = osrm_data.get('routes', [])
+            if not routes:
+                return None
+            
+            # Find the shortest route by distance
+            shortest_route = min(routes, key=lambda r: r.get('distance', float('inf')))
+            
+            logger.info(f"Found {len(routes)} route alternatives, selected shortest: {shortest_route.get('distance', 0)/1000:.2f}km")
+            
+            # Process the selected route using the existing method
+            return self.process_osrm_response({'routes': [shortest_route]})
+            
+        except Exception as e:
+            logger.error(f"Error processing optimized OSRM response: {e}")
+            # Fallback to original processing
+            return self.process_osrm_response(osrm_data)
     
     def process_osrm_response(self, osrm_data):
         """
@@ -444,4 +476,90 @@ class RouteService:
                 'waypoints': [],
                 'metrics': {},
                 'instructions': []
+            }
+    
+    def get_multiple_route_options(self, user_location, station_location, max_routes=3):
+        """
+        Get multiple route options to a station for comparison
+        
+        Args:
+            user_location: [lat, lon] of user
+            station_location: [lat, lon] of charging station
+            max_routes: Maximum number of route options to return
+        
+        Returns:
+            Dict with multiple route options sorted by distance
+        """
+        try:
+            logger.info(f"Getting multiple route options from {user_location} to {station_location}")
+            
+            # Try OSRM API for multiple routes
+            start_lat, start_lon = user_location
+            end_lat, end_lon = station_location
+            
+            coordinates = f"{start_lon},{start_lat};{end_lon},{end_lat}"
+            url = f"{self.osrm_base_url}/route/v1/driving/{coordinates}"
+            params = {
+                'overview': 'full',
+                'geometries': 'geojson',
+                'steps': 'true',
+                'annotations': 'true',
+                'alternatives': 'true',
+                'continue_straight': 'false'
+            }
+            
+            response = requests.get(url, params=params, timeout=15)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('code') == 'Ok' and data.get('routes'):
+                    routes = data['routes']
+                    
+                    # Sort routes by distance (shortest first)
+                    sorted_routes = sorted(routes, key=lambda r: r.get('distance', float('inf')))
+                    
+                    # Process up to max_routes
+                    route_options = []
+                    for i, route in enumerate(sorted_routes[:max_routes]):
+                        route_data = self.process_osrm_response({'routes': [route]})
+                        if route_data:
+                            route_data['route_index'] = i + 1
+                            route_data['total_alternatives'] = len(routes)
+                            route_options.append(route_data)
+                    
+                    logger.info(f"Found {len(route_options)} route options, shortest: {route_options[0]['metrics']['total_distance']}km")
+                    
+                    return {
+                        'success': True,
+                        'route_options': route_options,
+                        'shortest_route': route_options[0] if route_options else None,
+                        'total_alternatives': len(routes)
+                    }
+            
+            # Fallback to single route
+            single_route = self.get_route_to_station(user_location, station_location)
+            if single_route and single_route.get('success'):
+                return {
+                    'success': True,
+                    'route_options': [single_route],
+                    'shortest_route': single_route,
+                    'total_alternatives': 1
+                }
+            
+            return {
+                'success': False,
+                'error': 'No routes found',
+                'route_options': [],
+                'shortest_route': None,
+                'total_alternatives': 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting multiple route options: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'route_options': [],
+                'shortest_route': None,
+                'total_alternatives': 0
             }

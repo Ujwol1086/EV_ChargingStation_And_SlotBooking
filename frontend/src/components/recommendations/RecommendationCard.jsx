@@ -58,7 +58,7 @@ const RecommendationCard = ({
     try {
       const bookingData = {
         station_id: station.id,
-        charger_type: station.connector_types?.[0] || 'Type 2',
+        charger_type: station.connector_types?.[0] || 'CCS2',
         urgency_level: 'high',
         booking_duration: 60,
         station_details: {
@@ -94,7 +94,7 @@ const RecommendationCard = ({
   const getAvailabilityDisplay = () => {
     if (station.charger_availability) {
       // Use real-time availability data
-      const chargerType = station.connector_types?.[0] || 'Type 2';
+      const chargerType = station.connector_types?.[0] || 'CCS2';
       const availability = station.charger_availability[chargerType];
       
       if (availability) {

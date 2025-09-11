@@ -34,7 +34,7 @@ const StationCard = ({ station, onStationClick }) => {
               {station.name}
             </h3>
             <p className="text-sm text-gray-300 mt-1">
-              {station.location?.address || `${station.city || 'Unknown'}, ${station.province || 'Nepal'}`}
+              {station.address || station.location?.address || `${station.city || 'Unknown'}, ${station.province || 'Nepal'}`}
             </p>
             {station.note && (
               <p className="text-xs text-red-400 mt-1 italic">

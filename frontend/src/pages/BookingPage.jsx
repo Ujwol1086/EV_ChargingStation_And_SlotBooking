@@ -40,11 +40,11 @@ const BookingPage = () => {
   useEffect(() => {
     if (station && !formData.charger_type) {
       // Extract charger types from chargers array
-      const chargerTypes = station.chargers?.map(charger => charger.type) || ['Type 2'];
+      const chargerTypes = station.chargers?.map(charger => charger.type) || ['CCS2'];
       setFormData(prev => ({
         ...prev,
-        charger_type: chargerTypes[0] || 'Type 2',
-        plug_type: chargerTypes[0] || 'Type 2'
+        charger_type: chargerTypes[0] || 'CCS2',
+        plug_type: chargerTypes[0] || 'CCS2'
       }));
     }
   }, [station]);
@@ -227,7 +227,7 @@ const BookingPage = () => {
 
   const availableSlots = station.available_slots || 0;
   const totalSlots = station.total_slots || 0;
-  const connectorTypes = station.chargers?.map(charger => charger.type) || ['Type 2', 'CCS', 'CHAdeMO'];
+  const connectorTypes = station.chargers?.map(charger => charger.type) || ['CCS2', 'GBT'];
   const today = new Date().toISOString().split('T')[0];
 
   return (

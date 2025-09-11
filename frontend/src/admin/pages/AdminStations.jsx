@@ -32,7 +32,7 @@ const AdminStations = () => {
           pricing_per_kwh: station.pricing_per_kwh || 0,
           rating: station.rating || 0,
           status: station.status || 'active',
-          connector_types: Array.isArray(station.connector_types) ? station.connector_types : ['Type 2'],
+          connector_types: Array.isArray(station.connector_types) ? station.connector_types : ['CCS2'],
           features: Array.isArray(station.features) ? station.features : [],
           operating_hours: station.operating_hours || '24/7'
         }));
@@ -350,7 +350,7 @@ const AddStationModal = ({ onClose, onAdd, showError }) => {
     longitude: '',
     total_slots: '',
     pricing_per_kwh: '',
-    connector_types: ['Type 2'],
+    connector_types: ['CCS2'],
     features: [],
     operating_hours: '24/7',
     status: 'active'
@@ -491,7 +491,7 @@ const AddStationModal = ({ onClose, onAdd, showError }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Connector Types</label>
               <div className="space-y-2">
-                {['Type 2', 'CCS', 'CHAdeMO', 'Type 1'].map((type) => (
+                {['CCS2', 'GBT'].map((type) => (
                   <label key={type} className="flex items-center">
                     <input
                       type="checkbox"
@@ -607,7 +607,7 @@ const EditStationModal = ({ station, onClose, onEdit, showError }) => {
     pricing_per_kwh: station.pricing_per_kwh,
     status: station.status,
     operating_hours: station.operating_hours,
-    connector_types: station.connector_types || ['Type 2'],
+    connector_types: station.connector_types || ['CCS2'],
     features: station.features || []
   });
 
@@ -642,7 +642,7 @@ const EditStationModal = ({ station, onClose, onEdit, showError }) => {
     
     // Ensure connector_types and features are arrays
     if (!Array.isArray(formData.connector_types)) {
-      formData.connector_types = ['Type 2'];
+      formData.connector_types = ['CCS2'];
     }
     if (!Array.isArray(formData.features)) {
       formData.features = [];
@@ -782,7 +782,7 @@ const EditStationModal = ({ station, onClose, onEdit, showError }) => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Connector Types</label>
               <div className="space-y-2">
-                {['Type 2', 'CCS', 'CHAdeMO', 'Type 1'].map((type) => (
+                {['CCS2', 'GBT'].map((type) => (
                   <label key={type} className="flex items-center">
                     <input
                       type="checkbox"

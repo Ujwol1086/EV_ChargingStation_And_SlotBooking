@@ -9,8 +9,7 @@ const AdminLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
-    logout();
-    navigate('/login');
+    logout(); // logout() now handles the redirect automatically
   };
 
   const isActive = (path) => location.pathname === path;

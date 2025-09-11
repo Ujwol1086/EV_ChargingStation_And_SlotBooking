@@ -16,7 +16,7 @@ class Booking:
         Args:
             user_id: ID of the user making the booking
             station_id: ID of the charging station
-            charger_type: Type of charger (CCS, CHAdeMO, Type 2)
+            charger_type: Type of charger (CCS2, GBT)
             booking_data: Additional booking information
         """
         try:
