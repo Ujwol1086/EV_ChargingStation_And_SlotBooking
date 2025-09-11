@@ -120,6 +120,8 @@ export function AuthProvider({ children }) {
     setUser(null);
     setIsAuthenticated(false);
     setIsAdmin(false);
+    // Redirect to login page after logout
+    window.location.href = '/login';
   };
 
   return (

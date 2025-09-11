@@ -22,6 +22,7 @@ import Dashboard from "./pages/Dashboard";
 import Map from "./pages/Map";
 import StationsList from "./pages/StationsList";
 import Recommendations from "./pages/Recommendations";
+import TripPlanner from "./pages/TripPlanner";
 import RouteMap from "./pages/RouteMap";
 import BookingPage from "./pages/BookingPage";
 import PaymentPage from "./pages/PaymentPage";
@@ -146,6 +147,14 @@ const App = () => {
                       />
                       <Route path="/stations" element={<StationsList />} />
                       <Route path="/recommendations" element={<Recommendations />} />
+                      <Route
+                        path="/trip-planner"
+                        element={
+                          <ProtectedRoute>
+                            <TripPlanner />
+                          </ProtectedRoute>
+                        }
+                      />
                       <Route
                         path="/auth/google/callback"
                         element={<GoogleOAuthCallback />}

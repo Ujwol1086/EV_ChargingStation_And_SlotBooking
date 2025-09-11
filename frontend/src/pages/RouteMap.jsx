@@ -170,19 +170,23 @@ const RouteMap = () => {
     }
   }, [routeInfo.distance, userLocation, station]);
 
-  // Function to calculate route using OSRM API
+  // Function to calculate route using OSRM API with optimization
   const calculateRoute = async (start, end) => {
     try {
-      // Use OSRM API for routing
+      // Use OSRM API for routing with optimization parameters
       const response = await fetch(
-        `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson`
+        `https://router.project-osrm.org/route/v1/driving/${start[1]},${start[0]};${end[1]},${end[0]}?overview=full&geometries=geojson&alternatives=true&continue_straight=false`
       );
       
       if (response.ok) {
         const data = await response.json();
         if (data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          const coordinates = route.geometry.coordinates;
+          // Find the shortest route by distance
+          const shortestRoute = data.routes.reduce((shortest, current) => 
+            current.distance < shortest.distance ? current : shortest
+          );
+          
+          const coordinates = shortestRoute.geometry.coordinates;
           
           // Convert from [lng, lat] to [lat, lng] format for Leaflet
           const routePoints = coordinates.map(coord => [coord[1], coord[0]]);
@@ -190,9 +194,11 @@ const RouteMap = () => {
           
           // Set route information
           setRouteInfo({
-            distance: (route.distance / 1000).toFixed(1), // Convert from meters to km
-            duration: Math.round(route.duration / 60) // Convert from seconds to minutes
+            distance: (shortestRoute.distance / 1000).toFixed(1), // Convert from meters to km
+            duration: Math.round(shortestRoute.duration / 60) // Convert from seconds to minutes
           });
+          
+          console.log(`Selected shortest route: ${(shortestRoute.distance / 1000).toFixed(1)}km from ${data.routes.length} alternatives`);
         } else {
           // Fallback to straight line
           setRoute([start, end]);
@@ -593,7 +599,7 @@ const RouteMap = () => {
                 <div>
                   <p className="text-sm text-gray-600">Route Type</p>
                   <p className="font-semibold text-gray-800">
-                    {route && route.length > 2 ? 'Optimized Route' : 'Direct Route'}
+                    {route && route.length > 2 ? 'Shortest Route' : 'Direct Route'}
                   </p>
                 </div>
               </div>
@@ -602,7 +608,7 @@ const RouteMap = () => {
               <p className="text-sm text-blue-700">
                 <span className="font-medium">💡 Tip:</span> {' '}
                 {route && route.length > 2 
-                  ? 'This route follows actual roads and considers traffic conditions for the most efficient path.'
+                  ? 'This route shows the shortest path among multiple alternatives, optimized for distance and efficiency.'
                   : 'Showing direct route as fallback. The actual driving route follows roads and may be longer.'
                 }
               </p>
@@ -679,63 +685,6 @@ const RouteMap = () => {
           </div>
         </div>
       )}
-
-      {/* ETA Settings Panel */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-        <div className="bg-white rounded-lg shadow-md p-4">
-          <h3 className="text-lg font-semibold text-gray-800 mb-3">⚙️ ETA Calculation Settings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Driving Mode</label>
-              <select
-                value={etaSettings.drivingMode}
-                onChange={(e) => setEtaSettings({...etaSettings, drivingMode: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="economy">Economy (30 km/h)</option>
-                <option value="sports">Sports (60 km/h)</option>
-                <option value="random">Random (45 km/h)</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Traffic</label>
-              <select
-                value={etaSettings.trafficCondition}
-                onChange={(e) => setEtaSettings({...etaSettings, trafficCondition: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="light">Light</option>
-                <option value="medium">Medium</option>
-                <option value="heavy">Heavy</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Weather</label>
-              <select
-                value={etaSettings.weather}
-                onChange={(e) => setEtaSettings({...etaSettings, weather: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="clear">Clear</option>
-                <option value="rain">Rain</option>
-                <option value="fog">Fog</option>
-                <option value="snow">Snow</option>
-              </select>
-            </div>
-            
-
-          </div>
-          <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <span className="font-medium">💡 ETA Info:</span> {' '}
-              Real-time ETA is calculated using your current speed when available, otherwise uses the driving mode speed above.
-              Traffic conditions already consider time of day patterns (peak hours, off-peak, night).
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Map */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">

@@ -103,7 +103,7 @@ export default function Navbar() {
             </Link>
 
             <Link
-              to="/recommendations"
+              to="/trip-planner"
               className="relative text-gray-300 hover:text-white transition-colors duration-300 group text-lg font-medium"
             >
               Trip Planner

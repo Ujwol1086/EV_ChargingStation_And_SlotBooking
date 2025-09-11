@@ -35,9 +35,22 @@ def get_admin_stats():
             "status": {"$in": ["confirmed", "in_progress"]}
         })
         
-        # Calculate total revenue from completed bookings
-        completed_bookings = mongo.db.bookings.find({"status": "completed"})
-        total_revenue = sum(booking.get('total_cost', 0) for booking in completed_bookings)
+        # Calculate total revenue ONLY from successfully paid bookings
+        # Only count bookings where users have actually paid (payment_status = 'paid')
+        paid_bookings = mongo.db.bookings.find({"payment_status": "paid"})
+        total_revenue = sum(booking.get('amount_npr', 0) for booking in paid_bookings)
+        
+        # Additional verification: also check for completed bookings with payment verification
+        verified_completed_bookings = mongo.db.bookings.find({
+            "status": "completed",
+            "payment_verified": True
+        })
+        verified_revenue = sum(booking.get('amount_npr', 0) for booking in verified_completed_bookings)
+        
+        # Use the higher of the two (paid bookings or verified completed)
+        total_revenue = max(total_revenue, verified_revenue)
+        
+        logger.info(f"Revenue calculation: paid_bookings={len(list(paid_bookings))}, verified_completed={len(list(verified_completed_bookings))}, total_revenue={total_revenue}")
         
         # Calculate average rating from stations
         station_ratings = [station.get('rating', 0) for station in stations if station.get('rating')]
@@ -121,7 +134,7 @@ def create_station():
             'total_slots': int(data['total_slots']),
             'available_slots': int(data['total_slots']),  # Initially all slots are available
             'pricing_per_kwh': float(data['pricing_per_kwh']),
-            'connector_types': data.get('connector_types', ['Type 2']),
+            'connector_types': data.get('connector_types', ['CCS2']),
             'features': data.get('features', []),
             'operating_hours': data.get('operating_hours', '24/7'),
             'status': data.get('status', 'active'),
@@ -135,7 +148,7 @@ def create_station():
         # Create chargers based on total slots
         for i in range(int(data['total_slots'])):
             station_data['chargers'].append({
-                'type': data.get('connector_types', ['Type 2'])[0] if data.get('connector_types') else 'Type 2',
+                'type': data.get('connector_types', ['CCS2'])[0] if data.get('connector_types') else 'CCS2',
                 'power': '22kW',  # Default power
                 'available': True,
                 'connector_id': f"{station_data['id']}_charger_{i+1}"
@@ -396,13 +409,26 @@ def get_admin_analytics():
         else:
             start_date = end_date - timedelta(days=30)
         
-        # Revenue analytics
-        completed_bookings = list(mongo.db.bookings.find({
-            "status": "completed",
+        # Revenue analytics - ONLY from successfully paid bookings
+        # Only count bookings where users have actually paid (payment_status = 'paid')
+        paid_bookings = list(mongo.db.bookings.find({
+            "payment_status": "paid",
             "created_at": {"$gte": start_date, "$lte": end_date}
         }))
+        total_revenue = sum(booking.get('amount_npr', 0) for booking in paid_bookings)
         
-        total_revenue = sum(booking.get('total_cost', 0) for booking in completed_bookings)
+        # Additional verification: also check for completed bookings with payment verification
+        verified_completed_bookings = list(mongo.db.bookings.find({
+            "status": "completed",
+            "payment_verified": True,
+            "created_at": {"$gte": start_date, "$lte": end_date}
+        }))
+        verified_revenue = sum(booking.get('amount_npr', 0) for booking in verified_completed_bookings)
+        
+        # Use the higher of the two (paid bookings or verified completed)
+        total_revenue = max(total_revenue, verified_revenue)
+        
+        logger.info(f"Analytics revenue calculation: paid_bookings={len(paid_bookings)}, verified_completed={len(verified_completed_bookings)}, total_revenue={total_revenue}")
         
         # Monthly revenue breakdown
         monthly_revenue = []
@@ -411,12 +437,21 @@ def get_admin_analytics():
             month_start = current_date.replace(day=1)
             month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
             
-            month_bookings = list(mongo.db.bookings.find({
+            # Get only successfully paid bookings for the month
+            month_paid = list(mongo.db.bookings.find({
+                "payment_status": "paid",
+                "created_at": {"$gte": month_start, "$lte": month_end}
+            }))
+            month_verified = list(mongo.db.bookings.find({
                 "status": "completed",
+                "payment_verified": True,
                 "created_at": {"$gte": month_start, "$lte": month_end}
             }))
             
-            month_amount = sum(booking.get('total_cost', 0) for booking in month_bookings)
+            paid_amount = sum(booking.get('amount_npr', 0) for booking in month_paid)
+            verified_amount = sum(booking.get('amount_npr', 0) for booking in month_verified)
+            
+            month_amount = max(paid_amount, verified_amount)
             monthly_revenue.append({
                 'month': current_date.strftime('%b'),
                 'amount': month_amount
@@ -754,6 +789,208 @@ def set_charging_amount(booking_id):
             
     except Exception as e:
         logger.error(f"Error setting charging amount: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/verify-payment-status/<booking_id>', methods=['POST'])
+@require_admin
+def verify_payment_status(booking_id):
+    """Verify and update payment status for a specific booking"""
+    try:
+        # Get booking details
+        booking = mongo.db.bookings.find_one({"booking_id": booking_id})
+        if not booking:
+            return jsonify({'success': False, 'error': 'Booking not found'}), 404
+        
+        # Check if booking has payment data
+        payment_data = booking.get('payment_data', {})
+        khalti_idx = payment_data.get('khalti_idx') or booking.get('khalti_idx')
+        
+        if not khalti_idx:
+            return jsonify({
+                'success': False, 
+                'error': 'No payment information found for this booking',
+                'booking_status': booking.get('status'),
+                'payment_status': booking.get('payment_status'),
+                'admin_amount_set': booking.get('admin_amount_set')
+            }), 400
+        
+        # If payment status is already paid, return current status
+        if booking.get('payment_status') == 'paid':
+            return jsonify({
+                'success': True,
+                'message': 'Payment already verified',
+                'booking_id': booking_id,
+                'payment_status': 'paid',
+                'amount_npr': booking.get('amount_npr', 0)
+            })
+        
+        # Try to verify with Khalti (if not in test mode)
+        from routes.payment_routes import KHALTI_SECRET_KEY, KHALTI_PUBLIC_KEY, KHALTI_BASE_URL
+        import requests
+        
+        if (not KHALTI_SECRET_KEY or not KHALTI_PUBLIC_KEY or 
+            KHALTI_SECRET_KEY == 'test_secret_key_12345' or 
+            KHALTI_PUBLIC_KEY == 'test_public_key_12345'):
+            # Test mode - simulate successful payment
+            logger.info(f"Test mode: Simulating successful payment verification for {booking_id}")
+            
+            # Update booking to paid status
+            result = mongo.db.bookings.update_one(
+                {"booking_id": booking_id},
+                {"$set": {
+                    "payment_status": "paid",
+                    "status": "confirmed",
+                    "requires_payment": False,
+                    "payment_verified": True,
+                    "payment_completed_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+            
+            if result.modified_count > 0:
+                return jsonify({
+                    'success': True,
+                    'message': 'Payment verified successfully (test mode)',
+                    'booking_id': booking_id,
+                    'payment_status': 'paid',
+                    'test_mode': True
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to update payment status'
+                }), 500
+        else:
+            # Real Khalti verification
+            try:
+                verification_payload = {"pidx": khalti_idx}
+                response = requests.post(
+                    f"{KHALTI_BASE_URL}/epayment/lookup/",
+                    json=verification_payload,
+                    headers={
+                        'Content-Type': 'application/json',
+                        'Authorization': f'Key {KHALTI_SECRET_KEY}'
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    verification_response = response.json()
+                    
+                    if verification_response.get('status') == 'Completed':
+                        # Payment successful - update booking
+                        result = mongo.db.bookings.update_one(
+                            {"booking_id": booking_id},
+                            {"$set": {
+                                "payment_status": "paid",
+                                "status": "confirmed",
+                                "requires_payment": False,
+                                "payment_verified": True,
+                                "payment_completed_at": datetime.utcnow(),
+                                "updated_at": datetime.utcnow(),
+                                "payment_data.verified_at": datetime.utcnow()
+                            }}
+                        )
+                        
+                        if result.modified_count > 0:
+                            return jsonify({
+                                'success': True,
+                                'message': 'Payment verified successfully',
+                                'booking_id': booking_id,
+                                'payment_status': 'paid',
+                                'amount_npr': booking.get('amount_npr', 0)
+                            })
+                        else:
+                            return jsonify({
+                                'success': False,
+                                'error': 'Failed to update payment status'
+                            }), 500
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'error': f'Payment not completed: {verification_response.get("status")}'
+                        }), 400
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Khalti verification failed: {response.status_code}'
+                    }), 500
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Request error to Khalti API: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': 'Payment verification service unavailable'
+                }), 503
+                
+    except Exception as e:
+        logger.error(f"Error in verify_payment_status: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/debug/revenue', methods=['GET'])
+@require_admin
+def debug_revenue():
+    """Debug endpoint to check revenue calculation issues"""
+    try:
+        # Get all bookings with different statuses
+        all_bookings = list(mongo.db.bookings.find())
+        
+        # Analyze revenue sources
+        revenue_analysis = {
+            'total_bookings': len(all_bookings),
+            'completed_bookings': 0,
+            'paid_bookings': 0,
+            'admin_set_bookings': 0,
+            'revenue_sources': {
+                'total_cost_field': 0,
+                'amount_npr_field': 0,
+                'admin_amount_set': 0
+            },
+            'booking_statuses': {},
+            'payment_statuses': {},
+            'sample_bookings': []
+        }
+        
+        for booking in all_bookings:
+            # Count by status
+            status = booking.get('status', 'unknown')
+            revenue_analysis['booking_statuses'][status] = revenue_analysis['booking_statuses'].get(status, 0) + 1
+            
+            # Count by payment status
+            payment_status = booking.get('payment_status', 'none')
+            revenue_analysis['payment_statuses'][payment_status] = revenue_analysis['payment_statuses'].get(payment_status, 0) + 1
+            
+            # Count revenue sources
+            if booking.get('status') == 'completed':
+                revenue_analysis['completed_bookings'] += 1
+                revenue_analysis['revenue_sources']['total_cost_field'] += booking.get('total_cost', 0)
+            
+            if booking.get('payment_status') == 'paid':
+                revenue_analysis['paid_bookings'] += 1
+                revenue_analysis['revenue_sources']['amount_npr_field'] += booking.get('amount_npr', 0)
+            
+            if booking.get('admin_amount_set'):
+                revenue_analysis['admin_set_bookings'] += 1
+                revenue_analysis['revenue_sources']['admin_amount_set'] += booking.get('amount_npr', 0)
+            
+            # Sample bookings for debugging
+            if len(revenue_analysis['sample_bookings']) < 5:
+                revenue_analysis['sample_bookings'].append({
+                    'booking_id': booking.get('booking_id'),
+                    'status': booking.get('status'),
+                    'payment_status': booking.get('payment_status'),
+                    'admin_amount_set': booking.get('admin_amount_set'),
+                    'total_cost': booking.get('total_cost'),
+                    'amount_npr': booking.get('amount_npr'),
+                    'requires_payment': booking.get('requires_payment')
+                })
+        
+        return jsonify({
+            'success': True,
+            'revenue_analysis': revenue_analysis
+        })
+    except Exception as e:
+        logger.error(f"Error in debug_revenue: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @admin_bp.route('/bookings/<booking_id>/mark-completed', methods=['POST'])

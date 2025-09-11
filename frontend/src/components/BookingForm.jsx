@@ -172,9 +172,8 @@ const BookingForm = ({ stationId, stationName, onBookingComplete }) => {
             required
           >
             <option value="">Select charger type</option>
-            <option value="CCS">CCS</option>
-            <option value="CHAdeMO">CHAdeMO</option>
-            <option value="Type 2">Type 2</option>
+            <option value="CCS2">CCS2</option>
+            <option value="GBT">GBT</option>
           </select>
         </div>
 

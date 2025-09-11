@@ -496,7 +496,7 @@ const Recommendations = () => {
 
                             <div className="space-y-2 text-sm text-gray-700">
                               <div>
-                                {station.location?.address ||
+                                {station.address || station.location?.address ||
                                   (() => {
                                     const coords =
                                       getStationCoordinates(station);

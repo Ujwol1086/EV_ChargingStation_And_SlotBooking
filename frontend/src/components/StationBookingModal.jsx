@@ -8,8 +8,8 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
-    charger_type: station?.connector_types?.[0] || 'Type 2',
-    plug_type: station?.connector_types?.[0] || 'Type 2',
+    charger_type: station?.connector_types?.[0] || 'CCS2',
+    plug_type: station?.connector_types?.[0] || 'CCS2',
     booking_date: '',
     booking_time: '',
     urgency_level: 'medium'
@@ -114,7 +114,7 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
 
   const availableSlots = station.available_slots || 0;
   const totalSlots = station.total_slots || 0;
-  const connectorTypes = station.connector_types || ['Type 2', 'CCS', 'CHAdeMO'];
+  const connectorTypes = station.connector_types || ['CCS2', 'GBT'];
 
   // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0];
@@ -140,7 +140,7 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
           {/* Station Information */}
           <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl p-4 backdrop-blur-sm">
             <h3 className="font-bold text-white text-lg mb-2">{station.name}</h3>
-            <p className="text-gray-300 text-sm mb-2">{station.location?.address}</p>
+            <p className="text-gray-300 text-sm mb-2">{station.address || station.location?.address}</p>
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-300">Pricing:</span>
               <span className="font-medium text-cyan-400">{station.pricing}</span>

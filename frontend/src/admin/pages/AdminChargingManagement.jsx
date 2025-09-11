@@ -90,6 +90,8 @@ const AdminChargingManagement = () => {
         showSuccess('💰 Charging amount set successfully! The user will now see a payment notification in their dashboard and can pay with Khalti.');
         setShowAmountModal(false);
         setSelectedBooking(null);
+        // Switch to completed tab (needs amount setting) to show the updated booking
+        setActiveTab('completed');
         // Refresh bookings
         fetchBookings();
       } else {
@@ -115,6 +117,58 @@ const AdminChargingManagement = () => {
       }
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to mark booking as completed');
+    }
+  };
+
+  const handleVerifyPayment = async (bookingId) => {
+    try {
+      const response = await axios.post(`/admin/verify-payment-status/${bookingId}`);
+      
+      if (response.data.success) {
+        showSuccess(`✅ Payment verified successfully for booking ${bookingId}`);
+        fetchBookings(); // Refresh the bookings list
+      } else {
+        showError(response.data.error || 'Failed to verify payment');
+      }
+    } catch (err) {
+      showError(err.response?.data?.error || 'Error verifying payment');
+    }
+  };
+
+  const handleRefreshAllPayments = async () => {
+    try {
+      setRefreshing(true);
+      showSuccess('🔄 Refreshing all payment statuses...');
+      
+      // Get all bookings that might need payment verification
+      const unpaidBookings = allBookings.filter(booking => 
+        booking.admin_amount_set && 
+        booking.payment_status !== 'paid' && 
+        booking.status !== 'cancelled'
+      );
+      
+      let verifiedCount = 0;
+      let errorCount = 0;
+      
+      for (const booking of unpaidBookings) {
+        try {
+          const response = await axios.post(`/admin/verify-payment-status/${booking.booking_id}`);
+          if (response.data.success) {
+            verifiedCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (err) {
+          errorCount++;
+        }
+      }
+      
+      showSuccess(`✅ Payment verification complete! ${verifiedCount} payments verified, ${errorCount} errors`);
+      fetchBookings();
+    } catch (err) {
+      showError('Error refreshing payment statuses');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -435,7 +489,7 @@ const AdminChargingManagement = () => {
                           {booking.station_details?.name || booking.station_id}
                         </p>
                         <p className="text-gray-500">
-                          {booking.station_details?.location?.address || 'Address not available'}
+                          {booking.station_details?.address || booking.station_details?.location?.address || 'Address not available'}
                         </p>
                       </div>
                     </td>
@@ -521,6 +575,15 @@ const AdminChargingManagement = () => {
                         <div className="text-xs text-blue-600 font-medium bg-blue-50 p-2 rounded">
                           ✅ Amount Set - User Notified
                         </div>
+                      )}
+                      
+                      {booking.admin_amount_set && booking.payment_status !== 'paid' && (
+                        <button
+                          onClick={() => handleVerifyPayment(booking.booking_id)}
+                          className="block w-full px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs font-medium mt-2"
+                        >
+                          🔍 Verify Payment
+                        </button>
                       )}
                       
                       {booking.status === 'confirmed' && booking.charging_completed && (
