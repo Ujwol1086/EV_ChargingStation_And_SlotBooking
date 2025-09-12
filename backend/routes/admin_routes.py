@@ -537,6 +537,99 @@ def get_admin_analytics():
         logger.error(f"Error getting admin analytics: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@admin_bp.route('/settings', methods=['GET'])
+@require_admin
+def get_settings():
+    """Get system settings"""
+    try:
+        # Get settings from database or return defaults
+        settings_doc = mongo.db.settings.find_one({'type': 'system'})
+        
+        if settings_doc:
+            settings = settings_doc.get('data', {})
+        else:
+            # Default settings
+            settings = {
+                'system': {
+                    'siteName': 'EVConnect Nepal',
+                    'siteDescription': 'Electric Vehicle Charging Station Network',
+                    'maintenanceMode': False,
+                    'maxBookingDuration': 120,
+                    'minBookingDuration': 30,
+                    'defaultPricing': 12.0,
+                    'currency': 'NPR',
+                    'timezone': 'Asia/Kathmandu'
+                },
+                'notifications': {
+                    'emailNotifications': True,
+                    'smsNotifications': False,
+                    'bookingConfirmations': True,
+                    'paymentReminders': True,
+                    'systemAlerts': True
+                },
+                'payment': {
+                    'khaltiEnabled': True,
+                    'khaltiPublicKey': '',
+                    'khaltiSecretKey': '',
+                    'paymentTimeout': 300,
+                    'refundPolicy': '24 hours'
+                },
+                'charging': {
+                    'defaultChargerTypes': ['CCS2', 'GBT'],
+                    'maxPowerOutput': 60,
+                    'minPowerOutput': 22,
+                    'safetyChecks': True,
+                    'autoDisconnect': True
+                },
+                'security': {
+                    'sessionTimeout': 3600,
+                    'maxLoginAttempts': 5,
+                    'requireStrongPasswords': True,
+                    'twoFactorAuth': False,
+                    'ipWhitelist': []
+                }
+            }
+        
+        return jsonify({
+            'success': True,
+            'settings': settings
+        })
+    except Exception as e:
+        logger.error(f"Error getting settings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@admin_bp.route('/settings', methods=['PUT'])
+@require_admin
+def update_settings():
+    """Update system settings"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Update or insert settings
+        mongo.db.settings.update_one(
+            {'type': 'system'},
+            {
+                '$set': {
+                    'type': 'system',
+                    'data': data,
+                    'updated_at': datetime.utcnow()
+                }
+            },
+            upsert=True
+        )
+        
+        logger.info("Settings updated successfully")
+        return jsonify({
+            'success': True,
+            'message': 'Settings updated successfully'
+        })
+    except Exception as e:
+        logger.error(f"Error updating settings: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # Additional admin endpoints for CRUD operations
 
 @admin_bp.route('/stations/<station_id>', methods=['PUT'])
