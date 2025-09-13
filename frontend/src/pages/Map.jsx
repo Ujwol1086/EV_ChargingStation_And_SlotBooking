@@ -189,8 +189,7 @@ const Map = ({ selectedStationType }) => {
                   : "No chargers available"}
               </p>
               <p className="text-gray-600 text-sm">
-                Available: {station.chargers ? station.chargers.filter((c) => c.available).length : 0} /{" "}
-                {station.chargers ? station.chargers.length : 0}
+                Available: {station.available_slots || 0} / {station.total_slots || 0} slots
               </p>
               <p className="text-gray-600 text-sm">
                 Address: {station.address || 'Address not available'}

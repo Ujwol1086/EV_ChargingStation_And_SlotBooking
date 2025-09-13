@@ -265,7 +265,7 @@ const Recommendations = () => {
     <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text">
             Smart Charging Station Recommendations
           </h1>
           <p className="text-gray-300 text-lg">
