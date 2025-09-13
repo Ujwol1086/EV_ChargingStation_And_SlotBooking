@@ -202,11 +202,11 @@ const RecommendationCard = ({
           <div className="flex items-center gap-3">
             <span className="text-purple-400 text-lg">🔌</span>
             <span className={`text-sm font-medium ${
-              station.availability === 0 ? 'text-red-400' : 
-              station.availability < 3 ? 'text-orange-400' : 'text-green-400'
+              (station.available_slots || 0) === 0 ? 'text-red-400' : 
+              (station.available_slots || 0) < 3 ? 'text-orange-400' : 'text-green-400'
             }`}>
-              {station.availability === 0 ? 'BOOKED' : 
-               `${station.availability}/${station.total_slots || 0} available`}
+              {(station.available_slots || 0) === 0 ? 'BOOKED' : 
+               `${station.available_slots || 0}/${station.total_slots || 0} available`}
             </span>
           </div>
           <div className="flex items-center gap-3">

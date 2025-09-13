@@ -51,10 +51,10 @@ const StationMarkers = ({
               <div className="flex justify-between">
                 <span className="text-gray-600">Availability:</span>
                 <span className={`font-medium ${
-                  station.availability === 0 ? 'text-red-600' : 
-                  station.availability < 3 ? 'text-orange-600' : 'text-green-600'
+                  (station.available_slots || 0) === 0 ? 'text-red-600' : 
+                  (station.available_slots || 0) < 3 ? 'text-orange-600' : 'text-green-600'
                 }`}>
-                  {station.availability === 0 ? 'FULL' : `${station.availability} slots`}
+                  {(station.available_slots || 0) === 0 ? 'FULL' : `${station.available_slots || 0}/${station.total_slots || 0} slots`}
                 </span>
               </div>
               

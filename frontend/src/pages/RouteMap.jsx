@@ -731,7 +731,7 @@ const RouteMap = () => {
                 <div>
                   <h3 className="font-bold">{station.name}</h3>
                   <p>💰 Rs. {station.pricing || 'N/A'} per kWh</p>
-                  <p>🔌 {station.available_slots || 0}/{station.total_slots || 0} available</p>
+                  <p>🔌 {station.available_slots || 0}/{station.total_slots || 0} slots available</p>
                 </div>
               </Popup>
             </Marker>
