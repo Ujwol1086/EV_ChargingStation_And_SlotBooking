@@ -289,7 +289,7 @@ class Booking:
             
             available_slots = max(0, total_slots - active_bookings)
             
-            logger.info(f"Station {station_id} ({charger_type or 'all types'}): {available_slots}/{total_slots} slots available")
+            # Removed individual station logging for performance
             
             return {
                 'available_slots': available_slots,
