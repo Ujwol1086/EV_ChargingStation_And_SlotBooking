@@ -11,8 +11,6 @@ class ChargingStation:
     def get_all():
         """Get all charging stations from database"""
         try:
-            logger.info("Fetching all charging stations from database")
-            
             if mongo.db is None:
                 logger.error("Database connection not established")
                 return []
@@ -40,8 +38,6 @@ class ChargingStation:
     def get_by_id(station_id):
         """Get a specific charging station by ID"""
         try:
-            logger.info(f"Fetching charging station with ID: {station_id}")
-            
             if mongo.db is None:
                 logger.error("Database connection not established")
                 return None
@@ -49,7 +45,6 @@ class ChargingStation:
             station = mongo.db.charging_stations.find_one({"id": station_id})
             if station:
                 formatted_station = ChargingStation._format_station_from_db(station)
-                logger.info(f"Retrieved station {station_id} from database")
                 return formatted_station
             
             logger.warning(f"Station {station_id} not found in database")

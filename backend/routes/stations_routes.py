@@ -26,7 +26,7 @@ def get_charging_stations():
                 'company_filter': company_filter
             })
         
-        # Apply company filter and add real-time availability
+        # Apply company filter first
         filtered_stations = []
         for station in stations:
             should_include = False
@@ -47,25 +47,94 @@ def get_charging_stations():
                 should_include = True
             
             if should_include:
-                # Add real-time availability for filtered stations
-                station_id = station.get('id')
-                if station_id:
-                    try:
-                        availability_info = Booking.get_station_real_time_availability(station_id)
-                        station['available_slots'] = availability_info.get('available_slots', 0)
-                        station['total_slots'] = availability_info.get('total_slots', 0)
-                        station['active_bookings'] = availability_info.get('active_bookings', 0)
-                    except Exception as availability_error:
-                        logger.warning(f"Error getting availability for station {station_id}: {availability_error}")
+                filtered_stations.append(station)
+        
+        # Batch availability calculation for better performance
+        if filtered_stations:
+            try:
+                from config.database import mongo
+                from datetime import datetime, timedelta
+                
+                # Get all station IDs
+                station_ids = [station.get('id') for station in filtered_stations if station.get('id')]
+                
+                if station_ids:
+                    # Get all active bookings for all stations in one query
+                    current_time = datetime.utcnow()
+                    active_bookings = list(mongo.db.bookings.find({
+                        "station_id": {"$in": station_ids},
+                        "status": {"$in": ["confirmed", "in_progress"]}
+                    }))
+                    
+                    # Group bookings by station_id
+                    bookings_by_station = {}
+                    for booking in active_bookings:
+                        station_id = booking.get('station_id')
+                        if station_id not in bookings_by_station:
+                            bookings_by_station[station_id] = []
+                        bookings_by_station[station_id].append(booking)
+                    
+                    # Calculate availability for each station
+                    for station in filtered_stations:
+                        station_id = station.get('id')
+                        if not station_id:
+                            station['available_slots'] = 0
+                            station['total_slots'] = 0
+                            station['active_bookings'] = 0
+                            continue
+                        
+                        # Get chargers from station data
+                        chargers = station.get('chargers', [])
+                        total_slots = len(chargers)
+                        
+                        if total_slots == 0:
+                            station['available_slots'] = 0
+                            station['total_slots'] = 0
+                            station['active_bookings'] = 0
+                            continue
+                        
+                        # Count active bookings for this station
+                        active_bookings_count = 0
+                        station_bookings = bookings_by_station.get(station_id, [])
+                        
+                        for booking in station_bookings:
+                            booking_datetime = booking.get('booking_datetime')
+                            estimated_duration = booking.get('estimated_duration', 60)
+                            
+                            if booking_datetime:
+                                booking_end = booking_datetime + timedelta(minutes=estimated_duration)
+                                if current_time >= booking_datetime and current_time <= booking_end:
+                                    active_bookings_count += 1
+                            else:
+                                # Legacy bookings without specific datetime
+                                if booking.get('status') in ['confirmed', 'in_progress']:
+                                    active_bookings_count += 1
+                        
+                        available_slots = max(0, total_slots - active_bookings_count)
+                        station['available_slots'] = available_slots
+                        station['total_slots'] = total_slots
+                        station['active_bookings'] = active_bookings_count
+                
+            except Exception as availability_error:
+                logger.warning(f"Error calculating batch availability: {availability_error}")
+                # Fallback to individual calculation for each station
+                for station in filtered_stations:
+                    station_id = station.get('id')
+                    if station_id:
+                        try:
+                            availability_info = Booking.get_station_real_time_availability(station_id)
+                            station['available_slots'] = availability_info.get('available_slots', 0)
+                            station['total_slots'] = availability_info.get('total_slots', 0)
+                            station['active_bookings'] = availability_info.get('active_bookings', 0)
+                        except Exception as individual_error:
+                            logger.warning(f"Error getting availability for station {station_id}: {individual_error}")
+                            station['available_slots'] = 0
+                            station['total_slots'] = 0
+                            station['active_bookings'] = 0
+                    else:
                         station['available_slots'] = 0
                         station['total_slots'] = 0
                         station['active_bookings'] = 0
-                else:
-                    station['available_slots'] = 0
-                    station['total_slots'] = 0
-                    station['active_bookings'] = 0
-                
-                filtered_stations.append(station)
         
         return jsonify({
             'success': True,
@@ -273,25 +342,96 @@ def search_stations():
                        search_lower in station_city):
                     continue
             
-            # Add real-time availability
-            station_id = station.get('id')
-            if station_id:
-                try:
-                    availability_info = Booking.get_station_real_time_availability(station_id)
-                    station['available_slots'] = availability_info.get('available_slots', 0)
-                    station['total_slots'] = availability_info.get('total_slots', 0)
-                    station['active_bookings'] = availability_info.get('active_bookings', 0)
-                except Exception as availability_error:
-                    logger.warning(f"Error getting availability for station {station_id}: {availability_error}")
-                    station['available_slots'] = 0
-                    station['total_slots'] = 0
-                    station['active_bookings'] = 0
+            # Add basic availability info (will be calculated in batch later)
+            station['available_slots'] = 0
+            station['total_slots'] = 0
+            station['active_bookings'] = 0
             
             # Available only filter
             if available_only and station.get('available_slots', 0) <= 0:
                 continue
             
             filtered_stations.append(station)
+        
+        # Batch availability calculation for better performance
+        if filtered_stations:
+            try:
+                from config.database import mongo
+                from datetime import datetime, timedelta
+                
+                # Get all station IDs
+                station_ids = [station.get('id') for station in filtered_stations if station.get('id')]
+                
+                if station_ids:
+                    # Get all active bookings for all stations in one query
+                    current_time = datetime.utcnow()
+                    active_bookings = list(mongo.db.bookings.find({
+                        "station_id": {"$in": station_ids},
+                        "status": {"$in": ["confirmed", "in_progress"]}
+                    }))
+                    
+                    # Group bookings by station_id
+                    bookings_by_station = {}
+                    for booking in active_bookings:
+                        station_id = booking.get('station_id')
+                        if station_id not in bookings_by_station:
+                            bookings_by_station[station_id] = []
+                        bookings_by_station[station_id].append(booking)
+                    
+                    # Calculate availability for each station
+                    for station in filtered_stations:
+                        station_id = station.get('id')
+                        if not station_id:
+                            continue
+                        
+                        # Get chargers from station data
+                        chargers = station.get('chargers', [])
+                        total_slots = len(chargers)
+                        
+                        if total_slots == 0:
+                            station['available_slots'] = 0
+                            station['total_slots'] = 0
+                            station['active_bookings'] = 0
+                            continue
+                        
+                        # Count active bookings for this station
+                        active_bookings_count = 0
+                        station_bookings = bookings_by_station.get(station_id, [])
+                        
+                        for booking in station_bookings:
+                            booking_datetime = booking.get('booking_datetime')
+                            estimated_duration = booking.get('estimated_duration', 60)
+                            
+                            if booking_datetime:
+                                booking_end = booking_datetime + timedelta(minutes=estimated_duration)
+                                if current_time >= booking_datetime and current_time <= booking_end:
+                                    active_bookings_count += 1
+                            else:
+                                # Legacy bookings without specific datetime
+                                if booking.get('status') in ['confirmed', 'in_progress']:
+                                    active_bookings_count += 1
+                        
+                        available_slots = max(0, total_slots - active_bookings_count)
+                        station['available_slots'] = available_slots
+                        station['total_slots'] = total_slots
+                        station['active_bookings'] = active_bookings_count
+                
+            except Exception as availability_error:
+                logger.warning(f"Error calculating batch availability: {availability_error}")
+                # Fallback to individual calculation for each station
+                for station in filtered_stations:
+                    station_id = station.get('id')
+                    if station_id:
+                        try:
+                            availability_info = Booking.get_station_real_time_availability(station_id)
+                            station['available_slots'] = availability_info.get('available_slots', 0)
+                            station['total_slots'] = availability_info.get('total_slots', 0)
+                            station['active_bookings'] = availability_info.get('active_bookings', 0)
+                        except Exception as individual_error:
+                            logger.warning(f"Error getting availability for station {station_id}: {individual_error}")
+                            station['available_slots'] = 0
+                            station['total_slots'] = 0
+                            station['active_bookings'] = 0
         
         return jsonify({
             'success': True,
