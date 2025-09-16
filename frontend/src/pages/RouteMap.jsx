@@ -5,6 +5,8 @@ import "leaflet/dist/leaflet.css";
 import axios from "../api/axios";
 import L from "leaflet";
 import { getStationCoordinates } from "../utils/mapHelpers";
+import LocationConsentModal from "../components/LocationConsentModal";
+import useLocationConsent from "../hooks/useLocationConsent";
 
 // Fix for the default marker icon issue in react-leaflet
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -81,7 +83,6 @@ if (typeof document !== 'undefined') {
 const RouteMap = () => {
   const { stationId } = useParams();
   const navigate = useNavigate();
-  const [userLocation, setUserLocation] = useState(null);
   const [station, setStation] = useState(null);
   const [route, setRoute] = useState(null);
   const [routeInfo, setRouteInfo] = useState({ distance: null, duration: null });
@@ -98,29 +99,40 @@ const RouteMap = () => {
     trafficCondition: 'light',
     weather: 'clear'
   });
+  const [showLocationConsent, setShowLocationConsent] = useState(false);
   const mapRef = useRef(null);
 
-  useEffect(() => {
-    const getUserLocation = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            setUserLocation([latitude, longitude]);
-          },
-          (error) => {
-            console.error("Error getting location:", error);
-            setError("Unable to get your location");
-          },
-          { enableHighAccuracy: true }
-        );
-      } else {
-        setError("Geolocation is not supported by this browser");
-      }
-    };
+  // Use location consent hook
+  const {
+    locationConsent,
+    userLocation,
+    isRequestingLocation,
+    locationError,
+    hasLocation,
+    needsConsent,
+    requestLocationAccess,
+    setManualLocation,
+    clearLocation
+  } = useLocationConsent();
 
-    getUserLocation();
-  }, []);
+  // Removed auto-prompt; consent handled post-login or via explicit button
+
+  // Handle location consent responses
+  const handleLocationAccept = (position) => {
+    const coords = [position.coords.latitude, position.coords.longitude];
+    setManualLocation(coords);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationDecline = (error) => {
+    console.log("Location access declined:", error);
+    setError("Location access is required for route navigation");
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationClose = () => {
+    setShowLocationConsent(false);
+  };
 
   useEffect(() => {
     const fetchStationAndRoute = async () => {
@@ -479,6 +491,14 @@ const RouteMap = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Location Consent Modal */}
+      <LocationConsentModal
+        isOpen={showLocationConsent}
+        onAccept={handleLocationAccept}
+        onDecline={handleLocationDecline}
+        onClose={handleLocationClose}
+      />
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

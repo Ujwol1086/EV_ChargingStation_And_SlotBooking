@@ -13,6 +13,8 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import RecommendationForm from "../components/RecommendationForm";
 import RecommendationResults from "../components/RecommendationResults";
+import LocationConsentModal from "../components/LocationConsentModal";
+import useLocationConsent from "../hooks/useLocationConsent";
 import { useAuth } from "../context/useAuth";
 import axios from "../api/axios";
 import {
@@ -62,17 +64,32 @@ const Recommendations = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [userLocation, setUserLocation] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
   const [selectedStation, setSelectedStation] = useState(null);
-  const [mapCenter, setMapCenter] = useState([27.7172, 85.324]); // Nepal center
   const [userBookings, setUserBookings] = useState([]);
   const [routeData, setRouteData] = useState(null);
   const [showRoute, setShowRoute] = useState(false);
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [error, setError] = useState(null);
+  const [showLocationConsent, setShowLocationConsent] = useState(false);
   const mapRef = useRef(null);
+
+  // Use location consent hook
+  const {
+    locationConsent,
+    userLocation,
+    isRequestingLocation,
+    locationError,
+    hasLocation,
+    needsConsent,
+    requestLocationAccess,
+    setManualLocation,
+    clearLocation
+  } = useLocationConsent();
+
+  // Default to Nepal center if no location
+  const mapCenter = userLocation || [27.7172, 85.324];
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -81,35 +98,33 @@ const Recommendations = () => {
     }
   }, [isAuthenticated, isLoading, navigate]);
 
-  // Get user's location on component mount
+  // Load user bookings on mount
   useEffect(() => {
     if (isAuthenticated) {
-      const getUserLocation = () => {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const { latitude, longitude } = position.coords;
-              const location = [latitude, longitude];
-              setUserLocation(location);
-              setMapCenter(location);
-            },
-            (error) => {
-              console.error("Error getting location:", error);
-              // Fall back to Nepal center if location access is denied
-              setMapCenter([27.7172, 85.324]);
-            },
-            { enableHighAccuracy: true }
-          );
-        } else {
-          console.error("Geolocation is not supported by this browser");
-          setMapCenter([27.7172, 85.324]);
-        }
-      };
-
-      getUserLocation();
       loadUserBookings();
     }
   }, [isAuthenticated]);
+
+  // If consent is still unset, attempt native prompt here (no custom modal)
+  useEffect(() => {
+    if (isAuthenticated && needsConsent && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords || {};
+          try {
+            localStorage.setItem('locationConsent', 'granted');
+            if (latitude != null && longitude != null) {
+              localStorage.setItem('userLocation', JSON.stringify([latitude, longitude]));
+            }
+          } catch (_) {}
+        },
+        (err) => {
+          // keep as maybe later
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+  }, [isAuthenticated, needsConsent]);
 
   const loadUserBookings = async () => {
     try {
@@ -120,6 +135,22 @@ const Recommendations = () => {
     } catch (err) {
       console.error("Error loading bookings:", err);
     }
+  };
+
+  // Handle location consent responses
+  const handleLocationAccept = (position) => {
+    const coords = [position.coords.latitude, position.coords.longitude];
+    setManualLocation(coords);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationDecline = (error) => {
+    console.log("Location access declined:", error);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationClose = () => {
+    setShowLocationConsent(false);
   };
 
   const handleRecommendations = async (formData) => {
@@ -263,11 +294,23 @@ const Recommendations = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
+      {/* No custom modal; native prompt used */}
+
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-3 bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-            Smart Charging Station Recommendations
-          </h1>
+          <div className="flex justify-between items-start mb-3">
+            <h1 className="text-4xl font-bold text-white bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
+              Smart Charging Station Recommendations
+            </h1>
+            {!hasLocation && (
+              <button
+                onClick={() => setShowLocationConsent(true)}
+                className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 text-sm font-medium"
+              >
+                Enable Location
+              </button>
+            )}
+          </div>
           <p className="text-gray-300 text-lg">
             Find the best charging stations based on your location, battery
             level, and urgency.
@@ -287,6 +330,7 @@ const Recommendations = () => {
             <RecommendationForm
               onSubmit={handleRecommendations}
               loading={loadingRecommendations}
+              userLocation={userLocation}
             />
 
             {/* User Bookings */}

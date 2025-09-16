@@ -1,9 +1,11 @@
 import { useAuth } from "../context/useAuth";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "../api/axios";
+import useLocationConsent from "../hooks/useLocationConsent";
+import LocationConsentModal from "../components/LocationConsentModal";
 
-export default function Dashboard() {
+const Dashboard = () => {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [activeBookings, setActiveBookings] = useState([]);
@@ -20,6 +22,32 @@ export default function Dashboard() {
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Location consent logic
+  const {
+    locationConsent,
+    isRequestingLocation,
+    locationError,
+    needsConsent,
+    requestLocationAccess,
+  } = useLocationConsent();
+  const [showLocationConsent, setShowLocationConsent] = useState(false);
+
+  useEffect(() => {
+    // Ask for location consent after dashboard mount, every time
+    setShowLocationConsent(true);
+  }, []);
+
+  const handleLocationAccept = async (position) => {
+    setShowLocationConsent(false);
+    // Optionally, you can do something with the position here
+  };
+  const handleLocationDecline = (error) => {
+    setShowLocationConsent(false);
+  };
+  const handleLocationClose = () => {
+    setShowLocationConsent(false);
+  };
 
   useEffect(() => {
     fetchBookingData();
@@ -491,33 +519,40 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 text-white overflow-hidden pt-20 relative">
-      {/* Animated Parallax Background */}
-      <div className="fixed inset-0 opacity-40 pointer-events-none z-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/15 via-purple-600/15 to-green-600/15 animate-pulse"></div>
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-purple-600/10"></div>
-        <div className="absolute w-96 h-96 bg-gradient-radial from-cyan-500/25 to-transparent rounded-full blur-3xl left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 transition-all duration-1000 ease-out"></div>
-        <div
-          className="absolute top-20 left-20 w-32 h-32 border border-cyan-500/20 rounded-full animate-spin"
-          style={{ animationDuration: "20s" }}
-        ></div>
-        <div
-          className="absolute top-40 right-32 w-24 h-24 border border-purple-500/20 rotate-45"
-          style={{ animationDuration: "18s" }}
-        ></div>
-        <div
-          className="absolute bottom-40 left-40 w-16 h-16 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg"
-          style={{ animationDuration: "22s" }}
-        ></div>
-      </div>
-      <div className="container mx-auto px-6 py-8 relative z-10">
-        {/* Payment Success Notification */}
-        {location.state?.paymentCompleted && (
-          <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
-            <div className="flex items-center">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
-                <svg
-                  className="w-6 h-6"
+    <>
+      <LocationConsentModal
+        isOpen={showLocationConsent && needsConsent}
+        onAccept={handleLocationAccept}
+        onDecline={handleLocationDecline}
+        onClose={handleLocationClose}
+      />
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 text-white overflow-hidden pt-20 relative">
+        {/* Animated Parallax Background */}
+        <div className="fixed inset-0 opacity-40 pointer-events-none z-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-600/15 via-purple-600/15 to-green-600/15 animate-pulse"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-indigo-600/10 to-purple-600/10"></div>
+          <div className="absolute w-96 h-96 bg-gradient-radial from-cyan-500/25 to-transparent rounded-full blur-3xl left-1/2 top-1/3 -translate-x-1/2 -translate-y-1/2 transition-all duration-1000 ease-out"></div>
+          <div
+            className="absolute top-20 left-20 w-32 h-32 border border-cyan-500/20 rounded-full animate-spin"
+            style={{ animationDuration: "20s" }}
+          ></div>
+          <div
+            className="absolute top-40 right-32 w-24 h-24 border border-purple-500/20 rotate-45"
+            style={{ animationDuration: "18s" }}
+          ></div>
+          <div
+            className="absolute bottom-40 left-40 w-16 h-16 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-lg"
+            style={{ animationDuration: "22s" }}
+          ></div>
+        </div>
+        <div className="container mx-auto px-6 py-8 relative z-10">
+          {/* Payment Success Notification */}
+          {location.state?.paymentCompleted && (
+            <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl p-6 mb-6 text-white shadow-lg">
+              <div className="flex items-center">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mr-4">
+                  <svg
+                    className="w-6 h-6"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -595,11 +630,12 @@ export default function Dashboard() {
                   </div>
                 );
               }
+              return null;
             } catch (e) {
               console.error("Error parsing payment details:", e);
+              return null;
             }
           }
-          return null;
         })()}
 
         {/* Pending Payments Notification */}
@@ -1280,6 +1316,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
-}
+};
+
+export default Dashboard;

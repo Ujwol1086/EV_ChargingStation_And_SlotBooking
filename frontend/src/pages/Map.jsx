@@ -4,23 +4,41 @@ import MapContainer from "../components/map/MapContainer";
 import StationMarkers from "../components/map/StationMarkers";
 import UserLocationMarker from "../components/map/UserLocationMarker";
 import StationBookingModal from "../components/StationBookingModal";
+import LocationConsentModal from "../components/LocationConsentModal";
+import useLocationConsent from "../hooks/useLocationConsent";
 
 const Map = ({ selectedStationType }) => {
   const [stations, setStations] = useState([]);
   const [filteredStations, setFilteredStations] = useState([]);
-  const [userLocation, setUserLocation] = useState([27.7172, 85.324]); // Default Kathmandu
   const [selectedStation, setSelectedStation] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [mapCenter, setMapCenter] = useState(userLocation);
   const [companyFilter, setCompanyFilter] = useState(selectedStationType);
+  const [showLocationConsent, setShowLocationConsent] = useState(false);
+
+  // Use location consent hook
+  const {
+    locationConsent,
+    userLocation,
+    isRequestingLocation,
+    locationError,
+    hasLocation,
+    needsConsent,
+    requestLocationAccess,
+    setManualLocation,
+    clearLocation
+  } = useLocationConsent();
+
+  // Default to Kathmandu if no location
+  const mapCenter = userLocation || [27.7172, 85.324];
 
   // Fetch stations on mount
   useEffect(() => {
     fetchStations();
-    getCurrentLocation();
   }, []);
+
+  // Removed auto-prompt; consent handled post-login or via explicit button
 
   // Update company filter when selectedStationType changes
   useEffect(() => {
@@ -62,17 +80,20 @@ const Map = ({ selectedStationType }) => {
     }
   };
 
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = [position.coords.latitude, position.coords.longitude];
-          setUserLocation(coords);
-          setMapCenter(coords); // Initialize map center at user location
-        },
-        (error) => console.error("Error getting location:", error)
-      );
-    }
+  // Handle location consent responses
+  const handleLocationAccept = (position) => {
+    const coords = [position.coords.latitude, position.coords.longitude];
+    setManualLocation(coords);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationDecline = (error) => {
+    console.log("Location access declined:", error);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationClose = () => {
+    setShowLocationConsent(false);
   };
 
   const handleStationClick = (station) => {
@@ -134,23 +155,51 @@ const Map = ({ selectedStationType }) => {
 
   return (
     <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-4 mt-20">
+      {/* Location Consent Modal */}
+      <LocationConsentModal
+        isOpen={showLocationConsent}
+        onAccept={handleLocationAccept}
+        onDecline={handleLocationDecline}
+        onClose={handleLocationClose}
+      />
+
       {/* Left: Station List */}
       <div className="md:w-1/3 max-h-[80vh] overflow-y-auto">
         {/* Company Filter Header */}
         {companyFilter && companyFilter !== "all" ? (
           <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-2">
-              {getCompanyDisplayName(companyFilter)} Charging Stations
-            </h2>
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="text-lg font-bold text-gray-800">
+                {getCompanyDisplayName(companyFilter)} Charging Stations
+              </h2>
+              {!hasLocation && (
+                <button
+                  onClick={() => setShowLocationConsent(true)}
+                  className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Enable Location
+                </button>
+              )}
+            </div>
             <p className="text-sm text-gray-600">
               Showing {filteredStations.length} stations
             </p>
           </div>
         ) : (
           <div className="mb-4 p-4 bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg">
-            <h2 className="text-lg font-bold text-gray-800 mb-2">
-              All Charging Stations
-            </h2>
+            <div className="flex justify-between items-start mb-2">
+              <h2 className="text-lg font-bold text-gray-800">
+                All Charging Stations
+              </h2>
+              {!hasLocation && (
+                <button
+                  onClick={() => setShowLocationConsent(true)}
+                  className="px-3 py-1 bg-green-500 text-white text-xs rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  Enable Location
+                </button>
+              )}
+            </div>
             <p className="text-sm text-gray-600">
               Showing {filteredStations.length} stations
             </p>

@@ -4,6 +4,8 @@ import StationBookingModal from "../components/StationBookingModal";
 import StationCard from "../components/StationCard";
 import StationFilterDropdown from "../components/StationFilterDropdown";
 import StationsMap from "../components/StationsMap";
+import LocationConsentModal from "../components/LocationConsentModal";
+import useLocationConsent from "../hooks/useLocationConsent";
 
 const StationsList = () => {
   const [stations, setStations] = useState([]);
@@ -15,8 +17,24 @@ const StationsList = () => {
   const [sortBy, setSortBy] = useState("name");
   const [filters, setFilters] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [userLocation, setUserLocation] = useState([27.7172, 85.324]); // Default Kathmandu
   const [showMap, setShowMap] = useState(false);
+  const [showLocationConsent, setShowLocationConsent] = useState(false);
+
+  // Use location consent hook
+  const {
+    locationConsent,
+    userLocation,
+    isRequestingLocation,
+    locationError,
+    hasLocation,
+    needsConsent,
+    requestLocationAccess,
+    setManualLocation,
+    clearLocation
+  } = useLocationConsent();
+
+  // Default to Kathmandu if no location
+  const defaultLocation = userLocation || [27.7172, 85.324];
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,8 +42,9 @@ const StationsList = () => {
 
   useEffect(() => {
     fetchStations();
-    getCurrentLocation();
   }, []);
+
+  // Removed auto-prompt; consent handled post-login or via explicit button
 
   useEffect(() => {
     filterAndSortStations();
@@ -103,16 +122,20 @@ const StationsList = () => {
     setShowBookingModal(true);
   };
 
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const coords = [position.coords.latitude, position.coords.longitude];
-          setUserLocation(coords);
-        },
-        (error) => console.error("Error getting location:", error)
-      );
-    }
+  // Handle location consent responses
+  const handleLocationAccept = (position) => {
+    const coords = [position.coords.latitude, position.coords.longitude];
+    setManualLocation(coords);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationDecline = (error) => {
+    console.log("Location access declined:", error);
+    setShowLocationConsent(false);
+  };
+
+  const handleLocationClose = () => {
+    setShowLocationConsent(false);
   };
 
   const handleCloseBookingModal = () => {
@@ -183,6 +206,14 @@ const StationsList = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 mt-15">
+      {/* Location Consent Modal */}
+      <LocationConsentModal
+        isOpen={showLocationConsent}
+        onAccept={handleLocationAccept}
+        onDecline={handleLocationDecline}
+        onClose={handleLocationClose}
+      />
+
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -197,6 +228,14 @@ const StationsList = () => {
               </p>
             </div>
             <div className="flex gap-3">
+              {!hasLocation && (
+                <button
+                  onClick={() => setShowLocationConsent(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-xl hover:from-cyan-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/25 text-sm font-medium"
+                >
+                  Enable Location
+                </button>
+              )}
               <button
                 onClick={() => setShowMap(!showMap)}
                 className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-green-500/25 flex items-center gap-2"

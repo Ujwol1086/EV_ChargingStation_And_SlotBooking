@@ -1,11 +1,11 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import LocationInput from "./forms/LocationInput";
 import VehicleSettings from "./forms/VehicleSettings";
 import TripSettings from "./forms/TripSettings";
 
-const RecommendationForm = ({ onSubmit, loading = false }) => {
+const RecommendationForm = ({ onSubmit, loading = false, userLocation = null }) => {
   // Form state
-  const [location, setLocation] = useState([27.7172, 85.3240]); // Default to Kathmandu
+  const [location, setLocation] = useState(userLocation || [27.7172, 85.3240]); // Default to Kathmandu or user location
   const [batteryPercentage, setBatteryPercentage] = useState(80);
   const [plugType, setPlugType] = useState("");
   const [acStatus, setAcStatus] = useState(false);
@@ -41,6 +41,13 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
       setIsGettingLocation(false);
     }
   };
+
+  // Update location when userLocation prop changes
+  React.useEffect(() => {
+    if (userLocation) {
+      setLocation(userLocation);
+    }
+  }, [userLocation]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
