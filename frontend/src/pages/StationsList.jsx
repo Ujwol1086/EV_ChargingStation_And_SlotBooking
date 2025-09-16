@@ -327,7 +327,7 @@ const StationsList = () => {
         {showBookingModal && selectedStation && (
           <StationBookingModal
             station={selectedStation}
-            userLocation={[27.7172, 85.324]} // Default to Kathmandu
+            isOpen={showBookingModal}
             onClose={handleCloseBookingModal}
             onBookingSuccess={handleBookingSuccess}
           />

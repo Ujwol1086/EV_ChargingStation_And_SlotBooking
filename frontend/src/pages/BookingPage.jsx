@@ -39,8 +39,12 @@ const BookingPage = () => {
 
   useEffect(() => {
     if (station && !formData.charger_type) {
-      // Extract charger types from chargers array
-      const chargerTypes = station.chargers?.map(charger => charger.type) || ['CCS2'];
+      // Extract charger types from connector_types (handle both string and array formats)
+      const chargerTypes = station.connector_types 
+        ? (typeof station.connector_types === 'string' 
+            ? station.connector_types.split(' ').filter(type => type.trim())
+            : station.connector_types)
+        : ['CCS2'];
       setFormData(prev => ({
         ...prev,
         charger_type: chargerTypes[0] || 'CCS2',
@@ -89,6 +93,7 @@ const BookingPage = () => {
         setError('Failed to load time slots');
       }
     } catch (err) {
+      console.error('Error fetching time slots:', err);
       setError('Error loading time slots');
     } finally {
       setLoadingTimeSlots(false);
@@ -227,7 +232,12 @@ const BookingPage = () => {
 
   const availableSlots = station.available_slots || 0;
   const totalSlots = station.total_slots || 0;
-  const connectorTypes = station.chargers?.map(charger => charger.type) || ['CCS2', 'GBT'];
+  // Parse connector_types string into array (e.g., "CCS2 GBT" -> ["CCS2", "GBT"])
+  const connectorTypes = station.connector_types 
+    ? (typeof station.connector_types === 'string' 
+        ? station.connector_types.split(' ').filter(type => type.trim())
+        : station.connector_types)
+    : ['CCS2', 'GBT'];
   const today = new Date().toISOString().split('T')[0];
 
   return (
