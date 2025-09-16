@@ -224,7 +224,7 @@ const Map = ({ selectedStationType }) => {
       {showBookingModal && selectedStation && (
         <StationBookingModal
           station={selectedStation}
-          userLocation={userLocation}
+          isOpen={showBookingModal}
           onClose={handleCloseBookingModal}
           onBookingSuccess={handleBookingSuccess}
         />
