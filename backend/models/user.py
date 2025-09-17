@@ -2,6 +2,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from config.database import mongo
 from bson import ObjectId
 import logging
+import random
+import string
+from datetime import datetime, timedelta
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -192,4 +195,148 @@ class User:
             return result
         except Exception as e:
             logger.error(f"Error checking password: {e}")
+            return False
+    
+    @staticmethod
+    def generate_otp():
+        """Generate a 6-digit OTP"""
+        return ''.join(random.choices(string.digits, k=6))
+    
+    @staticmethod
+    def create_password_reset_otp(email):
+        """Create a password reset OTP for the user"""
+        try:
+            logger.info(f"Creating password reset OTP for email: {email}")
+            
+            # Get database from current app context
+            from flask import current_app
+            db = current_app.config.get('MONGO_DB')
+            if db is None:
+                logger.error("Database connection not established")
+                return None
+                
+            # Find user by email
+            user = db.users.find_one({"email": email})
+            if not user:
+                logger.warning(f"No user found with email: {email}")
+                return None
+            
+            # Generate OTP
+            otp = User.generate_otp()
+            expires_at = datetime.utcnow() + timedelta(minutes=10)  # OTP expires in 10 minutes
+            
+            # Store OTP in database
+            otp_data = {
+                "email": email,
+                "otp": otp,
+                "expires_at": expires_at,
+                "used": False,
+                "created_at": datetime.utcnow()
+            }
+            
+            # Remove any existing OTPs for this email
+            db.password_reset_otps.delete_many({"email": email})
+            
+            # Insert new OTP
+            result = db.password_reset_otps.insert_one(otp_data)
+            
+            if result.inserted_id:
+                logger.info(f"Password reset OTP created successfully for {email}")
+                return {
+                    "otp": otp,
+                    "expires_at": expires_at,
+                    "user": {
+                        "username": user.get("username"),
+                        "email": user.get("email")
+                    }
+                }
+            else:
+                logger.error("Failed to insert OTP into database")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error creating password reset OTP: {e}")
+            return None
+    
+    @staticmethod
+    def verify_otp(email, otp):
+        """Verify the OTP for password reset"""
+        try:
+            logger.info(f"Verifying OTP for email: {email}")
+            
+            # Get database from current app context
+            from flask import current_app
+            db = current_app.config.get('MONGO_DB')
+            if db is None:
+                logger.error("Database connection not established")
+                return False
+                
+            # Find valid OTP - simplified query
+            otp_record = db.password_reset_otps.find_one({
+                "email": email,
+                "otp": str(otp),  # Ensure OTP is string
+                "used": False
+            })
+            
+            if not otp_record:
+                logger.warning(f"No unused OTP found for email: {email}")
+                return False
+                
+            # Check if OTP is expired
+            if otp_record.get('expires_at') and otp_record['expires_at'] < datetime.utcnow():
+                logger.warning(f"OTP expired for email: {email}")
+                return False
+            
+            # Mark OTP as used
+            db.password_reset_otps.update_one(
+                {"_id": otp_record["_id"]},
+                {"$set": {"used": True, "used_at": datetime.utcnow()}}
+            )
+            
+            logger.info(f"OTP verified successfully for email: {email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error verifying OTP: {e}")
+            return False
+    
+    @staticmethod
+    def reset_password(email, new_password):
+        """Reset user password"""
+        try:
+            logger.info(f"Resetting password for email: {email}")
+            
+            # Get database from current app context
+            from flask import current_app
+            db = current_app.config.get('MONGO_DB')
+            if db is None:
+                logger.error("Database connection not established")
+                return False
+                
+            # Find user by email
+            user = db.users.find_one({"email": email})
+            if not user:
+                logger.warning(f"No user found with email: {email}")
+                return False
+            
+            # Hash new password
+            hashed_password = generate_password_hash(new_password)
+            
+            # Update password
+            result = db.users.update_one(
+                {"email": email},
+                {"$set": {"password": hashed_password}}
+            )
+            
+            if result.modified_count > 0:
+                # Clean up any remaining OTPs for this email
+                db.password_reset_otps.delete_many({"email": email})
+                logger.info(f"Password reset successfully for email: {email}")
+                return True
+            else:
+                logger.error("Failed to update password")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error resetting password: {e}")
             return False

@@ -19,6 +19,9 @@ import AdminSettings from "./admin/pages/AdminSettings";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import VerifyOTP from "./pages/VerifyOTP";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Map from "./pages/Map";
 import StationsList from "./pages/StationsList";
@@ -129,6 +132,9 @@ const App = () => {
                       <Route path="/" element={<Home />} />
                       <Route path="/login" element={<Login />} />
                       <Route path="/register" element={<Register />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/verify-otp" element={<VerifyOTP />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
                       <Route path="/map" element={<Map />} />
                       <Route path="/map/all" element={<Map selectedStationType="all" />} />
                       <Route

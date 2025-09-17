@@ -1,0 +1,109 @@
+# ===========================================
+# ENVIRONMENT VARIABLES FOR OTP & FORGOT PASSWORD
+# ===========================================
+# Copy these variables to your .env file or set them as system environment variables
+
+# ===========================================
+# EMAIL CONFIGURATION (REQUIRED FOR OTP)
+# ===========================================
+
+# Gmail Configuration (Recommended)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USE_SSL=False
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_gmail_app_password_here
+MAIL_DEFAULT_SENDER=your_email@gmail.com
+
+# Alternative: Outlook/Hotmail Configuration
+# MAIL_SERVER=smtp-mail.outlook.com
+# MAIL_PORT=587
+# MAIL_USE_TLS=True
+# MAIL_USERNAME=your_email@outlook.com
+# MAIL_PASSWORD=your_outlook_password_here
+
+# Alternative: Yahoo Configuration
+# MAIL_SERVER=smtp.mail.yahoo.com
+# MAIL_PORT=587
+# MAIL_USE_TLS=True
+# MAIL_USERNAME=your_email@yahoo.com
+# MAIL_PASSWORD=your_yahoo_app_password_here
+
+# ===========================================
+# SETUP INSTRUCTIONS
+# ===========================================
+
+# FOR GMAIL (RECOMMENDED):
+# 1. Enable 2-Factor Authentication on your Gmail account
+# 2. Go to Google Account Settings > Security > App passwords
+# 3. Generate an App Password for "Mail"
+# 4. Use the App Password as MAIL_PASSWORD (not your regular Gmail password)
+# 5. Set MAIL_USERNAME to your Gmail address
+
+# FOR OUTLOOK/HOTMAIL:
+# 1. Use your regular Outlook password
+# 2. Make sure "Less secure app access" is enabled (if available)
+# 3. Or use App Password if 2FA is enabled
+
+# FOR YAHOO:
+# 1. Enable 2-Factor Authentication
+# 2. Generate an App Password
+# 3. Use the App Password as MAIL_PASSWORD
+
+# ===========================================
+# EXAMPLE .env FILE
+# ===========================================
+# Create a file named .env in the backend directory with these contents:
+
+# Database Configuration
+MONGO_URI=mongodb+srv://ujwolaryal:ujwolaryal@cluster0.6qjqj.mongodb.net/evcharging?retryWrites=true&w=majority
+
+# JWT Configuration
+JWT_SECRET=your_jwt_secret_key_here
+
+# Email Configuration for OTP
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USE_SSL=False
+MAIL_USERNAME=your_email@gmail.com
+MAIL_PASSWORD=your_gmail_app_password_here
+MAIL_DEFAULT_SENDER=your_email@gmail.com
+
+# Server Configuration
+PORT=5000
+HOST=0.0.0.0
+
+# ===========================================
+# TESTING THE CONFIGURATION
+# ===========================================
+# After setting up the environment variables:
+# 1. Start the backend server: python server.py
+# 2. Go to http://localhost:5173/forgot-password
+# 3. Enter a valid email address
+# 4. Check your email for the OTP
+# 5. Complete the password reset flow
+
+# ===========================================
+# TROUBLESHOOTING
+# ===========================================
+# If emails are not sending:
+# - Check your email credentials
+# - Ensure 2FA is enabled and App Password is correct
+# - Check firewall settings for SMTP port 587
+# - Verify Gmail "Less secure app access" is disabled (use App Passwords instead)
+# - Check the server logs for error messages
+
+# If you get "ModuleNotFoundError: No module named 'flask_mail'":
+# - Install Flask-Mail: pip install Flask-Mail==0.9.1
+# - Make sure you're in the correct virtual environment
+
+# ===========================================
+# SECURITY NOTES
+# ===========================================
+# - Never commit your .env file to version control
+# - Use strong, unique App Passwords
+# - Rotate your App Passwords regularly
+# - Keep your JWT_SECRET secure and random
+# - Use different email accounts for development and production
