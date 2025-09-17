@@ -341,7 +341,11 @@ class Booking:
             
             # If the charger type is available, assume 1 slot per type
             # This is a simplified approach - in a real system, you'd have more detailed charger info
-            total_slots = 1 if charger_type in connector_types else 0
+            if charger_type in connector_types:
+                total_slots = 1  # Each charger type gets 1 slot by default
+            else:
+                # If charger type not supported, return 0 slots
+                total_slots = 0
             
             if total_slots == 0:
                 return {

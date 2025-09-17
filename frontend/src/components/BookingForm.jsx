@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/useAuth";
+import axios from "../api/axios";
 
 const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => {
   const { isAuthenticated, user } = useAuth();
@@ -9,13 +10,35 @@ const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [timeSlots, setTimeSlots] = useState([]);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
 
-  // Extract charger types from station
-  const connectorTypes = station?.connector_types 
+  // Extract charger types from station and filter based on station capacity
+  let availableConnectorTypes = station?.connector_types 
     ? (typeof station.connector_types === 'string' 
         ? station.connector_types.split(' ').filter(type => type.trim())
         : station.connector_types)
     : ['CCS2'];
+  
+  // If station has only 1 slot, show only CCS2
+  // If station has more than 1 slot, show both CCS2 and GBT (if supported)
+  const totalSlots = station?.total_slots || 0;
+  if (totalSlots === 1) {
+    // Single slot station - only show CCS2
+    availableConnectorTypes = ['CCS2'];
+  } else if (totalSlots > 1) {
+    // Multi-slot station - show both CCS2 and GBT if supported
+    const supportedTypes = [];
+    if (availableConnectorTypes.includes('CCS2')) {
+      supportedTypes.push('CCS2');
+    }
+    if (availableConnectorTypes.includes('GBT')) {
+      supportedTypes.push('GBT');
+    }
+    availableConnectorTypes = supportedTypes.length > 0 ? supportedTypes : ['CCS2'];
+  }
+  
+  const connectorTypes = availableConnectorTypes;
 
   // Set default charger type when station changes
   useEffect(() => {
@@ -24,21 +47,46 @@ const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => 
     }
   }, [station, connectorTypes, chargerType]);
 
-  // Generate time slots from 6 AM to 10 PM
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 6; hour <= 22; hour++) {
-      const formattedHour = hour % 12 === 0 ? 12 : hour % 12;
-      const amPm = hour < 12 ? "AM" : "PM";
-      slots.push({
-        value: `${hour}:00`,
-        label: `${formattedHour}:00 ${amPm}`,
-      });
+  // Fetch time slots when date or charger type changes
+  useEffect(() => {
+    if (date && chargerType && station?.id) {
+      fetchTimeSlots();
     }
-    return slots;
+  }, [date, chargerType, station?.id]);
+
+  const fetchTimeSlots = async () => {
+    try {
+      setLoadingTimeSlots(true);
+      const response = await axios.post('/recommendations/get-time-slots', {
+        station_id: station.id,
+        charger_type: chargerType,
+        booking_date: date
+      });
+
+      if (response.data.success) {
+        setTimeSlots(response.data.time_slots);
+      } else {
+        setError('Failed to load time slots');
+      }
+    } catch (err) {
+      console.error('Error fetching time slots:', err);
+      setError('Error loading time slots');
+    } finally {
+      setLoadingTimeSlots(false);
+    }
   };
 
-  const timeSlots = generateTimeSlots();
+  const handleDateChange = (e) => {
+    setDate(e.target.value);
+    setTimeSlot(""); // Reset time slot when date changes
+    setTimeSlots([]); // Clear time slots
+  };
+
+  const handleChargerTypeChange = (e) => {
+    setChargerType(e.target.value);
+    setTimeSlot(""); // Reset time slot when charger type changes
+    setTimeSlots([]); // Clear time slots
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -138,7 +186,7 @@ const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => 
             type="date"
             id="date"
             value={date}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={handleDateChange}
             min={new Date().toISOString().split("T")[0]}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={!isAuthenticated || loading}
@@ -153,21 +201,43 @@ const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => 
           >
             Time Slot
           </label>
-          <select
-            id="timeSlot"
-            value={timeSlot}
-            onChange={(e) => setTimeSlot(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-            disabled={!isAuthenticated || loading}
-            required
-          >
-            <option value="">Select a time slot</option>
-            {timeSlots.map((slot) => (
-              <option key={slot.value} value={slot.value}>
-                {slot.label}
-              </option>
-            ))}
-          </select>
+          {loadingTimeSlots ? (
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-500 mt-2">Loading time slots...</p>
+            </div>
+          ) : timeSlots.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+              {timeSlots.map((slot) => (
+                <button
+                  key={slot.time}
+                  type="button"
+                  onClick={() => slot.available && setTimeSlot(slot.time)}
+                  disabled={!slot.available}
+                  className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                    timeSlot === slot.time
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : slot.available
+                      ? 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50'
+                      : 'border-red-200 bg-red-50 text-red-500 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="font-semibold">{slot.display_time}</div>
+                  <div className="text-xs mt-1">
+                    {slot.available ? (
+                      <span className="text-green-600">✓ {slot.available_slots}/{slot.total_slots} available</span>
+                    ) : (
+                      <span className="text-red-500">✗ BOOKED</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No time slots available for this date</p>
+            </div>
+          )}
         </div>
 
         <div className="mb-4">
@@ -180,7 +250,7 @@ const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => 
           <select
             id="chargerType"
             value={chargerType}
-            onChange={(e) => setChargerType(e.target.value)}
+            onChange={handleChargerTypeChange}
             className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
             disabled={!isAuthenticated || loading}
             required

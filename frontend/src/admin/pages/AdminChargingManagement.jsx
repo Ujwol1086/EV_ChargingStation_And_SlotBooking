@@ -31,11 +31,14 @@ const AdminChargingManagement = () => {
       }
       setError('');
 
+      // Add cache busting to ensure fresh data
+      const timestamp = new Date().getTime();
+      
       // Fetch all bookings
-      const allBookingsResponse = await axios.get('/admin/bookings');
+      const allBookingsResponse = await axios.get(`/admin/bookings?t=${timestamp}`);
       
       // Fetch completed bookings that need amount setting
-      const completedBookingsResponse = await axios.get('/admin/bookings/completed');
+      const completedBookingsResponse = await axios.get(`/admin/bookings/completed?t=${timestamp}`);
 
       if (allBookingsResponse.data.success) {
         console.log('All bookings data:', allBookingsResponse.data.bookings);
@@ -111,7 +114,11 @@ const AdminChargingManagement = () => {
       
       if (response.data.success) {
         showSuccess('✅ Booking marked as completed! Status updated to "completed". Now you can set the charging amount.');
-        fetchBookings();
+        // Refresh the page and redirect to needs setting tab
+        setActiveTab('completed');
+        await fetchBookings();
+        // Force a page refresh to ensure all data is updated
+        window.location.reload();
       } else {
         showError(response.data.error || 'Failed to mark as completed');
       }
@@ -126,7 +133,10 @@ const AdminChargingManagement = () => {
       
       if (response.data.success) {
         showSuccess(`✅ Payment verified successfully for booking ${bookingId}`);
-        fetchBookings(); // Refresh the bookings list
+        // Force refresh the bookings list and wait a bit for the database to update
+        setTimeout(() => {
+          fetchBookings();
+        }, 500);
       } else {
         showError(response.data.error || 'Failed to verify payment');
       }
@@ -584,6 +594,14 @@ const AdminChargingManagement = () => {
                         >
                           🔍 Verify Payment
                         </button>
+                      )}
+                      
+                      {/* Debug info for troubleshooting */}
+                      {booking.admin_amount_set && (
+                        <div className="text-xs text-gray-400 mt-1 p-1 bg-gray-50 rounded">
+                          Debug: payment_status={booking.payment_status}, 
+                          requires_payment={booking.requires_payment}
+                        </div>
                       )}
                       
                       {booking.status === 'confirmed' && booking.charging_completed && (

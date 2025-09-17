@@ -114,12 +114,32 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
 
   const availableSlots = station.available_slots || 0;
   const totalSlots = station.total_slots || 0;
-  // Parse connector_types string into array (e.g., "CCS2 GBT" -> ["CCS2", "GBT"])
-  const connectorTypes = station.connector_types 
+  
+  // Parse connector_types string into array and filter based on station capacity
+  let availableConnectorTypes = station.connector_types 
     ? (typeof station.connector_types === 'string' 
         ? station.connector_types.split(' ').filter(type => type.trim())
         : station.connector_types)
     : ['CCS2'];
+  
+  // If station has only 1 slot, show only CCS2
+  // If station has more than 1 slot, show both CCS2 and GBT (if supported)
+  if (totalSlots === 1) {
+    // Single slot station - only show CCS2
+    availableConnectorTypes = ['CCS2'];
+  } else if (totalSlots > 1) {
+    // Multi-slot station - show both CCS2 and GBT if supported
+    const supportedTypes = [];
+    if (availableConnectorTypes.includes('CCS2')) {
+      supportedTypes.push('CCS2');
+    }
+    if (availableConnectorTypes.includes('GBT')) {
+      supportedTypes.push('GBT');
+    }
+    availableConnectorTypes = supportedTypes.length > 0 ? supportedTypes : ['CCS2'];
+  }
+  
+  const connectorTypes = availableConnectorTypes;
 
   // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0];

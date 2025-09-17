@@ -927,7 +927,7 @@ def verify_payment_status(booking_id):
             # Test mode - simulate successful payment
             logger.info(f"Test mode: Simulating successful payment verification for {booking_id}")
             
-            # Update booking to paid status
+            # Update booking to paid status using the same logic as the payment routes
             result = mongo.db.bookings.update_one(
                 {"booking_id": booking_id},
                 {"$set": {
@@ -936,11 +936,17 @@ def verify_payment_status(booking_id):
                     "requires_payment": False,
                     "payment_verified": True,
                     "payment_completed_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.utcnow(),
+                    "payment_data.verified_at": datetime.utcnow(),
+                    "payment_data.test_mode": True
                 }}
             )
             
             if result.modified_count > 0:
+                logger.info(f"✅ Successfully updated payment status for booking {booking_id}")
+                # Verify the update by fetching the updated booking
+                updated_booking = mongo.db.bookings.find_one({"booking_id": booking_id})
+                logger.info(f"🔍 Updated booking payment_status: {updated_booking.get('payment_status')}")
                 return jsonify({
                     'success': True,
                     'message': 'Payment verified successfully (test mode)',
@@ -949,6 +955,7 @@ def verify_payment_status(booking_id):
                     'test_mode': True
                 })
             else:
+                logger.error(f"❌ Failed to update payment status for booking {booking_id}")
                 return jsonify({
                     'success': False,
                     'error': 'Failed to update payment status'
