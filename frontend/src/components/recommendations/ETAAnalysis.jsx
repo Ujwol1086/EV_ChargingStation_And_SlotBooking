@@ -35,9 +35,6 @@ const ETAAnalysis = ({ eta_analysis }) => {
             <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs rounded-full border border-green-500/30">
               {eta_analysis.factors_applied.traffic_condition} traffic
             </span>
-            <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs rounded-full border border-green-500/30">
-              {eta_analysis.factors_applied.weather}
-            </span>
           </div>
         </div>
       )}

@@ -14,11 +14,10 @@ const BookingPage = () => {
   const [station, setStation] = useState(location.state?.station || null);
   const [loading, setLoading] = useState(!station);
   const [formData, setFormData] = useState({
-    charger_type: '',
-    plug_type: '',
+    charger_type: 'CCS2', // Set default charger type
+    plug_type: 'CCS2',
     booking_date: '',
-    booking_time: '',
-    urgency_level: 'medium'
+    booking_time: ''
   });
   const [timeSlots, setTimeSlots] = useState([]);
   const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
@@ -38,17 +37,55 @@ const BookingPage = () => {
   }, [isAuthenticated, station, stationId]);
 
   useEffect(() => {
-    if (station && !formData.charger_type) {
+    if (station) {
       // Extract charger types from connector_types (handle both string and array formats)
-      const chargerTypes = station.connector_types 
+      let chargerTypes = station.connector_types 
         ? (typeof station.connector_types === 'string' 
             ? station.connector_types.split(' ').filter(type => type.trim())
             : station.connector_types)
         : ['CCS2'];
+      
+      // Map legacy charger types to new types
+      const mapLegacyTypes = (types) => {
+        return types.map(type => {
+          switch(type.toLowerCase()) {
+            case 'type 2':
+            case 'type2':
+              return 'CCS2';
+            case 'type 1':
+            case 'type1':
+              return 'GBT';
+            case 'ccs2':
+            case 'gbt':
+              return type.toUpperCase();
+            default:
+              return 'CCS2'; // Default fallback
+          }
+        });
+      };
+      
+      chargerTypes = mapLegacyTypes(chargerTypes);
+      
+      // Update charger type based on station capacity
+      const totalSlots = station.total_slots || 0;
+      let selectedChargerType = 'CCS2';
+      
+      if (totalSlots === 1) {
+        // Single slot station - only show CCS2
+        selectedChargerType = 'CCS2';
+      } else if (totalSlots > 1) {
+        // Multi-slot station - show both CCS2 and GBT if supported
+        if (chargerTypes.includes('CCS2')) {
+          selectedChargerType = 'CCS2';
+        } else if (chargerTypes.includes('GBT')) {
+          selectedChargerType = 'GBT';
+        }
+      }
+      
       setFormData(prev => ({
         ...prev,
-        charger_type: chargerTypes[0] || 'CCS2',
-        plug_type: chargerTypes[0] || 'CCS2'
+        charger_type: selectedChargerType,
+        plug_type: selectedChargerType
       }));
     }
   }, [station]);
@@ -130,7 +167,6 @@ const BookingPage = () => {
         station_id: station.id,
         charger_type: formData.charger_type,
         plug_type: formData.plug_type,
-        urgency_level: formData.urgency_level,
         preferred_date: formData.booking_date,
         preferred_time: formData.booking_time,
         station_details: station
@@ -232,12 +268,54 @@ const BookingPage = () => {
 
   const availableSlots = station.available_slots || 0;
   const totalSlots = station.total_slots || 0;
-  // Parse connector_types string into array (e.g., "CCS2 GBT" -> ["CCS2", "GBT"])
-  const connectorTypes = station.connector_types 
+  
+  // Parse connector_types string into array and filter based on station capacity
+  let availableConnectorTypes = station.connector_types 
     ? (typeof station.connector_types === 'string' 
         ? station.connector_types.split(' ').filter(type => type.trim())
         : station.connector_types)
-    : ['CCS2', 'GBT'];
+    : ['CCS2'];
+  
+  // Map legacy charger types to new types
+  const mapLegacyTypes = (types) => {
+    return types.map(type => {
+      switch(type.toLowerCase()) {
+        case 'type 2':
+        case 'type2':
+          return 'CCS2';
+        case 'type 1':
+        case 'type1':
+          return 'GBT';
+        case 'ccs2':
+        case 'gbt':
+          return type.toUpperCase();
+        default:
+          return 'CCS2'; // Default fallback
+      }
+    });
+  };
+  
+  availableConnectorTypes = mapLegacyTypes(availableConnectorTypes);
+  
+  // If station has only 1 slot, show only CCS2
+  // If station has more than 1 slot, show both CCS2 and GBT (if supported)
+  if (totalSlots === 1) {
+    // Single slot station - only show CCS2
+    availableConnectorTypes = ['CCS2'];
+  } else if (totalSlots > 1) {
+    // Multi-slot station - show both CCS2 and GBT if supported
+    const supportedTypes = [];
+    if (availableConnectorTypes.includes('CCS2')) {
+      supportedTypes.push('CCS2');
+    }
+    if (availableConnectorTypes.includes('GBT')) {
+      supportedTypes.push('GBT');
+    }
+    availableConnectorTypes = supportedTypes.length > 0 ? supportedTypes : ['CCS2'];
+  }
+  
+  const connectorTypes = availableConnectorTypes;
+  
   const today = new Date().toISOString().split('T')[0];
 
   return (
@@ -456,22 +534,6 @@ const BookingPage = () => {
                   </div>
                 )}
 
-                {/* Urgency Level */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Urgency Level
-                  </label>
-                  <select
-                    name="urgency_level"
-                    value={formData.urgency_level}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="low">🟢 Low - I can wait</option>
-                    <option value="medium">🟡 Medium - Preferred time</option>
-                    <option value="high">🔴 High - Urgent charging needed</option>
-                  </select>
-                </div>
 
                 {/* Submit Button */}
                 <div className="flex gap-4 pt-6">

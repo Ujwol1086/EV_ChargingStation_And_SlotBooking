@@ -95,8 +95,7 @@ const RouteMap = () => {
   const [etaInfo, setEtaInfo] = useState(null);
   const [etaSettings, setEtaSettings] = useState({
     drivingMode: 'random',
-    trafficCondition: 'light',
-    weather: 'clear'
+    trafficCondition: 'light'
   });
   const mapRef = useRef(null);
 

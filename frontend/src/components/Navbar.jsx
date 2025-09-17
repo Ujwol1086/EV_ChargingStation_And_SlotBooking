@@ -94,13 +94,6 @@ export default function Navbar() {
               )}
             </div>
 
-            <Link
-              to="/locations"
-              className="relative text-gray-300 hover:text-white transition-colors duration-300 group text-lg font-medium"
-            >
-              Locations
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-400 group-hover:w-full transition-all duration-300"></span>
-            </Link>
 
             <Link
               to="/recommendations"
@@ -218,13 +211,6 @@ export default function Navbar() {
                   )}
                 </div>
 
-                <Link
-                  to="/locations"
-                  className="text-gray-300 hover:text-white transition-colors duration-300 text-base font-medium py-1.5"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Locations
-                </Link>
                 <Link
                   to="/trip-planner"
                   className="text-gray-300 hover:text-white transition-colors duration-300 text-base font-medium py-1.5"

@@ -13,7 +13,6 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
   const [urgencyLevel, setUrgencyLevel] = useState("medium");
   const [terrain, setTerrain] = useState("flat");
   const [trafficCondition, setTrafficCondition] = useState("light");
-  const [weather, setWeather] = useState("clear");
   const [drivingMode, setDrivingMode] = useState("random");
   const [destinationCity, setDestinationCity] = useState("");
   const [maxDetourKm, setMaxDetourKm] = useState(20);
@@ -54,7 +53,6 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
       urgency_level: urgencyLevel,
       terrain,
       traffic_condition: trafficCondition,
-      weather,
       driving_mode: drivingMode,
       destination_city: destinationCity,
       max_detour_km: maxDetourKm,
@@ -164,8 +162,6 @@ const RecommendationForm = ({ onSubmit, loading = false }) => {
           onTerrainChange={setTerrain}
           trafficCondition={trafficCondition}
           onTrafficConditionChange={setTrafficCondition}
-          weather={weather}
-          onWeatherChange={setWeather}
           drivingMode={drivingMode}
           onDrivingModeChange={setDrivingMode}
         />

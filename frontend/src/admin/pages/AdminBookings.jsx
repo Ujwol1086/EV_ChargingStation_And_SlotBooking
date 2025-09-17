@@ -156,11 +156,13 @@ const AdminBookings = () => {
       });
 
       if (response.data.success) {
-        showSuccess('Charging amount set successfully! User will be notified.');
+        showSuccess('💰 Charging amount set successfully! Redirecting to charging management...');
         setShowAmountModal(false);
         setSelectedBooking(null);
-        // Refresh bookings
-        fetchBookings();
+        // Redirect to charging management page after a short delay
+        setTimeout(() => {
+          window.location.href = '/admin/charging-management';
+        }, 1500);
       } else {
         showError(response.data.error || 'Failed to set amount');
       }
@@ -177,13 +179,16 @@ const AdminBookings = () => {
       const response = await axios.post(`/admin/bookings/${bookingId}/mark-completed`);
       
       if (response.data.success) {
-        alert('Booking marked as charging completed');
-        fetchBookings();
+        showSuccess('✅ Booking marked as completed! Redirecting to charging management...');
+        // Redirect to charging management page and refresh
+        setTimeout(() => {
+          window.location.href = '/admin/charging-management';
+        }, 1500);
       } else {
-        alert(response.data.error || 'Failed to mark as completed');
+        showError(response.data.error || 'Failed to mark as completed');
       }
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to mark booking as completed');
+      showError(err.response?.data?.error || 'Failed to mark booking as completed');
     }
   };
 

@@ -5,8 +5,6 @@ const TripSettings = ({
   onTerrainChange,
   trafficCondition,
   onTrafficConditionChange,
-  weather,
-  onWeatherChange,
   drivingMode,
   onDrivingModeChange
 }) => {
@@ -62,22 +60,6 @@ const TripSettings = ({
         </select>
       </div>
 
-      {/* Weather */}
-      <div className="space-y-3">
-        <label className="block text-sm font-medium text-gray-300">
-          Weather Condition
-        </label>
-        <select
-          value={weather}
-          onChange={(e) => onWeatherChange(e.target.value)}
-          className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-white transition-all duration-300 hover:border-gray-500"
-        >
-          <option value="clear">Clear - Sunny</option>
-          <option value="cloudy">Cloudy - Overcast</option>
-          <option value="rainy">Rainy - Wet conditions</option>
-          <option value="snowy">Snowy - Winter conditions</option>
-        </select>
-      </div>
 
       {/* Driving Mode */}
       <div className="space-y-3">
