@@ -237,7 +237,7 @@ const BookingPage = () => {
     ? (typeof station.connector_types === 'string' 
         ? station.connector_types.split(' ').filter(type => type.trim())
         : station.connector_types)
-    : ['CCS2', 'GBT'];
+    : ['CCS2'];
   const today = new Date().toISOString().split('T')[0];
 
   return (

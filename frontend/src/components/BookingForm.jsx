@@ -1,7 +1,7 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/useAuth";
 
-const BookingForm = ({ stationId, stationName, onBookingComplete }) => {
+const BookingForm = ({ stationId, stationName, station, onBookingComplete }) => {
   const { isAuthenticated, user } = useAuth();
   const [date, setDate] = useState("");
   const [timeSlot, setTimeSlot] = useState("");
@@ -9,6 +9,20 @@ const BookingForm = ({ stationId, stationName, onBookingComplete }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  // Extract charger types from station
+  const connectorTypes = station?.connector_types 
+    ? (typeof station.connector_types === 'string' 
+        ? station.connector_types.split(' ').filter(type => type.trim())
+        : station.connector_types)
+    : ['CCS2'];
+
+  // Set default charger type when station changes
+  useEffect(() => {
+    if (station && !chargerType) {
+      setChargerType(connectorTypes[0] || 'CCS2');
+    }
+  }, [station, connectorTypes, chargerType]);
 
   // Generate time slots from 6 AM to 10 PM
   const generateTimeSlots = () => {
@@ -172,8 +186,9 @@ const BookingForm = ({ stationId, stationName, onBookingComplete }) => {
             required
           >
             <option value="">Select charger type</option>
-            <option value="CCS2">CCS2</option>
-            <option value="GBT">GBT</option>
+            {connectorTypes.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
           </select>
         </div>
 

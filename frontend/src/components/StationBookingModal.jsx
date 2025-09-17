@@ -114,7 +114,12 @@ const StationBookingModal = ({ station, isOpen, onClose, onBookingSuccess }) => 
 
   const availableSlots = station.available_slots || 0;
   const totalSlots = station.total_slots || 0;
-  const connectorTypes = station.connector_types || ['CCS2', 'GBT'];
+  // Parse connector_types string into array (e.g., "CCS2 GBT" -> ["CCS2", "GBT"])
+  const connectorTypes = station.connector_types 
+    ? (typeof station.connector_types === 'string' 
+        ? station.connector_types.split(' ').filter(type => type.trim())
+        : station.connector_types)
+    : ['CCS2'];
 
   // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0];

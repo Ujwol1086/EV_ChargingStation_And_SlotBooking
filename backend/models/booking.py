@@ -241,13 +241,16 @@ class Booking:
                 return {'available_slots': 0, 'total_slots': 0}
             
             # Count chargers by type
-            chargers = station.get('chargers', [])
+            connector_types = station.get('connector_types', [])
+            if isinstance(connector_types, str):
+                connector_types = connector_types.split(' ')
+            
             if charger_type:
-                # Filter by specific charger type
-                type_chargers = [c for c in chargers if c.get('type') == charger_type]
-                total_slots = len(type_chargers)
+                # Check if the station has the requested charger type
+                total_slots = 1 if charger_type in connector_types else 0
             else:
-                total_slots = len(chargers)
+                # Count all available connector types
+                total_slots = len(connector_types)
             
             if total_slots == 0:
                 return {'available_slots': 0, 'total_slots': 0}
@@ -331,9 +334,14 @@ class Booking:
                 }
             
             # Count chargers of the specified type
-            chargers = station.get('chargers', [])
-            type_chargers = [c for c in chargers if c.get('type') == charger_type]
-            total_slots = len(type_chargers)
+            # Check if the station has the requested charger type in connector_types
+            connector_types = station.get('connector_types', [])
+            if isinstance(connector_types, str):
+                connector_types = connector_types.split(' ')
+            
+            # If the charger type is available, assume 1 slot per type
+            # This is a simplified approach - in a real system, you'd have more detailed charger info
+            total_slots = 1 if charger_type in connector_types else 0
             
             if total_slots == 0:
                 return {

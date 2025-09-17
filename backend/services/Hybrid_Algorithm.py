@@ -111,12 +111,6 @@ class HybridAlgorithm:
                 'hilly': 0.8,       # 20% slower on hilly terrain
                 'steep': 0.6        # 40% slower on steep terrain
             },
-            'weather_impact': {
-                'clear': 1.0,       # No impact in clear weather
-                'rain': 0.9,        # 10% slower in rain
-                'fog': 0.7,         # 30% slower in fog
-                'snow': 0.5         # 50% slower in snow
-            },
 
         }
         
@@ -406,7 +400,7 @@ class HybridAlgorithm:
         }
 
     def calculate_eta(self, distance_km, driving_mode='random', traffic_condition='light', 
-                     terrain='flat', weather='clear', custom_speed=None):
+                     terrain='flat', custom_speed=None):
         """
         Calculate Estimated Time of Arrival (ETA) using hardcoded algorithms
         
@@ -415,7 +409,6 @@ class HybridAlgorithm:
             driving_mode: 'economy', 'sports', 'random'
             traffic_condition: 'heavy', 'medium', 'light'
             terrain: 'flat', 'hilly', 'steep'
-            weather: 'clear', 'rain', 'fog', 'snow'
             custom_speed: Custom speed override in km/h (optional)
         
         Returns:
@@ -434,11 +427,8 @@ class HybridAlgorithm:
             # Apply terrain impact
             terrain_multiplier = self.eta_factors['terrain_speed_impact'].get(terrain, 1.0)
             
-            # Apply weather impact
-            weather_multiplier = self.eta_factors['weather_impact'].get(weather, 1.0)
-            
             # Calculate effective speed
-            effective_speed = base_speed * traffic_multiplier * terrain_multiplier * weather_multiplier
+            effective_speed = base_speed * traffic_multiplier * terrain_multiplier
         
         # Ensure minimum speed of 5 km/h and maximum of 120 km/h
         effective_speed = max(5, min(120, effective_speed))
@@ -481,13 +471,12 @@ class HybridAlgorithm:
                 'driving_mode': driving_mode,
                 'traffic_condition': traffic_condition,
                 'terrain': terrain,
-                'weather': weather,
                 'custom_speed_used': custom_speed is not None
             }
         }
 
     def calculate_route_eta(self, waypoints, driving_mode='random', traffic_condition='light', 
-                           terrain='flat', weather='clear', custom_speed=None):
+                           terrain='flat', custom_speed=None):
         """
         Calculate ETA for a route with multiple waypoints
         
@@ -496,7 +485,6 @@ class HybridAlgorithm:
             driving_mode: 'economy', 'sports', 'random'
             traffic_condition: Traffic condition
             terrain: Terrain type
-            weather: Weather condition
             custom_speed: Custom speed override
         
         Returns:
@@ -524,7 +512,7 @@ class HybridAlgorithm:
             # Calculate ETA for this segment
             segment_eta = self.calculate_eta(
                 segment_distance, driving_mode, traffic_condition, 
-                terrain, weather, custom_speed
+                terrain, custom_speed
             )
             
             segment_etas.append({
@@ -538,7 +526,7 @@ class HybridAlgorithm:
         # Calculate total ETA
         total_eta = self.calculate_eta(
             total_distance, driving_mode, traffic_condition, 
-            terrain, weather, custom_speed
+            terrain, custom_speed
         )
         
         return {
@@ -664,11 +652,9 @@ class HybridAlgorithm:
         # 4. ETA Calculation
         driving_mode = user_context.get('driving_mode', 'random')
         traffic_condition = user_context.get('traffic_condition', 'light')
-        weather = user_context.get('weather', 'clear')
-        
         eta_analysis = self.calculate_eta(
             distance, driving_mode, traffic_condition, 
-            terrain, weather
+            terrain
         )
         
         # 5. FIXED: Enhanced Urgency score with distance-dependent logic
