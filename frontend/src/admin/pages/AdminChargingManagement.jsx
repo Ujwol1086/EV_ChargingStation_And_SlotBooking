@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import { useToast } from '../../context/ToastContext';
 
 const AdminChargingManagement = () => {
+  const navigate = useNavigate();
+  const { showSuccess, showError } = useToast();
   const [completedBookings, setCompletedBookings] = useState([]);
   const [allBookings, setAllBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +23,13 @@ const AdminChargingManagement = () => {
 
   useEffect(() => {
     fetchBookings();
+    
+    // Check for tab parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam && ['completed', 'active', 'all'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
   }, []);
 
   const fetchBookings = async (showRefreshIndicator = false) => {
@@ -71,6 +81,18 @@ const AdminChargingManagement = () => {
     setShowAmountModal(true);
   };
 
+  const handleCloseModal = () => {
+    setShowAmountModal(false);
+    setSelectedBooking(null);
+    setAmountForm({
+      amount_npr: '',
+      charging_duration_minutes: '',
+      notes: ''
+    });
+    setError('');
+
+  };
+
   const handleAmountSubmit = async (e) => {
     e.preventDefault();
     
@@ -91,18 +113,19 @@ const AdminChargingManagement = () => {
 
       if (response.data.success) {
         showSuccess('💰 Charging amount set successfully! The user will now see a payment notification in their dashboard and can pay with Khalti.');
-        setShowAmountModal(false);
-        setSelectedBooking(null);
-        // Switch to completed tab (needs amount setting) to show the updated booking
-        setActiveTab('completed');
-        // Refresh bookings
-        fetchBookings();
+        handleCloseModal();
+        // Navigate to all bookings tab in charging management
+        navigate('/admin/charging');
       } else {
         showError(response.data.error || 'Failed to set amount');
+        // Close modal on error as well
+        handleCloseModal();
       }
 
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to set charging amount');
+      // Close modal on error as well
+      handleCloseModal();
     } finally {
       setSettingAmount(false);
     }
@@ -719,7 +742,7 @@ const AdminChargingManagement = () => {
                 <div className="flex justify-end space-x-3 pt-6">
                   <button
                     type="button"
-                    onClick={() => setShowAmountModal(false)}
+                    onClick={handleCloseModal}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
                   >
                     Cancel
@@ -728,6 +751,7 @@ const AdminChargingManagement = () => {
                     type="submit"
                     disabled={settingAmount}
                     className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:opacity-50 transition-colors font-medium flex items-center gap-2"
+                    
                   >
                     {settingAmount ? (
                       <>
