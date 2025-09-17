@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import Notification from '../../components/Notification';
 import { useToast } from '../../context/ToastContext';
 
 const AdminBookings = () => {
+  const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [completedBookings, setCompletedBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -137,6 +139,17 @@ const AdminBookings = () => {
     setShowAmountModal(true);
   };
 
+  const handleCloseModal = () => {
+    setShowAmountModal(false);
+    setSelectedBooking(null);
+    setAmountForm({
+      amount_npr: '',
+      charging_duration_minutes: '',
+      notes: ''
+    });
+    setNotification(null);
+  };
+
   const handleAmountSubmit = async (e) => {
     e.preventDefault();
     
@@ -157,18 +170,21 @@ const AdminBookings = () => {
 
       if (response.data.success) {
         showSuccess('💰 Charging amount set successfully! Redirecting to charging management...');
-        setShowAmountModal(false);
-        setSelectedBooking(null);
-        // Redirect to charging management page after a short delay
+        handleCloseModal();
+        // Navigate to charging management page (all bookings tab) after a short delay
         setTimeout(() => {
-          window.location.href = '/admin/charging-management';
+          navigate('/admin/charging-management?tab=all');
         }, 1500);
       } else {
         showError(response.data.error || 'Failed to set amount');
+        // Close modal on error as well
+        handleCloseModal();
       }
 
     } catch (err) {
       showError(err.response?.data?.error || 'Failed to set charging amount');
+      // Close modal on error as well
+      handleCloseModal();
     } finally {
       setSettingAmount(false);
     }
