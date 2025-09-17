@@ -111,24 +111,22 @@ const Map = ({ selectedStationType }) => {
 
   if (loading)
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading charging stations...</p>
-          </div>
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading charging stations...</p>
         </div>
       </div>
     );
 
   if (error)
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-          <h2 className="text-xl font-bold text-red-800 mb-2">
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-gray-950 text-white flex items-center justify-center">
+        <div className="bg-red-900/50 border border-red-700 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-bold text-red-300 mb-2">
             Error Loading Map
           </h2>
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-red-400 mb-4">{error}</p>
           <button
             onClick={fetchStations}
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
