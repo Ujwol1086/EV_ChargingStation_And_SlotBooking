@@ -3,8 +3,10 @@ from models.user import User
 from config.auth import generate_token, decode_token
 from services.google_oauth_service import GoogleOAuthService
 from config.google_config import FRONTEND_OAUTH_REDIRECT
+from config.email_config import send_otp_email
 import json
 import logging
+from datetime import datetime
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -174,3 +176,114 @@ def get_me():
     user["id"] = user["_id"]
     
     return jsonify({"user": user}), 200
+
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    """Send OTP for password reset"""
+    try:
+        data = request.get_json()
+        
+        # Validate request data
+        if not data or not data.get('email'):
+            return jsonify({"error": "Email is required"}), 400
+        
+        email = data.get('email').strip().lower()
+        
+        # Create OTP
+        otp_result = User.create_password_reset_otp(email)
+        
+        if not otp_result:
+            # Don't reveal if email exists or not for security
+            return jsonify({
+                "message": "If an account with this email exists, you will receive an OTP shortly."
+            }), 200
+        
+        # Send OTP email
+        email_sent = send_otp_email(
+            email=email,
+            otp=otp_result['otp'],
+            username=otp_result['user']['username']
+        )
+        
+        if email_sent:
+            return jsonify({
+                "message": "OTP sent successfully. Please check your email.",
+                "expires_in": 600  # 10 minutes in seconds
+            }), 200
+        else:
+            return jsonify({
+                "error": "Failed to send OTP email. Please try again later."
+            }), 500
+            
+    except Exception as e:
+        logger.exception("Forgot password error")
+        return jsonify({"error": "An error occurred. Please try again later."}), 500
+
+@auth_bp.route('/verify-otp', methods=['POST'])
+def verify_otp():
+    """Verify OTP for password reset"""
+    try:
+        data = request.get_json()
+        
+        # Validate request data
+        if not data or not data.get('email') or not data.get('otp'):
+            return jsonify({"error": "Email and OTP are required"}), 400
+        
+        email = data.get('email').strip().lower()
+        otp = data.get('otp').strip()
+        
+        # Verify OTP
+        is_valid = User.verify_otp(email, otp)
+        
+        if is_valid:
+            return jsonify({
+                "message": "OTP verified successfully. You can now reset your password."
+            }), 200
+        else:
+            return jsonify({
+                "error": "Invalid or expired OTP. Please try again."
+            }), 400
+            
+    except Exception as e:
+        logger.exception("Verify OTP error")
+        return jsonify({"error": "An error occurred. Please try again later."}), 500
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """Reset user password with OTP verification"""
+    try:
+        data = request.get_json()
+        
+        # Validate request data
+        if not data or not data.get('email') or not data.get('otp') or not data.get('new_password'):
+            return jsonify({"error": "Email, OTP, and new password are required"}), 400
+        
+        email = data.get('email').strip().lower()
+        otp = data.get('otp').strip()
+        new_password = data.get('new_password')
+        
+        # Validate password strength
+        if len(new_password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters long"}), 400
+        
+        # OTP verification is not needed here since it's already verified
+        # and user is redirected from verify-otp page
+        logger.info(f"Resetting password for: {email}")
+        
+        # Reset password
+        password_reset = User.reset_password(email, new_password)
+        
+        if password_reset:
+            logger.info(f"Password reset successful for: {email}")
+            return jsonify({
+                "message": "Password reset successfully. You can now login with your new password."
+            }), 200
+        else:
+            logger.error(f"Password reset failed for: {email}")
+            return jsonify({
+                "error": "Failed to reset password. Please try again."
+            }), 500
+            
+    except Exception as e:
+        logger.exception("Reset password error")
+        return jsonify({"error": "An error occurred. Please try again later."}), 500

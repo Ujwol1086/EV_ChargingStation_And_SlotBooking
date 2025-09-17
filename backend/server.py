@@ -1,6 +1,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 from config.database import init_db, mongo
+from config.email_config import init_email
 from routes.auth_routes import auth_bp
 from routes.stations_routes import stations_bp
 from routes.recommendation_routes import recommendation_bp
@@ -49,6 +50,18 @@ def create_app():
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         # Continue running the app even if DB fails, so we can show error messages
+    
+    # Initialize email service
+    try:
+        logger.info("Initializing email service...")
+        email_init = init_email(app)
+        if email_init:
+            logger.info("Email service initialized successfully")
+        else:
+            logger.warning("Email service initialization failed - forgot password feature will not work")
+    except Exception as e:
+        logger.error(f"Failed to initialize email service: {e}")
+        logger.warning("Email service initialization failed - forgot password feature will not work")
     
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
